@@ -11,7 +11,6 @@ plot({
 	xlabel		=> '# of Days',
 	ylabel		=> 'Count (Applications)',
 	title			=> 'Rejections by Days',
-	execute		=> 0,
 	'input.file'=> $tmp_filename,
 });
 ```
