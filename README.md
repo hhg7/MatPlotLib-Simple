@@ -1,17 +1,30 @@
-Simplest use case:
+# Synopsis
 
-Making a bar plot from a hash:
+Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in `/tmp`, to be edited at the user's discretion.
+Simplest use case:
 ```
+use Matplotlib::Simple 'plot';
 plot({
-	'output.filename'			=> 'svg/single.barplot.svg',
+	'output.filename'			=> 'output.images/single.barplot.png',
 	data	=> { # simple hash
 		Fri => 76, Mon	=> 73, Sat => 26, Sun => 11, Thu	=> 94, Tue	=> 93, Wed	=> 77
 	},
 	'plot.type'	=> 'bar',
 	xlabel		=> '# of Days',
-	ylabel		=> 'Count (Applications)',
-	title			=> 'Rejections by Days',
-	'input.file'=> $tmp_filename,
+	ylabel		=> 'Count',
+	title		=> 'Customer Calls by Days'
 });
 ```
-<img width="651" height="491" alt="single barplot" src="https://github.com/user-attachments/assets/05f164d4-f330-41ab-b04f-1d5ac786b58b" />
+where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `plot.type`, `data`, `input.file` are all specific to `MatPlotLib::Simple`.
+
+<img width="651" height="491" alt="single barplot" src="https://github.com/user-attachments/assets/f4abf891-47f9-45b0-a9c4-96934fcead24" />
+
+# Plot Types
+
+`bar`, `barh`, `boxplot`, `hexbin`, `hist`, `pie`, `plot`, `scatter`, `violinplot` all match the methods in matplotlib itself.
+
+# Single Plots
+
+
+
+# Multiple Plots
