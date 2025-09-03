@@ -244,4 +244,7 @@ plot({
 	nrows	=> 4
 });
 ```
+which produces the plot:
+<img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/72994238-f1af-47b2-8bbd-959281fa184e" />
+
 # Advanced
