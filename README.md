@@ -3,8 +3,6 @@
 Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in `/tmp`, to be edited at the user's discretion.
 Simplest use case:
 ```
-use feature 'say';
-use File::Temp 'tempfile';
 use Matplotlib::Simple 'plot';
 plot({
 	'output.filename'			=> 'output.images/single.barplot.png',
@@ -71,6 +69,52 @@ sub rand_between {
 	return $min + rand($max - $min)
 }
 ```
+## Barplot/bar/barh
+```
+use Matplotlib::Simple 'plot';
+plot({
+	'output.filename'			=> 'output.images/single.barplot.png',
+	data	=> { # simple hash
+		Fri => 76, Mon	=> 73, Sat => 26, Sun => 11, Thu	=> 94, Tue	=> 93, Wed	=> 77
+	},
+	'plot.type'	=> 'bar',
+	xlabel		=> '# of Days',
+	ylabel		=> 'Count',
+	title		=> 'Customer Calls by Days'
+});
+```
+where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `plot.type`, `data`, `input.file` are all specific to `MatPlotLib::Simple`.
+<img width="651" height="491" alt="single barplot" src="https://github.com/user-attachments/assets/eae009a8-5571-4608-abdb-1016e3cff5fd" />
+### Options
+| Option | Description | Example |
+| -------- | ------- | ------- 
+|color| :mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed|`color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],`
+|edgecolor| :mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar edges.|
+|key.order|  define the keys in an order (an array reference)|
+|label| an array of labels for grouped bar plots|
+|linewidth| float or array, optional; Width of the bar edge(s). If 0, don't draw edges|
+|log| bool, default: False; If *True*, set the y-axis to be log scale.|
+|stacked| stack the groups on top of one another; default 0 = off|
+|width| float or array, default: 0.8; The width(s) of the bars.|
+|xerr| float or array-like of shape(N,) or shape(2, N), optional. If not *None*, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - *None*: No errorbar. (Default)|
+|yerr|same as xerr, but better with bar|
+ 
+## hexbin
+```
+plot({
+	data	=> {
+		E	=> generate_normal_dist(100, 15, 3*210),
+		B	=> generate_normal_dist(85, 15, 3*210)
+	},
+	'output.filename'	=> 'output.images/single.hexbin.png',
+	'plot.type'	=> 'hexbin',
+	set_figwidth => 12,
+	title			=> 'Simple Hexbin',
+});
+```
+which makes the following plot:
+
+<img width="1210" height="491" alt="hexbin" src="https://github.com/user-attachments/assets/981da5c4-2ef7-4864-85fe-25724bb78911" />
 
 
 # Multiple Plots
@@ -245,6 +289,6 @@ plot({
 });
 ```
 which produces the plot:
-<img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/72994238-f1af-47b2-8bbd-959281fa184e" />
+<img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/3b36f0e9-8ec1-48c8-85ab-3389dab50d96" />
 
 # Advanced
