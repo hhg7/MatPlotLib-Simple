@@ -301,7 +301,7 @@ plot({
 ```
 which produces the plot:
 
-<img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/a61e5f36-bad8-4191-9a53-fa6312562c9a" />
+<img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/6d87d13b-dabd-485d-92f7-1418f4acc65b" />
 
 ## hexbin
 ```
