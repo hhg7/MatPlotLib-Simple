@@ -1,29 +1,60 @@
 # Synopsis
 
 Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in `/tmp`, to be edited at the user's discretion.
+## Single Plots
 Simplest use case:
 ```
 use Matplotlib::Simple 'plot';
 plot({
-	'output.filename'			=> 'output.images/single.barplot.png',
-	data	=> { # simple hash
-		Fri => 76, Mon	=> 73, Sat => 26, Sun => 11, Thu	=> 94, Tue	=> 93, Wed	=> 77
-	},
-	'plot.type'	=> 'bar',
-	xlabel		=> '# of Days',
-	ylabel		=> 'Count',
-	title		=> 'Customer Calls by Days'
+	'output.filename' => '/tmp/gospel.word.counts.png',
+	'plot.type'       => 'bar',
+	data              => {
+		Matthew => 18345,
+		Mark    => 11304,
+		Luke    => 19482,
+		John    => 15635,
+	}
 });
 ```
 where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `plot.type`, `data`, `input.file` are all specific to `MatPlotLib::Simple`.
 
-<img width="651" height="491" alt="single barplot" src="https://github.com/user-attachments/assets/f4abf891-47f9-45b0-a9c4-96934fcead24" />
+<img width="651" height="491" alt="gospel word counts" src="https://github.com/user-attachments/assets/a008dece-2e34-47bf-af0f-8603709f7d52" />
 
-# Plot Types
+## Multiple Plots
+
+Having a `plots` argument as an array lets the module know to create subplots:
+```
+use Matplotlib::Simple 'plot';
+plot({
+	'output.filename'	=> 'svg/pies.png',
+	plots             => [
+		{
+			data	=> {
+			 Russian => 106_000_000,  # Primarily European Russia
+			 German => 95_000_000,    # Germany, Austria, Switzerland, etc.
+			},
+			'plot.type'	=> 'pie',
+			title       => 'Top Languages in Europe',
+			suptitle    => 'Pie in subplots',
+		},
+		{
+			data	=> {
+			 Russian => 106_000_000,  # Primarily European Russia
+			 German => 95_000_000,    # Germany, Austria, Switzerland, etc.
+			},
+			'plot.type'	=> 'pie',
+			title       => 'Top Languages in Europe',
+		},
+	],
+	ncols    => 2,
+});
+```
+which produces the following subplots image:
+
+<img width="651" height="424" alt="pies" src="https://github.com/user-attachments/assets/49d3e28b-f897-4b01-9e72-38afa12fa538" />
 
 `bar`, `barh`, `boxplot`, `hexbin`, `hist`, `pie`, `plot`, `scatter`, `violinplot` all match the methods in matplotlib itself.
-
-# Single Plots
+# Examples
 Consider the following helper subroutines to generate data to plot:
 
 ```
@@ -94,10 +125,10 @@ where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `
 |linewidth| float or array, optional; Width of the bar edge(s). If 0, don't draw edges. Only does anything with defined `edgecolor`|`linewidth => 2,`
 |log| bool, default: False; If *True*, set the y-axis to be log scale.|`log = 'True',`
 |stacked| stack the groups on top of one another; default 0 = off|`stacked	=> 1,`
-|width| float or array, default: 0.8; The width(s) of the bars.|
-|xerr| float or array-like of shape(N,) or shape(2, N), optional. If not *None*, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - *None*: No errorbar. (Default)|
+|width| float or array, default: 0.8; The width(s) of the bars.|`width => 0.4,`
+|xerr| float or array-like of shape(N,) or shape(2, N), optional. If not *None*, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - *None*: No errorbar. (Default)|`yerr						=> {'USA'				=> [15,29],	'Russia'			=> [199,1000],}`
 |yerr|same as xerr, but better with bar|
- 
+
 an example of multiple plots, showing many options:
 
 ```
@@ -270,7 +301,7 @@ plot({
 ```
 which produces the plot:
 
-<img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/648f53cd-c2de-4444-b45b-89e608c47967" />
+<img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/a61e5f36-bad8-4191-9a53-fa6312562c9a" />
 
 ## hexbin
 ```
