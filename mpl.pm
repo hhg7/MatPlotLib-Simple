@@ -224,9 +224,10 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 		p $plot->{data};
 		die 'the above plot type is not yet programmed in to bar/barh';
 	}
-	if (($plot_type eq 'grouped') && (defined $plot->{width})) {
-		p $plot;
-		die 'grouped bar plots cannot have defined barplot width';
+	$plot->{stacked} = $plot->{stacked} // 0;
+	if (($plot_type eq 'grouped') && (defined $plot->{width}) && ($plot->{stacked} == 0)) {
+		say STDERR 'grouped, non-stacked barplots ignore width settings';
+		delete $plot->{width};
 	}
 	my @key_order;
 	if (defined $plot->{'key.order'}) {
@@ -247,7 +248,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 			$options .= ", $c = [\"" . join ('","', @{ $plot->{$c} }) . '"]';
 		}
 	} # args that can be either arrays or strings below; NUMERIC:
-	foreach my $c (grep {defined $plot->{$_}} ('linewidth', 'width')) {
+	foreach my $c (grep {defined $plot->{$_}} ('linewidth')) {
 		my $ref = ref $plot->{$c};
 		if ($ref eq '') { # single color
 			$options .= ", $c = $plot->{$c}";
@@ -289,12 +290,15 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 				push @{ $val[$i] }, $plot->{data}{$k}[$i];
 			}
 		}
-		my $barwidth = $plot->{width} // 1 / (scalar %ref_counts + 2);
+		my $barwidth = $plot->{width} // 0.8;
+		$plot->{stacked} = $plot->{stacked} // 0;
+		if ($plot->{stacked} == 0) {
+			$barwidth /= (scalar %ref_counts + 3);
+		}
 		my @xticks = 0..scalar @{ $val[0] }- 1;
 		my @mean_pos = map {0} 0..scalar @{ $val[0] }- 1; # initialize
 		my $hw = 'height';
 		$hw = 'width' if $plot->{'plot.type'} eq 'bar';
-		$plot->{stacked} = $plot->{stacked} // 0;
 		my @bottom = map {0} 0..scalar @{ $val[0] }- 1; # initialize
 		while (my ($i, $arr) = each @val) {
 			my $x = '[' . join (',', @xticks) . ']';
@@ -1121,10 +1125,10 @@ sub plot {
 	\'output.filename\' => \'/tmp/gospel.word.counts.svg\',
 	\'plot.type\'       => \'bar\',
 	data              => {
-		Matthew => 18345,
-		Mark    => 11304,
-		Luke    => 19482,
-		John    => 15635,
+		\'Matthew\' => 18345,
+		\'Mark\'    => 11304,
+		\'Luke\'    => 19482,
+		\'John\'    => 15635,
 	}
 });';
 	my $multi_example = 'plot({
@@ -1147,7 +1151,6 @@ sub plot {
 			\'plot.type\'	=> \'pie\',
 			title       => \'Top Languages in Europe\',
 		},
-	],
 	ncols    => 3,
 });';
 	my @undef_args = grep { !defined $args->{$_}} @reqd_args;
