@@ -173,7 +173,6 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 	}
 	my @barplot_opt = (@reqd_args, @ax_methods, @plt_methods, @fig_methods, @arg,
 	'ax',
-	'bottom', # bottoms of bars; float or array-like, default: 0
 	'color', # :mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed
 	'edgecolor', #:mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar edges.
 	'key.order', # define the keys in an order (an array reference)
@@ -225,6 +224,10 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 		p $plot->{data};
 		die 'the above plot type is not yet programmed in to bar/barh';
 	}
+	if (($plot_type eq 'grouped') && (defined $plot->{width})) {
+		p $plot;
+		die 'grouped bar plots cannot have defined barplot width';
+	}
 	my @key_order;
 	if (defined $plot->{'key.order'}) {
 		@key_order = @{ $plot->{'key.order'} };
@@ -244,7 +247,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 			$options .= ", $c = [\"" . join ('","', @{ $plot->{$c} }) . '"]';
 		}
 	} # args that can be either arrays or strings below; NUMERIC:
-	foreach my $c (grep {defined $plot->{$_}} ('linewidth')) {
+	foreach my $c (grep {defined $plot->{$_}} ('linewidth', 'width')) {
 		my $ref = ref $plot->{$c};
 		if ($ref eq '') { # single color
 			$options .= ", $c = $plot->{$c}";
@@ -1118,10 +1121,10 @@ sub plot {
 	\'output.filename\' => \'/tmp/gospel.word.counts.svg\',
 	\'plot.type\'       => \'bar\',
 	data              => {
-		\'Matthew\' => 18345,
-		\'Mark\'    => 11304,
-		\'Luke\'    => 19482,
-		\'John\'    => 15635,
+		Matthew => 18345,
+		Mark    => 11304,
+		Luke    => 19482,
+		John    => 15635,
 	}
 });';
 	my $multi_example = 'plot({
@@ -1144,6 +1147,7 @@ sub plot {
 			\'plot.type\'	=> \'pie\',
 			title       => \'Top Languages in Europe\',
 		},
+	],
 	ncols    => 3,
 });';
 	my @undef_args = grep { !defined $args->{$_}} @reqd_args;

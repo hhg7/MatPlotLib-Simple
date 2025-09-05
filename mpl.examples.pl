@@ -87,7 +87,7 @@ plot({
 			]
 		]
 	},
-	'output.filename' => 'svg/single.wide.svg',
+	'output.filename' => 'output.images/single.wide.png',
 	'plot.type'       => 'wide',
 	color             => {
 		Clinical => 'blue',
@@ -112,7 +112,7 @@ plot({
 			[map {$_ + rand_between(-0.5,0.5)} @y]
 		]
 	],
-	'output.filename' => 'svg/single.array.svg',
+	'output.filename' => 'output.images/single.array.png',
 	'plot.type'       => 'wide',
 	color             => 'red',
 	title  => 'Visualization of similar lines plotted together',
@@ -141,13 +141,13 @@ plot({
 			title  => 'Visualization of similar lines plotted together'
 		}
 	],
-	'output.filename' => 'svg/wide.subplots.svg',
+	'output.filename' => 'output.images/wide.subplots.png',
 	suptitle => 'SubPlots',
 	'input.file'=> $tmp_filename,
 	execute	=> 0,
 });
 plot({
-	'output.filename'			=> 'svg/single.pie.svg',
+	'output.filename'			=> 'output.images/single.pie.png',
 	data	=> { # simple hash
 		Fri => 76, Mon	=> 73, Sat => 26, Sun => 11, Thu	=> 94, Tue	=> 93, Wed	=> 77
 	},
@@ -157,7 +157,7 @@ plot({
 	execute     => 0,
 });
 plot({
-	'output.filename'	=> 'svg/pie.svg',
+	'output.filename'	=> 'output.images/pie.png',
 	plots             => [
 		{
 			data	=> {
@@ -219,7 +219,7 @@ my $y = generate_normal_dist(85, 15, 3*10);
 my $z = generate_normal_dist(106, 15, 3*10);
 # single plots are simple
 plot({
-	'output.filename'			=> 'svg/single.boxplot.svg',
+	'output.filename'			=> 'output.images/single.boxplot.png',
 	data	=> { # simple hash
 		E => [55, @{ $x }, 160],
 		B => [@{ $y }, 140],
@@ -232,7 +232,7 @@ plot({
 	execute	=> 0,
 });
 plot({
-	'output.filename' => 'svg/boxplot.svg',
+	'output.filename' => 'output.images/boxplot.png',
 	execute	=> 0,
 	'input.file' => $tmp_filename,
 	plots	=> [
@@ -353,7 +353,7 @@ plot({
 	nrows => 3,
 });
 plot({
-	'output.filename'			=> 'svg/single.violinplot.svg',
+	'output.filename'			=> 'output.images/single.violinplot.png',
 	data	=> { # simple hash
 		A => [55, @{ $z }],
 		E => [@{ $y } ], 
@@ -368,7 +368,7 @@ plot({
 plot({
 	'input.file'		=> $tmp_filename,
 	execute				=> 0,
-	'output.filename'	=> 'svg/violin.svg',
+	'output.filename'	=> 'output.images/violin.png',
 	plots					=> [
 		{
 			data	=> {
@@ -433,14 +433,14 @@ plot({
 	nrows	=> 2,
 });
 plot({
-	'output.filename'			=> 'svg/single.barplot.svg',
+	'output.filename'			=> 'output.images/single.barplot.png',
 	data	=> { # simple hash
 		Fri => 76, Mon	=> 73, Sat => 26, Sun => 11, Thu	=> 94, Tue	=> 93, Wed	=> 77
 	},
 	'plot.type'	=> 'bar',
 	xlabel		=> '# of Days',
-	ylabel		=> 'Count (Applications)',
-	title			=> 'Rejections by Days',
+	ylabel		=> 'Count',
+	title			=> 'Customer Calls by Days',
 	execute		=> 0,
 	'input.file'=> $tmp_filename,
 });
@@ -451,13 +451,13 @@ plot({
 	},
 	execute		=> 0,
 	'input.file'=> $tmp_filename,
-	'output.filename'	=> 'svg/single.hexbin.svg',
+	'output.filename'	=> 'output.images/single.hexbin.png',
 	'plot.type'	=> 'hexbin',
 	set_figwidth => 12,
 	title			=> 'Simple Hexbin',
 });
 plot({
-	'output.filename'			=> 'svg/single.hist2d.svg',
+	'output.filename'			=> 'output.images/single.hist2d.png',
 	data	=> {
 		E	=> generate_normal_dist(100, 15, 3*210),
 		B	=> generate_normal_dist(85, 15, 3*210)
@@ -470,7 +470,7 @@ plot({
 plot({
 	'input.file'		=> $tmp_filename,
 	execute				=> 0,
-	'output.filename'	=> 'svg/hexbin.svg',
+	'output.filename'	=> 'output.images/hexbin.png',
 	plots					=> [
 		{
 			data	=> {
@@ -500,7 +500,7 @@ my @x = linspace(-2*$pi, 2*$pi, 100, 1);
 plot({
 	'input.file'		=> $tmp_filename,
 	execute				=> 0,
-	'output.filename'	=> 'svg/plot.svg',
+	'output.filename'	=> 'output.images/plot.png',
 	plots					=> [
 		{ # plot 1
 			data	=> {
@@ -526,7 +526,7 @@ plot({
 plot({
 	'input.file'		=> $tmp_filename,
 	execute				=> 0,
-	'output.filename'	=> 'svg/plot.single.svg',
+	'output.filename'	=> 'output.images/plot.single.png',
 	data	=> {
 		'sin(x)' => [
 			[@x], # x
@@ -548,7 +548,7 @@ plot({
 plot({
 	'input.file'		=> $tmp_filename,
 	execute				=> 0,
-	'output.filename'	=> 'svg/barplots.svg',
+	'output.filename'	=> 'output.images/barplots.png',
 	plots					=> [
 		{ # simple plot
 			data	=> { # simple hash
@@ -601,7 +601,6 @@ plot({
 			},
 			stacked	=> 0,
 			title		=> 'Hash of Hash Grouped Unstacked Barplot',
-			width		=> 0.23,
 			xlabel	=> 'r"$\it{anno}$ $\it{domini}$"', # italic
 			ylabel	=> 'Military Expenditure (Billions of $)'
 		},
@@ -680,6 +679,7 @@ plot({
 		},	
 		{ # nuclear weapons barplot
 			'plot.type'		=> 'bar',
+			color				=> 'red',
 			data => {
 				'USA'				=> 5277, # FAS Estimate
 				'Russia'			=> 5449, # FAS Estimate
@@ -691,6 +691,8 @@ plot({
 				'Israel'			=> 90, # FAS Estimate
 				'North Korea'	=> 50, # FAS Estimate
 			},
+			edgecolor => 'blue',
+			label    => 'labelXXX',
 			title		=> 'Simple hash for barchart with yerr',
 			xlabel	=> 'Country',
 			yerr						=> {
@@ -705,7 +707,8 @@ plot({
 				'North Korea'	=> [10,20],
 			},
 			ylabel	=> '# of Nuclear Warheads',
-			'log'						=> 'True', #	linewidth				=> 1,
+			linewidth => 2,
+			'log'		=> 'True', #	linewidth				=> 1,
 		}
 	],
 	ncols	=> 3,
@@ -714,7 +717,7 @@ plot({
 plot({
 	'input.file'		=> $tmp_filename,
 	execute				=> 0,
-	'output.filename'	=> 'svg/histogram.svg',
+	'output.filename'	=> 'output.images/histogram.png',
 	plots					=> [
 		{ # simple histogram
 			data	=> {
@@ -805,7 +808,7 @@ plot({
 });
 plot({
 	'input.file'		=> $tmp_filename,
-	'output.filename'	=> 'svg/scatterplots.svg',
+	'output.filename'	=> 'output.images/scatterplots.png',
 	execute				=> 0,
 	nrows					=> 2,
 	ncols					=> 3,
@@ -923,7 +926,7 @@ plot({
 		},
 	],
 	'input.file'		=> $tmp_filename,
-	'output.filename'	=> 'svg/hist2d.svg',
+	'output.filename'	=> 'output.images/hist2d.png',
 	execute				=> 1,
 	nrows					=> 2,
 	ncols					=> 3,
