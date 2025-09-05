@@ -125,7 +125,7 @@ where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `
 |linewidth| float or array, optional; Width of the bar edge(s). If 0, don't draw edges. Only does anything with defined `edgecolor`|`linewidth => 2,`
 |log| bool, default: False; If *True*, set the y-axis to be log scale.|`log = 'True',`
 |stacked| stack the groups on top of one another; default 0 = off|`stacked	=> 1,`
-|width| float or array, default: 0.8; The width(s) of the bars.  This will **not** work with grouped bar plots |`width => 0.4,`
+|width| float only, default: 0.8; The width(s) of the bars.  `width` will be deactivated with grouped, non-stacked bar plots |`width => 0.4,`
 |xerr| float or array-like of shape(N,) or shape(2, N), optional. If not *None*, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - *None*: No errorbar. (Default)|`yerr						=> {'USA'				=> [15,29],	'Russia'			=> [199,1000],}`
 |yerr|same as xerr, but better with bar|
 
