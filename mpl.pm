@@ -742,7 +742,10 @@ sub plot_helper {
 		p @undef_args;
 		die 'the above args are necessary, but were not defined.';
 	}
-	my @opt = (@ax_methods, @fig_methods, @arg, @plt_methods, 'set.options');
+	my @opt = (@ax_methods, @fig_methods, @arg, @plt_methods,
+	'show.legend', # be default on; should be 0 if off
+	'set.options'
+	);
 	my $plot = $args->{plot};
 	my @undef_opt = grep { my $key = $_; not grep {$_ eq $key} @opt} keys %{ $plot };
 	if (scalar @undef_opt > 0) {
@@ -750,6 +753,7 @@ sub plot_helper {
 		p $args;
 		die "The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
+	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
 	foreach my $set (keys %{ $plot->{data} }) {
 		my $options = '';
 		say {$args->{fh}} 'x = [' . join (',', @{ $plot->{data}{$set}[0] }) . ']';
@@ -764,7 +768,12 @@ sub plot_helper {
 		if (defined $plot->{'set.options'}{$set}) {
 			$options = ", $plot->{'set.options'}{$set}";
 		}
-		say {$args->{fh}} "ax$args->{ax}.plot(x, y, label = '$set' $options)";
+		my $label = '';
+		if ($plot->{'show.legend'} > 0) {
+			say __LINE__;
+			$label = ",label = '$set'";
+		}
+		say {$args->{fh}} "ax$args->{ax}.plot(x, y $label $options)";
 	}
 }
 
