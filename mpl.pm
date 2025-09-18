@@ -7,6 +7,7 @@ use feature 'say';
 use DDP {output => 'STDOUT', array_max => 10, show_memsize => 1};
 use Devel::Confess 'color';
 package Matplotlib::Simple;
+use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
 use Cwd 'getcwd';
@@ -758,6 +759,21 @@ sub plot_helper {
 	}
 	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
 	foreach my $set (keys %{ $plot->{data} }) {
+		my $set_ref = ref $plot->{data}{$set};
+		if ($set_ref ne 'ARRAY') {
+			p $plot->{data}{$set};
+			die "$set must have two arrays, x and y coordinates, but instead has a $set_ref";
+		}
+		my $n_arrays = scalar @{ $plot->{data}{$set} };
+		if ( $n_arrays != 2) {
+			p $plot->{data}{$set};
+			die "$n_arrays were entered for $set, but there must be exactly 2";
+		}
+		my ($nx, $ny) = (scalar @{ $plot->{data}{$set}[0] }, scalar @{ $plot->{data}{$set}[1] });
+		if ($nx != $ny) {
+			p $plot->{data}{$set};
+			die "$set has $nx x data points, but y has $ny y data points, and they must be equal";
+		}
 		my $options = '';
 		say {$args->{fh}} 'x = [' . join (',', @{ $plot->{data}{$set}[0] }) . ']';
 		say {$args->{fh}} 'y = [' . join (',', @{ $plot->{data}{$set}[1] }) . ']';
@@ -773,7 +789,6 @@ sub plot_helper {
 		}
 		my $label = '';
 		if ($plot->{'show.legend'} > 0) {
-			say __LINE__;
 			$label = ",label = '$set'";
 		}
 		say {$args->{fh}} "ax$args->{ax}.plot(x, y $label $options)";
