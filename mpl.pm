@@ -747,6 +747,7 @@ sub plot_helper {
 		die 'the above args are necessary, but were not defined.';
 	}
 	my @opt = (@ax_methods, @fig_methods, @arg, @plt_methods,
+	'key.order',
 	'show.legend', # be default on; should be 0 if off
 	'set.options'
 	);
@@ -758,7 +759,13 @@ sub plot_helper {
 		die "The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
 	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
-	foreach my $set (keys %{ $plot->{data} }) {
+	my @key_order;
+	if (defined $plot->{'key.order'}) {
+		@key_order = @{ $plot->{'key.order'} };
+	} else {
+		@key_order = sort keys %{ $plot->{data} };
+	}
+	foreach my $set (@key_order) {
 		my $set_ref = ref $plot->{data}{$set};
 		if ($set_ref ne 'ARRAY') {
 			p $plot->{data}{$set};
@@ -1189,7 +1196,7 @@ sub plot {
 		p $args;
 		die 'either "plot.type" or "plots" must be defined, but neither were';
 	}
-	my @defined_args = (@reqd_args, @ax_methods, @fig_methods, @plt_methods, @arg, 'set.options', 'color', 'colors', 'show.legend');
+	my @defined_args = (@reqd_args, @ax_methods, @fig_methods, @plt_methods, @arg, 'key.order', 'set.options', 'color', 'colors', 'show.legend');
 	my @bad_args = grep { my $key = $_; not grep {$_ eq $key} @defined_args} keys %{ $args };
 	if (scalar @bad_args > 0) {
 		p @bad_args, array_max => scalar @bad_args;
