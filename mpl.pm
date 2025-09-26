@@ -138,12 +138,12 @@ sub plot_args { # this is a helper function to other matplotlib subroutines
 				die "$current_sub only accepts scalar or array types, but $ref was entered.";
 			}
 			if ($ref eq '') {
-				say {$args->{fh}} "$obj[$i].$method($args->{args}{$method})";
+				say {$args->{fh}} "$obj[$i].$method($args->{args}{$method}) #" . __LINE__;
 				next;
 			}
 			# can only be ARRAY
 			foreach my $j (@{ $args->{args}{$method} }) { # say $fh "plt.$method($plt)";
-				say {$args->{fh}} "$obj[$i].$method($j)";
+				say {$args->{fh}} "$obj[$i].$method($j) # " . __LINE__;
 			}
 		}
 	}
@@ -356,7 +356,7 @@ sub boxplot_helper {
 		'showcaps', # bool: Show the caps on the ends of whiskers; default "True"
 		'showfliers',
 		'showmeans',
-		'whiskers',
+		'whiskers', # 0 or 1
 		'plots', 'ncols', 'nrows', 'output.filename', 'input.file', 'execute' # these will be ignored
 	);
 	my $plot = $args->{plot};
@@ -747,7 +747,7 @@ sub plot_helper {
 		die 'the above args are necessary, but were not defined.';
 	}
 	my @opt = (@ax_methods, @fig_methods, @arg, @plt_methods,
-	'key.order',
+	'key.order', # an array of key strings (which are defined in data)
 	'show.legend', # be default on; should be 0 if off
 	'set.options'
 	);
@@ -798,7 +798,7 @@ sub plot_helper {
 		if ($plot->{'show.legend'} > 0) {
 			$label = ",label = '$set'";
 		}
-		say {$args->{fh}} "ax$args->{ax}.plot(x, y $label $options)";
+		say {$args->{fh}} "ax$args->{ax}.plot(x, y $label $options) # " . __LINE__;;
 	}
 }
 
@@ -1250,7 +1250,7 @@ sub plot {
 	say $fh 'import matplotlib.pyplot as plt';
 	if ($single_plot == 0) {
 		$args->{sharex}		= $args->{sharex} // 'False';
-		say $fh 'fig, (' . join (',', @py) . ") = plt.subplots($args->{nrows}, $args->{ncols}, sharex = $args->{sharex}, layout = 'constrained')";
+		say $fh 'fig, (' . join (',', @py) . ") = plt.subplots($args->{nrows}, $args->{ncols}, sharex = $args->{sharex}, layout = 'constrained') #" . __LINE__;
 	} elsif ($single_plot == 1) {
 		say $fh 'fig, ax0 = plt.subplots(1,1, layout = "constrained")';
 	} else {
@@ -1481,10 +1481,12 @@ or a grouped bar plot:
 #			if ($args->{$plt_method} =~ m/^([^\"\',]+)$/) {
 #				$args->{$plt_method} = "'$args->{$plt_method}'";
 #			}
-			say $fh "plt.$plt_method('$args->{$plt_method}')";
+			$args->{$plt_method} =~ s/^\'+//;
+			$args->{$plt_method} =~ s/\'+$//;
+			say $fh "plt.$plt_method('$args->{$plt_method}')#" . __LINE__;
 		} elsif ($ref eq 'ARRAY') {
 			foreach my $j (@{ $args->{$plt_method} }) { # say $fh "plt.$method($plt)";
-				say $fh "plt.$plt_method($j)";
+				say $fh "plt.$plt_method($j)#" . __LINE__;
 			}
 		} else {
 			p $args;
@@ -1495,7 +1497,7 @@ or a grouped bar plot:
 	foreach my $fig_method (grep {defined $methods{$_}} keys %{ $args }) {
 		my $ref = ref $args->{$fig_method};
 		if ($ref eq '') {
-			say $fh "fig.$fig_method($args->{$fig_method})";
+			say $fh "fig.$fig_method($args->{$fig_method})#" . __LINE__;
 		} elsif ($ref eq 'ARRAY') {
 			foreach my $j (@{ $args->{$fig_method} }) { # say $fh "plt.$method($plt)";
 				say $fh "fig.$fig_method($j)";
