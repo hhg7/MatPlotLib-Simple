@@ -519,7 +519,8 @@ plot({
 			'set.options' => { # set options overrides global settings
 				'sin(x)'	=> 'color="blue", linewidth=2',
 				'cos(x)'	=> 'color="red",  linewidth=2'
-			}
+			},
+			xlim        => "0, $x[-1]", # set min and max as a string
 		}
 	]
 });
@@ -893,13 +894,13 @@ plot({
 			cmap		=> 'terrain'
 		},
 		{
+			cmap		=> 'ocean',
 			data	=> {
 				X	=> generate_normal_dist(100, 15, 210), # x-axis
 				Y	=> generate_normal_dist(100, 15, 210), # y-axis
 			},
 			'plot.type'		=> 'hist2d',
 			title    => 'cmap = ocean and set colorbar range with vmin/vmax',
-			cmap		=> 'ocean',
 			set_figwidth	=> 15,
 			vmin	=> -2,
 			vmax	=> 14
