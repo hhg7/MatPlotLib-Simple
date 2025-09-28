@@ -67,21 +67,21 @@ my @ax_methods = (
 my @fig_methods =  ('add_artist','add_axes','add_axobserver','add_callback','add_gridspec', 'add_subfigure', 'add_subplot','align_labels','align_titles','align_xlabels','align_ylabels','artists',  'autofmt_xdate', #'axes', # same as plt
 'bbox','bbox_inches','canvas','clear','clf','clipbox',
 'colorbar', # same name as in plt, have to use on case-by-case
-'contains','convert_xunits','convert_yunits','delaxes','dpi','dpi_scale_trans','draw', 'draw_artist','draw_without_rendering','figbbox','figimage', #	'figure',	'findobj',
-'format_cursor_data', 'frameon', #'gca','get_agg_filter','get_alpha','get_animated','get_axes','get_children', 'get_clip_box','get_clip_on','get_clip_path','get_constrained_layout','get_constrained_layout_pads', 'get_cursor_data','get_default_bbox_extra_artists','get_dpi','get_edgecolor','get_facecolor', #'get_figheight', #'get_figure', #'get_figwidth', #'get_frameon','get_gid','get_in_layout','get_label', 'get_layout_engine','get_linewidth','get_mouseover','get_path_effects','get_picker', 'get_rasterized','get_size_inches','get_sketch_params','get_snap', 'get_suptitle', #'get_supxlabel', 'get_supylabel','get_tight_layout','get_tightbbox','get_transform', 'get_transformed_clip_path_and_affine', #'get_url',	'get_visible','get_window_extent','get_zorder', #	'ginput',, keeping plt instead
-	'have_units','images','is_transform_set', #	'legend',	'legends',
-	'lines','mouseover', 'number','patch','patches','pchanged','pick','pickable','properties','remove', 'remove_callback', #'savefig', keeping plt instead
-	'sca','set','set_agg_filter','set_alpha','set_animated','set_canvas', 'set_clip_box','set_clip_on','set_clip_path','set_constrained_layout' ,'set_constrained_layout_pads', 'set_dpi','set_edgecolor','set_facecolor',
-	'set_figheight', # default 4.8 #	'set_figure', # deprecated as of matplotlib 3.10.0
-	'set_figwidth',# default 6.4
-	'set_frameon','set_gid','set_in_layout','set_label','set_layout_engine','set_linewidth', 'set_mouseover','set_path_effects','set_picker','set_rasterized','set_size_inches', 'set_sketch_params','set_snap','set_tight_layout','set_transform','set_url','set_visible', 'set_zorder', #	'show', # keeping plt instead
-	'stale','stale_callback','sticky_edges','subfigs','subfigures', #	'subplot_mosaic',
-	'subplotpars', #	'subplots',	'subplots_adjust',
-	'suppressComposite', #	'suptitle', # keeping plt instead
-	'supxlabel','supylabel', #'text',
-	'texts', #'tight_layout',
-	'transFigure','transSubfigure', 'update','update_from', #'waitforbuttonpress',
-	'zorder'
+'contains','convert_xunits','convert_yunits','delaxes','dpi','dpi_scale_trans','draw', 'draw_artist','draw_without_rendering','figbbox','figimage', # 'figure', 'findobj',
+'format_cursor_data', 'frameon', #'gca','get_agg_filter','get_alpha','get_animated','get_axes','get_children', 'get_clip_box','get_clip_on','get_clip_path','get_constrained_layout','get_constrained_layout_pads', 'get_cursor_data','get_default_bbox_extra_artists','get_dpi','get_edgecolor','get_facecolor', #'get_figheight', #'get_figure', #'get_figwidth', #'get_frameon','get_gid','get_in_layout','get_label', 'get_layout_engine','get_linewidth','get_mouseover','get_path_effects','get_picker', 'get_rasterized','get_size_inches','get_sketch_params','get_snap', 'get_suptitle', #'get_supxlabel', 'get_supylabel','get_tight_layout','get_tightbbox','get_transform', 'get_transformed_clip_path_and_affine', #'get_url', 'get_visible','get_window_extent','get_zorder', # 'ginput',, keeping plt instead
+ 'have_units','images','is_transform_set', # 'legend',	 legends',
+ 'lines','mouseover', 'number','patch','patches','pchanged','pick','pickable','properties','remove', 'remove_callback', #'savefig', keeping plt instead
+ 'sca','set','set_agg_filter','set_alpha','set_animated','set_canvas', 'set_clip_box','set_clip_on','set_clip_path','set_constrained_layout' ,'set_constrained_layout_pads', 'set_dpi','set_edgecolor','set_facecolor',
+'set_figheight', # default 4.8 # 'set_figure', # deprecated as of matplotlib 3.10.0
+'set_figwidth',# default 6.4
+'set_frameon','set_gid','set_in_layout','set_label','set_layout_engine','set_linewidth', 'set_mouseover','set_path_effects','set_picker','set_rasterized','set_size_inches', 'set_sketch_params','set_snap','set_tight_layout','set_transform','set_url','set_visible', 'set_zorder', # 'show', # keeping plt instead
+'stale','stale_callback','sticky_edges','subfigs','subfigures', #	 subplot_mosaic',
+'subplotpars', #	 subplots','subplots_adjust',
+'suppressComposite', # 'suptitle', # keeping plt instead
+'supxlabel','supylabel', #'text',
+'texts', #'tight_layout',
+'transFigure','transSubfigure', 'update','update_from', #'waitforbuttonpress',
+'zorder'
 );
 my @plt_methods = ('AbstractContextManager','Annotation','Arrow','Artist','AutoLocator','AxLine','Axes', 'BackendFilter','Button','Circle','Colorizer','ColorizingArtist','Colormap','Enum', 'ExitStack','Figure','FigureBase','FigureCanvasBase','FigureManagerBase',' FixedFormatter','FixedLocator','FormatStrFormatter','Formatter','FuncFormatter','GridSpec', 'IndexLocator','Line2D','LinearLocator','Locator','LogFormatter','LogFormatterExponent', 'LogFormatterMathtext','LogLocator','MaxNLocator','MouseButton','MultipleLocator','Normalize', 'NullFormatter','NullLocator','PolarAxes','Polygon','Rectangle','ScalarFormatter', 'Slider','Subplot','SubplotSpec','TYPE_CHECKING','Text','TickHelper','Widget','acorr', 'angle_spectrum','annotate','annotations','arrow','autoscale','autumn','axes','axhline', 'axhspan','axis','axline','axvline','axvspan','backend_registry','bar','bar_label','barbs', 'barh','bone','box','boxplot','broken_barh','cast','cbook','cla','clabel', #'clf', # I don't think you'd ever do that, also redundant with fig
 	'clim', 'close','cm','cohere','color_sequences','colorbar','colormaps','connect','contour', 'contourf','cool','copper','csd','cycler','delaxes','disconnect','draw','draw_all', 'draw_if_interactive','ecdf','errorbar','eventplot','figaspect','figimage','figlegend', 'fignum_exists','figtext','figure','fill','fill_between','fill_betweenx','findobj', 'flag','functools','gca','gcf','gci','get','get_backend','get_cmap', 'get_current_fig_manager','get_figlabels','get_fignums','get_plot_commands', 'get_scale_names','getp','ginput','gray','grid','hexbin','hist','hist2d','hlines', 'hot','hsv','importlib','imread','imsave','imshow','inferno','inspect', 'install_repl_displayhook','interactive','ioff','ion','isinteractive', 'jet','legend','locator_params','logging','loglog','magma','magnitude_spectrum', 'margins','matplotlib','matshow','minorticks_off','minorticks_on','mlab', 'new_figure_manager','nipy_spectral','np','overload','pause','pcolor','pcolormesh', 'phase_spectrum','pie','pink','plasma','plot','plot_date','polar','prism','psd', 'quiver','quiverkey','rc','rcParams','rcParamsDefault','rcParamsOrig','rc_context', 'rcdefaults','rcsetup','rgrids','savefig','sca', #'scatter', # taken by "ax"
@@ -346,7 +346,7 @@ sub boxplot_helper {
 	}
 	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg,
 		'alpha', # default 0.5; same for all sets
-		'ax',	# used for multiple plots
+		'ax', # used for multiple plots
 		'bins', # nt or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open
 		'color', # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
 		'colors', 'key.order',
@@ -821,7 +821,7 @@ sub scatter_helper {
 	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg,
 		'color_key', # which of data keys is the color key
 		'cmap', # for 3-set scatterplots; default "gist_rainbow"
-		'keys', # specify the order, otherwise alphabetical #'log', # if set to > 1, the y-axis will be logarithmic #				's', # float or array-like, shape (n, ), optional. The marker size in points**2 (typographic points are 1/72 in.).
+		'keys', # specify the order, otherwise alphabetical #'log', # if set to > 1, the y-axis will be logarithmic # 's', # float or array-like, shape (n, ), optional. The marker size in points**2 (typographic points are 1/72 in.).
 		'set.options' # color = 'red', marker = 'v', etc.
 	);
 	my $plot = $args->{plot};
@@ -956,7 +956,7 @@ sub violin_helper {
 	}
 	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg,
 		'alpha', # default 0.5; same for all sets
-		'ax',	# used for multiple plots
+		'ax', # used for multiple plots
 		'bins', # nt or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open
 		'color', # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
 		'colors',
@@ -1249,7 +1249,7 @@ sub plot {
 	say "temp file is $temp_py" if $unlink == 0;
 	say $fh 'import matplotlib.pyplot as plt';
 	if ($single_plot == 0) {
-		$args->{sharex}		= $args->{sharex} // 'False';
+		$args->{sharex} = $args->{sharex} // 'False';
 		say $fh 'fig, (' . join (',', @py) . ") = plt.subplots($args->{nrows}, $args->{ncols}, sharex = $args->{sharex}, layout = 'constrained') #" . __LINE__;
 	} elsif ($single_plot == 1) {
 		say $fh 'fig, ax0 = plt.subplots(1,1, layout = "constrained")';
@@ -1294,77 +1294,77 @@ or a grouped bar plot:
 		},
 =cut
 			barplot_helper({
-				fh		=> $fh,
+				fh    => $fh,
 				ax    => 0,
-				plot	=> $args
+				plot  => $args
 			});
 		} elsif ($args->{'plot.type'} eq 'boxplot') {
 			boxplot_helper({
-				fh		=> $fh,
+				fh    => $fh,
 				ax    => 0,
-				plot	=> $args
+				plot  => $args
 			});
 		} elsif ($args->{'plot.type'} eq 'hexbin') {
 			hexbin_helper({
-				fh		=> $fh,
-				ax    => 0,
-				plot	=> $args
+				fh   => $fh,
+				ax   => 0,
+				plot => $args
 			});
 		} elsif ($args->{'plot.type'} eq 'hist') {# histogram
 			hist_helper({
-				fh		=> $fh,
+				fh    => $fh,
 				ax    => 0,
-				plot	=> $args
+				plot  => $args
 			});
 		} elsif ($args->{'plot.type'} eq 'hist2d') {
 			hist2d_helper({
-				fh		=> $fh,
+				fh    => $fh,
 				ax    => 0,
-				plot	=> $args
+				plot  => $args
 			});
 		} elsif ($args->{'plot.type'} eq 'pie') {
 			pie_helper({
-				fh		=> $fh,
+				fh    => $fh,
 				ax    => 0,
-				plot	=> $args
+				plot  => $args
 			});
 		} elsif ($args->{'plot.type'} eq 'plot') {
 			plot_helper({
-				fh		=> $fh,
+				fh    => $fh,
 				ax    => 0,
-				plot	=> $args
+				plot  => $args
 			});
 		} elsif ($args->{'plot.type'} eq 'scatter') {# scatterplot
 			scatter_helper({
-				fh		=> $fh,
+				fh    => $fh,
 				ax    => 0,
-				plot	=> $args
+				plot  => $args
 			});
 		} elsif ($args->{'plot.type'} eq 'violinplot') {
 			violin_helper({
-				fh		=> $fh,
-				ax		=> 0,
-				plot	=> $args
+				fh    => $fh,
+				ax    => 0,
+				plot  => $args
 			});
 		} elsif ($args->{'plot.type'} eq 'wide') {
 			wide_helper({
-				fh		=> $fh,
-				ax		=> 0,
-				plot	=> $args
+				fh    => $fh,
+				ax    => 0,
+				plot  => $args
 			});
 		} else {
 			die "$args->{'plot.type'} doesn't fit pigeonholes with \$single_plot = $single_plot";
 		} # sometimes, I need "ax" methods instead of plt, while keeping calling simpler
 		my %rename = (
-			xlabel	=> 'set_xlabel',	title		=> 'set_title',
-			ylabel	=> 'set_ylabel',	legend	=> 'legend',    xlim => 'set_xlim',
+			xlabel => 'set_xlabel', title  => 'set_title',
+			ylabel => 'set_ylabel', legend => 'legend',    xlim => 'set_xlim',
 		);
 		foreach my $opt (grep {defined $rename{$_}} keys %{ $args }) {
 			$args->{$rename{$opt}} = delete $args->{$opt};
 		}
 		plot_args({
-			fh		=> $fh,
-			args	=> $args,
+			fh    => $fh,
+			args  => $args,
 			ax    => 'ax0'
 		});
 	}
@@ -1395,79 +1395,79 @@ or a grouped bar plot:
 		},
 =cut
 			barplot_helper({
-				fh		=> $fh,
-				ax		=> $ax,
-				plot	=> $plot
+				fh    => $fh,
+				ax    => $ax,
+				plot  => $plot
 			});
 		} elsif ($plot->{'plot.type'} eq 'boxplot') {
 			boxplot_helper({
-				fh		=> $fh,
-				ax		=> $ax,
-				plot	=> $plot
+				fh    => $fh,
+				ax    => $ax,
+				plot  => $plot
 			});
 		} elsif ($plot->{'plot.type'} eq 'hexbin') {
 			hexbin_helper({
-				fh		=> $fh,
-				ax		=> $ax,
-				plot	=> $plot
+				fh    => $fh,
+				ax    => $ax,
+				plot  => $plot
 			});
 		} elsif ($plot->{'plot.type'} eq 'hist') {# histogram
 			hist_helper({
-				fh		=> $fh,
-				ax		=> $ax,
-				plot	=> $plot
+				fh    => $fh,
+				ax    => $ax,
+				plot  => $plot
 			});
 		} elsif ($plot->{'plot.type'} eq 'hist2d') {
 			hist2d_helper({
-				fh		=> $fh,
-				ax		=> $ax,
-				plot	=> $plot
+				fh    => $fh,
+				ax    => $ax,
+				plot  => $plot
 			});
 		} elsif ($plot->{'plot.type'} eq 'pie') {
 			pie_helper({
-				fh		=> $fh,
-				ax		=> $ax,
-				plot	=> $plot
+				fh    => $fh,
+				ax    => $ax,
+				plot  => $plot
 			});
 		} elsif ($plot->{'plot.type'} eq 'plot') {
 			plot_helper({
-				fh		=> $fh,
-				ax		=> $ax,
-				plot	=> $plot
+				fh    => $fh,
+				ax    => $ax,
+				plot  => $plot
 			});
 		} elsif ($plot->{'plot.type'} eq 'scatter') {# scatterplot
 			scatter_helper({
-				fh		=> $fh,
-				ax		=> $ax,
-				plot	=> $plot
+				fh    => $fh,
+				ax    => $ax,
+				plot  => $plot
 			});
 		} elsif ($plot->{'plot.type'} eq 'violinplot') {
 			violin_helper({
-				fh		=> $fh,
-				ax		=> $ax,
-				plot	=> $plot
+				fh    => $fh,
+				ax    => $ax,
+				plot  => $plot
 			});
 		} elsif ($plot->{'plot.type'} eq 'wide') {
 			wide_helper({
-				fh		=> $fh,
-				ax		=> $ax,
-				plot	=> $plot
+				fh    => $fh,
+				ax    => $ax,
+				plot  => $plot
 			});
 		} else {
 			die "\"$plot->{'plot.type'}\" doesn't fit pigeonholes with \$single_plot = $single_plot";
 		}
 		my %rename = (
-			xlabel	=> 'set_xlabel',	title		=> 'set_title',
-			ylabel	=> 'set_ylabel',	legend	=> 'legend',
+			xlabel => 'set_xlabel', title  => 'set_title',
+			ylabel => 'set_ylabel', legend => 'legend',
 #			xlim => 'set_xlim',
 		);
 		foreach my $opt (grep {defined $rename{$_}} keys %{ $plot }) {
 			$plot->{$rename{$opt}} = delete $plot->{$opt};
 		}
 		plot_args({
-			fh		=> $fh,
-			args	=> $plot,
-			ax		=> "ax$ax"
+			fh   => $fh,
+			args => $plot,
+			ax   => "ax$ax"
 		});
 	}
 	foreach my $ax (@ax) {
