@@ -90,7 +90,8 @@ my @plt_methods = ('AbstractContextManager','Annotation','Arrow','Artist','AutoL
 'subplot2grid', 'subplot_mosaic','subplot_tool','subplots','subplots_adjust','summer','suptitle', 'switch_backend','sys','table',
 	'text',# text(x: 'float', y: 'float', s: 'str', fontdict: 'dict[str, Any] | None' = None, **kwargs) -> 'Text'
 	'thetagrids','threading','tick_params', 'ticklabel_format','tight_layout','time', 'title', 'tricontour','tricontourf', 'tripcolor','triplot','twinx','twiny','uninstall_repl_displayhook','violinplot', 'viridis','vlines','waitforbuttonpress','winter','xcorr','xkcd','xlabel',
-	'xlim',	'xscale',
+#	'xlim',
+	'xscale',
 	#'xticks',
 	'ylabel','ylim','yscale',
 #	'yticks'

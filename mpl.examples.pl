@@ -495,7 +495,6 @@ plot({
 	ncols	=> 2
 });
 my $pi = atan2(0,-1);
-mkdir 'svg' unless -d 'svg';
 my @x = linspace(-2*$pi, 2*$pi, 100, 1);
 plot({
 	'input.file'		=> $tmp_filename,
@@ -520,9 +519,32 @@ plot({
 				'sin(x)'	=> 'color="blue", linewidth=2',
 				'cos(x)'	=> 'color="red",  linewidth=2'
 			},
-			xlim        => "0, $x[-1]", # set min and max as a string
-		}
-	]
+			set_xlim        => "$x[0], $x[-1]", # set min and max as a string
+		},
+		{ # plot 2
+			data	=> {
+				'csc(x)' => [
+					[@x], # x
+					[map {1/sin($_)} @x] # y
+				],
+				'sec(x)' => [
+					[@x], # x
+					[map {1/cos($_)} @x] # y
+				],
+			},
+			'plot.type'	=> 'plot',
+			title		=> 'simple plot',
+			set_xticks	=> "[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi" . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+			'set.options' => { # set options overrides global settings
+				'csc(x)'	=> 'color="purple", linewidth=2',
+				'sec(x)'	=> 'color="green",  linewidth=2'
+			},
+			set_xlim    => "$x[0], $x[-1]", # set min and max as a string
+			set_ylim    => '-9,9',
+		},
+	],
+	ncols        => 2,
+	set_figwidth => 12,
 });
 plot({
 	'input.file'		=> $tmp_filename,
