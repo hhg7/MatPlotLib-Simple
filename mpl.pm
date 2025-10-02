@@ -1,7 +1,6 @@
 #!/usr/bin/env perl
 use strict;
 use warnings FATAL => 'all';
-use warnings::unused;
 use autodie ':all';
 use feature 'say';
 use DDP {output => 'STDOUT', array_max => 10, show_memsize => 1};
