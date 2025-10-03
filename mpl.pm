@@ -7,7 +7,6 @@ use DDP { output => 'STDOUT', array_max => 10, show_memsize => 1 };
 use Devel::Confess 'color';
 
 package Matplotlib::Simple;
-use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
 use Cwd 'getcwd';
