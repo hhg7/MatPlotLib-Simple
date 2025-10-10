@@ -7,6 +7,15 @@ use DDP { output => 'STDOUT', array_max => 10, show_memsize => 1 };
 use Devel::Confess 'color';
 
 package Matplotlib::Simple;
+our $VERSION = 0.01;
+
+=head1 NAME
+Matplotlib::Simple
+=head1 AUTHOR
+David E. Condon
+=head1 LICENSE
+FreeBSD
+=cut
 use List::Util qw(max sum min);
 use Term::ANSIColor;
 use Cwd 'getcwd';
@@ -633,26 +642,19 @@ sub hexbin_helper {
         'ax',
         'cb_logscale',
         'cmap',         # "gist_rainbow" by default
-        'cmax'
-        ,   # All bins that has count < *cmin* or > *cmax* will not be displayed
-        'cmin',         # color min
-        'density',      # density : bool, default: False
         'key.order',    # define the keys in an order (an array reference)
         'logscale'
         , # int >= 0, default: *None*  If not *None*, only display cells with at least *mincnt* number of points in the cell. logscale, an array of axes that will get log scale
         'mincnt'
         , # int >= 0, default: 0 If > 0, only display cells with at least *mincnt*        number of points in the cell.
-        'showfliers',
         'vmax'
         , #  When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover
         'vmin'
         , # When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover
         'xbins',    # default 15
         'ybins',    # default 15
-        'xscale'
-        , # {'linear', 'log'}, default: 'linear' linear/log10 scale on the horizontal axis
-        'yscale'
-        , # {'linear', 'log'}, default: 'linear' linear/log10 scale on the horizontal axis
+        'xscale', # {'linear', 'log'}, default: 'linear' linear/log10 scale on the horizontal axis
+        'yscale', # {'linear', 'log'}, default: 'linear' linear/log10 scale on the vertical axis
     );
     my $plot = $args->{plot};
     @undef_args = grep {
