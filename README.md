@@ -304,6 +304,12 @@ which produces the plot:
 <img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/6d87d13b-dabd-485d-92f7-1418f4acc65b" />
 
 ## hexbin
+
+### options
+
+| Option | Description | Example |
+| -------- | ------- | ------- 
+
 ### single plot
 ```
 plot({
@@ -353,8 +359,11 @@ plot(
 );
 ```
 <img width="1210" height="491" alt="hexbin" src="https://github.com/user-attachments/assets/819a2525-d03b-467f-b886-69df0870d1c9" />
+
 ## plot
+
 ### single, simple
+
 ```
 plot(
     {
@@ -383,7 +392,10 @@ plot(
     }
 );
 ```
+
 which makes the following "plot" plot: <img width="651" height="491" alt="plot single" src="https://github.com/user-attachments/assets/6cbd6aad-c464-4703-b962-b420ec08bb66" />
+
+### multiple sub-plots
 
 ```
 my $pi = atan2( 0, -1 );
