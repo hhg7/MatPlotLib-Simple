@@ -116,7 +116,9 @@ plot({
 ```
 where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `plot.type`, `data`, `input.file` are all specific to `MatPlotLib::Simple`.
 <img width="651" height="491" alt="single barplot" src="https://github.com/user-attachments/assets/eae009a8-5571-4608-abdb-1016e3cff5fd" />
+
 ### Options
+
 | Option | Description | Example |
 | -------- | ------- | ------- 
 |color| :mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed|`color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],` or a single color for all bars `color => 'red'`
@@ -131,6 +133,7 @@ where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `
 
 an example of multiple plots, showing many options:
 
+### single, simple
 ```
 plot({
 	'input.file'		=> $tmp_filename,
