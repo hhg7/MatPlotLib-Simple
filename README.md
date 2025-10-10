@@ -304,6 +304,7 @@ which produces the plot:
 <img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/6d87d13b-dabd-485d-92f7-1418f4acc65b" />
 
 ## hexbin
+### single plot
 ```
 plot({
 	data	=> {
@@ -318,5 +319,132 @@ plot({
 ```
 which makes the following plot:
 <img width="1208" height="491" alt="single hexbin" src="https://github.com/user-attachments/assets/129c41cd-2d7d-43de-978a-2b9c441b8939" />
+### multiple plots
+
+```
+plot(
+    {
+        'input.file'      => $tmp_filename,
+        execute           => 0,
+        'output.filename' => 'output.images/hexbin.png',
+        plots             => [
+            {
+                data => {
+                    E => generate_normal_dist( 100, 15, 3 * 210 ),
+                    B => generate_normal_dist( 85,  15, 3 * 210 )
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'Simple Hexbin',
+                xlabel       => 'xlabel',
+                set_figwidth => 12,
+            },
+            {
+                data => {
+                    E => generate_normal_dist( 100, 15, 3 * 210 ),
+                    B => generate_normal_dist( 85,  15, 3 * 210 )
+                },
+                'plot.type' => 'hexbin',
+                title       => 'colorbar logscale',
+                cb_logscale => 1
+            }
+        ],
+        ncols => 2
+    }
+);
+```
+<img width="1210" height="491" alt="hexbin" src="https://github.com/user-attachments/assets/819a2525-d03b-467f-b886-69df0870d1c9" />
+## plot
+### single, simple
+```
+plot(
+    {
+        'input.file'      => $tmp_filename,
+        execute           => 0,
+        'output.filename' => 'output.images/plot.single.png',
+        data              => {
+            'sin(x)' => [
+                [@x],                     # x
+                [ map { sin($_) } @x ]    # y
+            ],
+            'cos(x)' => [
+                [@x],                     # x
+                [ map { cos($_) } @x ]    # y
+            ],
+        },
+        'plot.type' => 'plot',
+        title       => 'simple plot',
+        set_xticks  =>
+"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+          . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+        'set.options' => {    # set options overrides global settings
+            'sin(x)' => 'color="blue", linewidth=2',
+            'cos(x)' => 'color="red",  linewidth=2'
+        }
+    }
+);
+```
+which makes the following "plot" plot: <img width="651" height="491" alt="plot single" src="https://github.com/user-attachments/assets/6cbd6aad-c464-4703-b962-b420ec08bb66" />
+
+```
+my $pi = atan2( 0, -1 );
+my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
+plot(
+    {
+        'input.file'      => $tmp_filename,
+        execute           => 0,
+        'output.filename' => 'output.images/plot.png',
+        plots             => [
+            {    # plot 1
+                data => {
+                    'sin(x)' => [
+                        [@x],                     # x
+                        [ map { sin($_) } @x ]    # y
+                    ],
+                    'cos(x)' => [
+                        [@x],                     # x
+                        [ map { cos($_) } @x ]    # y
+                    ],
+                },
+                'plot.type' => 'plot',
+                title       => 'simple plot',
+                set_xticks  =>
+"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+                  . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+                'set.options' => {    # set options overrides global settings
+                    'sin(x)' => 'color="blue", linewidth=2',
+                    'cos(x)' => 'color="red",  linewidth=2'
+                },
+                set_xlim => "$x[0], $x[-1]",    # set min and max as a string
+            },
+            {                                   # plot 2
+                data => {
+                    'csc(x)' => [
+                        [@x],                         # x
+                        [ map { 1 / sin($_) } @x ]    # y
+                    ],
+                    'sec(x)' => [
+                        [@x],                         # x
+                        [ map { 1 / cos($_) } @x ]    # y
+                    ],
+                },
+                'plot.type' => 'plot',
+                title       => 'simple plot',
+                set_xticks  =>
+"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+                  . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+                'set.options' => {    # set options overrides global settings
+                    'csc(x)' => 'color="purple", linewidth=2',
+                    'sec(x)' => 'color="green",  linewidth=2'
+                },
+                set_xlim => "$x[0], $x[-1]",    # set min and max as a string
+                set_ylim => '-9,9',
+            },
+        ],
+        ncols        => 2,
+        set_figwidth => 12,
+    }
+);
+```
+which makes <img width="1211" height="491" alt="plot" src="https://github.com/user-attachments/assets/a8312147-e13d-4aa9-9997-49430bb5c74a" />
 
 # Advanced
