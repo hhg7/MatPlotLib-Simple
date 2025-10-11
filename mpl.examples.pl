@@ -461,11 +461,13 @@ plot(
         'input.file' => $tmp_filename,
     }
 );
+my @e = generate_normal_dist( 100, 15, 3 * 210 );
+my @b = generate_normal_dist( 85,  15, 3 * 210 );
 plot(
     {
         data => {
-            E => generate_normal_dist( 100, 15, 3 * 210 ),
-            B => generate_normal_dist( 85,  15, 3 * 210 )
+            E => @e,
+            B => @b,
         },
         execute           => 0,
         'input.file'      => $tmp_filename,
@@ -479,8 +481,8 @@ plot(
     {
         'output.filename' => 'output.images/single.hist2d.png',
         data              => {
-            E => generate_normal_dist( 100, 15, 3 * 210 ),
-            B => generate_normal_dist( 85,  15, 3 * 210 )
+            E => @e,
+            B => @b
         },
         'plot.type'  => 'hist2d',
         title        => 'title',
@@ -496,25 +498,45 @@ plot(
         plots             => [
             {
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 210 ),
-                    B => generate_normal_dist( 85,  15, 3 * 210 )
+                    E => @e,
+                    B => @b
                 },
                 'plot.type'  => 'hexbin',
                 title        => 'Simple Hexbin',
-                xlabel       => 'xlabel',
-                set_figwidth => 12,
             },
             {
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 210 ),
-                    B => generate_normal_dist( 85,  15, 3 * 210 )
+                    E => @e,
+                    B => @b
                 },
                 'plot.type' => 'hexbin',
                 title       => 'colorbar logscale',
                 cb_logscale => 1
-            }
+            },
+            {
+                cmap => 'jet',
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'cmap is jet',
+                xlabel       => 'xlabel',
+            },
+             {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'key.order'  => ['E', 'B'],
+                'plot.type'  => 'hexbin',
+                title        => 'Switch axes with key.order',
+            },
         ],
-        ncols => 2
+        ncols        => 4,
+        set_figheight=> 4,
+        set_figwidth => 20/1.7,
+        suptitle     => 'Various Changes to Standard Hexbin: All data is the same'
     }
 );
 my $pi = atan2( 0, -1 );

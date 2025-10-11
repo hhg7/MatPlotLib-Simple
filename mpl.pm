@@ -709,10 +709,7 @@ sub hexbin_helper {
         $options .= ', norm = LogNorm()';
     }
     foreach my $opt (
-        grep { defined $plot->{$_} } (
-            'xrange',  'yrange', 'cmin', 'cmax',
-            'density', 'vmin',   'vmax', 'mincnt'
-        )
+        grep { defined $plot->{$_} } ('xrange', 'yrange', 'vmin', 'vmax', 'mincnt')
       )
     {
         $options .= ", $opt = $plot->{$opt}";
