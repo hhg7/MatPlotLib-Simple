@@ -638,13 +638,12 @@ sub hexbin_helper {
         die 'the above args are necessary, but were not defined.';
     }
     my @opt = (
-        @ax_methods, @plt_methods, @fig_methods, @arg,
+        @ax_methods, @fig_methods, @arg, @plt_methods,
         'ax',
         'cb_logscale',
         'cmap',         # "gist_rainbow" by default
         'key.order',    # define the keys in an order (an array reference)
-        'logscale'
-        , # int >= 0, default: *None*  If not *None*, only display cells with at least *mincnt* number of points in the cell. logscale, an array of axes that will get log scale
+        'marginals',  # If marginals is *True*, plot the marginal density as colormapped rectangles along the bottom of the x-axis and left of the y-axis.
         'mincnt'
         , # int >= 0, default: 0 If > 0, only display cells with at least *mincnt*        number of points in the cell.
         'vmax'
@@ -653,8 +652,6 @@ sub hexbin_helper {
         , # When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover
         'xbins',    # default 15
         'ybins',    # default 15
-        'xscale', # {'linear', 'log'}, default: 'linear' linear/log10 scale on the horizontal axis
-        'yscale', # {'linear', 'log'}, default: 'linear' linear/log10 scale on the vertical axis
     );
     my $plot = $args->{plot};
     @undef_args = grep {
@@ -667,6 +664,7 @@ sub hexbin_helper {
 "The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
     }
     $plot->{cb_logscale} = $plot->{cb_logscale} // 0;
+    $plot->{marginals}   = $plot->{marginals}   // 0;
     $plot->{xbins}       = $plot->{xbins}       // 15;
     $plot->{ybins}       = $plot->{ybins}       // 15;
     $plot->{xbins}       = int $plot->{xbins};
@@ -709,10 +707,13 @@ sub hexbin_helper {
         $options .= ', norm = LogNorm()';
     }
     foreach my $opt (
-        grep { defined $plot->{$_} } ('xrange', 'yrange', 'vmin', 'vmax', 'mincnt')
+        grep { defined $plot->{$_} } ('xrange', 'yrange', 'vmin', 'vmax', 'mincnt', )
       )
     {
         $options .= ", $opt = $plot->{$opt}";
+    }
+    if ((defined $plot->{marginals}) && ($plot->{marginals} > 0)) {
+    	$options .= ', marginals = True';
     }
     say { $args->{fh} } 'x = ['
       . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';

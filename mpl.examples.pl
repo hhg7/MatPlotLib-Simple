@@ -461,8 +461,8 @@ plot(
         'input.file' => $tmp_filename,
     }
 );
-my @e = generate_normal_dist( 100, 15, 3 * 210 );
-my @b = generate_normal_dist( 85,  15, 3 * 210 );
+my @e = generate_normal_dist( 100, 15, 3 * 200 );
+my @b = generate_normal_dist( 85,  15, 3 * 200 );
 plot(
     {
         data => {
@@ -532,10 +532,65 @@ plot(
                 'plot.type'  => 'hexbin',
                 title        => 'Switch axes with key.order',
             },
+             {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'vmax set to 25',
+                vmax         => 25
+            },
+             {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'vmin set to -4',
+                vmin         => -4
+            },
+            {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'mincnt set to 7',
+                mincnt       => 7
+            },
+            {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'xbins set to 9',
+                xbins        => 9
+            },
+            {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'ybins set to 9',
+                ybins        => 9
+            },
+            {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'marginals = 1',
+                marginals    => 1
+            },
         ],
         ncols        => 4,
-        set_figheight=> 4,
-        set_figwidth => 20/1.7,
+        nrows        => 3,
+        set_figheight=> 3*5,
+        set_figwidth => 4*5,
         suptitle     => 'Various Changes to Standard Hexbin: All data is the same'
     }
 );
