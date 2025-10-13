@@ -320,11 +320,11 @@ see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.hexbin.html
 | cb_logscale | colorbar log scale `from matplotlib.colors import LogNorm` | default 0, any value > 0 enables |
 |cmap| The Colormap instance or registered colormap name used to map scalar data to colors | default `gist_rainbow` |
 |key.order|  define the keys in an order (an array reference)|`'key.order' => ['X-rays', 'Yak Butter'],`
+| marginals | integer, by default off = 0 | `marginals => 1` |
 | mincnt | int >= 0, default: None; If not None, only display cells with at least mincnt number of points in the cell. |  `mincnt => 2`|
 | vmax  | The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap | `'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'` default `linear` |
 | vmin  | The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap | `'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'` default `linear` |
 | xbins | integer that accesses horizontal gridsize | default is 15 |
-| xscale | `linear` or `log`, | default `linear` | 
 | ybins | integer that accesses vertical gridsize | default is 15 |
 
 ### single plot
@@ -353,31 +353,100 @@ plot(
         plots             => [
             {
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 210 ),
-                    B => generate_normal_dist( 85,  15, 3 * 210 )
+                    E => @e,
+                    B => @b
                 },
                 'plot.type'  => 'hexbin',
                 title        => 'Simple Hexbin',
-                xlabel       => 'xlabel',
-                set_figwidth => 12,
             },
             {
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 210 ),
-                    B => generate_normal_dist( 85,  15, 3 * 210 )
+                    E => @e,
+                    B => @b
                 },
                 'plot.type' => 'hexbin',
                 title       => 'colorbar logscale',
                 cb_logscale => 1
-            }
+            },
+            {
+                cmap => 'jet',
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'cmap is jet',
+                xlabel       => 'xlabel',
+            },
+             {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'key.order'  => ['E', 'B'],
+                'plot.type'  => 'hexbin',
+                title        => 'Switch axes with key.order',
+            },
+             {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'vmax set to 25',
+                vmax         => 25
+            },
+             {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'vmin set to -4',
+                vmin         => -4
+            },
+            {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'mincnt set to 7',
+                mincnt       => 7
+            },
+            {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'xbins set to 9',
+                xbins        => 9
+            },
+            {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'ybins set to 9',
+                ybins        => 9
+            },
+            {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'marginals = 1',
+                marginals    => 1
+            },
         ],
         ncols => 2
     }
 );
 ```
-<img width="1210" height="491" alt="hexbin" src="https://github.com/user-attachments/assets/819a2525-d03b-467f-b886-69df0870d1c9" />
-
-## plot
+## p<img width="2010" height="1511" alt="hexbin" src="https://github.com/user-attachments/assets/8d0fc659-b93f-4d14-af52-aef3eccfbf51" />
 
 ### single, simple
 
