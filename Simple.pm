@@ -651,7 +651,9 @@ sub hexbin_helper {
         'vmin'
         , # When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover
         'xbins',    # default 15
+        'xscale.hexbin', # 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the horizontal axis.
         'ybins',    # default 15
+        'yscale.hexbin', # 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the vertical axis.
     );
     my $plot = $args->{plot};
     @undef_args = grep {
@@ -707,10 +709,18 @@ sub hexbin_helper {
         $options .= ', norm = LogNorm()';
     }
     foreach my $opt (
-        grep { defined $plot->{$_} } ('xrange', 'yrange', 'vmin', 'vmax', 'mincnt', )
+        grep { defined $plot->{$_} } ('xrange', 'yrange', 'vmin', 'vmax', 'mincnt')
       )
     {
         $options .= ", $opt = $plot->{$opt}";
+    }
+    foreach my $opt (grep {defined $plot->{$_} } ('xscale.hexbin', 'yscale.hexbin')) {
+    	if (($plot->{$opt} ne 'log') && ($plot->{$opt} ne 'linear')) {
+	    	die "\"$opt\" is neither \"log\" nor \"linear\"";
+    	}
+    	my $opth = $opt;
+    	$opth =~ s/\.\w+$//;
+    	$options .= ", $opth = '$plot->{$opt}'";
     }
     if ((defined $plot->{marginals}) && ($plot->{marginals} > 0)) {
     	$options .= ', marginals = True';

@@ -372,6 +372,9 @@ plot(
         execute      => 0,
     }
 );
+my @e = generate_normal_dist( 100, 15, 3 * 200 );
+my @b = generate_normal_dist( 85,  15, 3 * 200 );
+my @a = generate_normal_dist( 105, 15, 3 * 200 );
 plot(
     {
         'input.file'      => $tmp_filename,
@@ -380,8 +383,8 @@ plot(
         plots             => [
             {
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 210 ),
-                    B => generate_normal_dist( 85,  15, 3 * 210 )
+                    E => @e,
+                    B => @b
                 },
                 'plot.type'  => 'violinplot',
                 title        => 'Basic',
@@ -391,8 +394,8 @@ plot(
             },
             {
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 210 ),
-                    B => generate_normal_dist( 85,  15, 3 * 210 )
+                    E => @e,
+                    B => @b
                 },
                 'plot.type' => 'violinplot',
                 color       => 'red',
@@ -400,8 +403,8 @@ plot(
             },
             {
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 110 ),
-                    B => generate_normal_dist( 85,  15, 3 * 110 )
+                    E => @e,
+                    B => @b
                 },
                 'plot.type' => 'violinplot',
                 colors      => {
@@ -412,8 +415,8 @@ plot(
             },
             {
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 110 ),
-                    B => generate_normal_dist( 85,  15, 3 * 110 )
+                    E => @e,
+                    B => @b
                 },
                 orientation => 'horizontal',
                 'plot.type' => 'violinplot',
@@ -425,8 +428,8 @@ plot(
             },
             {
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 110 ),
-                    B => generate_normal_dist( 85,  15, 3 * 110 )
+                    E => @e,
+                    B => @b
                 },
                 whiskers    => 0,
                 'plot.type' => 'violinplot',
@@ -461,8 +464,6 @@ plot(
         'input.file' => $tmp_filename,
     }
 );
-my @e = generate_normal_dist( 100, 15, 3 * 200 );
-my @b = generate_normal_dist( 85,  15, 3 * 200 );
 plot(
     {
         data => {
@@ -585,6 +586,24 @@ plot(
                 'plot.type'  => 'hexbin',
                 title        => 'marginals = 1',
                 marginals    => 1
+            },
+            {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'xscale.hexbin = 1',
+                'xscale.hexbin' => 'log'
+            },
+            {
+                data => {
+                    E => @e,
+                    B => @b
+                },
+                'plot.type'  => 'hexbin',
+                title        => 'yscale.hexbin = 1',
+                'yscale.hexbin' => 'log'
             },
         ],
         ncols        => 4,
@@ -872,9 +891,9 @@ plot(
         plots             => [
             {    # simple histogram
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 210 ),
-                    B => generate_normal_dist( 100, 15, 3 * 210 ),
-                    A => generate_normal_dist( 100, 15, 3 * 210 ),
+                    E => @e,
+                    B => @b,
+                    A => @a,
                 },
                 'plot.type' => 'hist',
                 alpha       => 0.25,
@@ -896,9 +915,9 @@ plot(
             },
             {                          # simple histogram
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 210 ),
-                    B => generate_normal_dist( 100, 15, 3 * 210 ),
-                    A => generate_normal_dist( 100, 15, 3 * 210 ),
+                    E => @e,
+                    B => @b,
+                    A => @a,
                 },
                 'plot.type' => 'hist',
                 alpha       => 0.75,
@@ -916,9 +935,9 @@ plot(
             },
             {                          # simple histogram
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 210 ),
-                    B => generate_normal_dist( 100, 15, 3 * 210 ),
-                    A => generate_normal_dist( 100, 15, 3 * 210 ),
+                    E => @e,
+                    B => @b,
+                    A => @a,
                 },
                 'plot.type' => 'hist',
                 alpha       => 0.75,
@@ -941,9 +960,9 @@ plot(
             },
             {                          # simple histogram
                 data => {
-                    E => generate_normal_dist( 100, 15, 3 * 210 ),
-                    B => generate_normal_dist( 100, 15, 3 * 210 ),
-                    A => generate_normal_dist( 100, 15, 3 * 210 ),
+                    E => @e,
+                    B => @b,
+                    A => @a,
                 },
                 'plot.type' => 'hist',
                 alpha       => 0.75,
@@ -977,9 +996,9 @@ plot(
         plots             => [
             {    # single-set scatter; no label
                 data => {
-                    X => generate_normal_dist( 100, 15, 210 ),    # x-axis
-                    Y => generate_normal_dist( 100, 15, 210 ),    # y-axis
-                    Z => generate_normal_dist( 100, 15, 210 )     # color
+                    X => @e,    # x-axis
+                    Y => @b,    # y-axis
+                    Z => @a     # color
                 },
                 title     => '"Single Set Scatterplot: Random Distributions"',
                 color_key => 'Z',
@@ -991,8 +1010,8 @@ plot(
             {     # multiple-set scatter, labels are "X" and "Y"
                 data => {
                     X => {    # 1st data set; label is "X"
-                        A => generate_normal_dist( 100, 15, 210 ),    # x-axis
-                        B => generate_normal_dist( 100, 15, 210 ),    # y-axis
+                        A => @a,    # x-axis
+                        B => @b,    # y-axis
                     },
                     W => {    # 2nd data set; label is "Y"
                         A => generate_normal_dist( 100, 15, 210 ),    # x-axis
@@ -1010,9 +1029,9 @@ plot(
             {          # multiple-set scatter, labels are "X" and "Y"
                 data => {    # 8th plot,
                     X => {    # 1st data set; label is "X"
-                        A => generate_normal_dist( 100, 15, 210 ),    # x-axis
-                        B => generate_normal_dist( 100, 15, 210 ),    # y-axis
-                        C => generate_normal_dist( 100, 15, 210 ),    # color
+                        A => @e,    # x-axis
+                        B => @b,    # y-axis
+                        C => @a,    # color
                     },
                     Y => {    # 2nd data set; label is "Y"
                         A => generate_normal_dist( 100, 15, 210 ),    # x-axis
