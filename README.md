@@ -310,7 +310,10 @@ plot({
 which produces the plot:
 
 <img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/6d87d13b-dabd-485d-92f7-1418f4acc65b" />
-
+## boxplot
+### options
+### single, simple plot
+### multiple plots
 ## hexbin
 see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.hexbin.html
 ### options
@@ -449,8 +452,24 @@ plot(
 );
 ```
 which produces the following image:
-## plot<img width="2010" height="1511" alt="hexbin" src="https://github.com/user-attachments/assets/71412ab1-e869-4913-a8cf-e39df15c9590" />
-
+<img width="2010" height="1511" alt="hexbin" src="https://github.com/user-attachments/assets/71412ab1-e869-4913-a8cf-e39df15c9590" />
+## hist
+### options
+### single, simple plot
+### multiple plots
+## hist2d
+### options
+### single, simple plot
+### multiple plots
+## imshow
+### options
+### single, simple plot
+### multiple plots
+## pie
+### options
+### single, simple plot
+### multiple plots
+## plot
 ### single, simple
 
 ```
@@ -547,5 +566,74 @@ plot(
 );
 ```
 which makes <img width="1211" height="491" alt="plot" src="https://github.com/user-attachments/assets/a8312147-e13d-4aa9-9997-49430bb5c74a" />
-
+## scatter
+### options
+### single, simple plot
+### multiple plots
+## violin
+### options
+### single, simple plot
+### multiple plots
+## wide
+### options
+### single, simple plot
+### multiple plots
 # Advanced
+To improve speed, all data can be written into a single temp python3 file thus:
+```
+use File::Temp 'tempfile';
+
+my ( $fh, $tmp_filename ) =  tempfile( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
+close $fh;
+# all files will be written to $tmp_filename; be sure to put `execute => 0`
+plot(
+    {
+        data => {
+            Clinical => [
+                [
+                    [@xw],    # x
+                    [@y]      # y
+                ],
+                [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
+                [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
+            ],
+            HGI => [
+                [
+                    [@xw],                            # x
+                    [ map { 1.9 - 1.1 / $_ } @xw ]    # y
+                ],
+                [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
+                [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
+            ]
+        },
+        'output.filename' => 'output.images/single.wide.png',
+        'plot.type'       => 'wide',
+        color             => {
+            Clinical => 'blue',
+            HGI      => 'green'
+        },
+        title        => 'Visualization of similar lines plotted together',
+        'input.file' => $tmp_filename,
+        execute      => 0,
+    }
+);
+# the last plot should have `execute => 1`
+plot(
+    {
+        data => [
+            [
+                [@xw],    # x
+                [@y]      # y
+            ],
+            [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
+            [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
+        ],
+        'output.filename' => 'output.images/single.array.png',
+        'plot.type'       => 'wide',
+        color             => 'red',
+        title             => 'Visualization of similar lines plotted together',
+        'input.file'      => $tmp_filename,
+        execute           => 1,
+    }
+);
+```
