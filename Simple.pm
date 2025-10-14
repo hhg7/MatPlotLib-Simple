@@ -7,7 +7,7 @@ use DDP { output => 'STDOUT', array_max => 10, show_memsize => 1 };
 use Devel::Confess 'color';
 
 package Matplotlib::Simple;
-our $VERSION = 0.01;
+our $VERSION = 0.02;
 
 =head1 NAME
 Matplotlib::Simple
@@ -75,8 +75,7 @@ my @ax_methods = (
     'autoscale_view', 'axison',   'bxp', 'callbacks', 'can_pan', 'can_zoom',
     'child_axes', 'collections', 'containers', 'contains_point', 'dataLim',
     'drag_pan',   'end_pan',     'fmt_xdata',  'fmt_ydata',      'format_coord',
-    'format_xdata', 'format_ydata'
-    , #'get_adjustable', 'get_anchor', 'get_aspect', 'get_autoscale_on', 'get_autoscalex_on', 'get_autoscaley_on', 'get_axes_locator', 'get_axisbelow', 'get_box_aspect', 'get_data_ratio', 'get_fc', 'get_forward_navigation_events', 'get_frame_on', 'get_gridspec', 'get_images', 'get_legend', 'get_legend_handles_labels', 'get_lines', 'get_navigate', 'get_navigate_mode', 'get_position', 'get_rasterization_zorder', 'get_shared_x_axes', 'get_shared_y_axes', 'get_subplotspec', 'get_title', 'get_xaxis', 'get_xaxis_text1_transform', 'get_xaxis_text2_transform', 'get_xaxis_transform', 'get_xbound', 'get_xgridlines', 'get_xlabel', 'get_xlim', 'get_xmajorticklabels', 'get_xmargin', 'get_xminorticklabels', 'get_xscale', 'get_xticklabels', 'get_xticklines', 'get_xticks', 'get_yaxis', 'get_yaxis_text1_transform', 'get_yaxis_text2_transform', 'get_yaxis_transform', 'get_ybound', 'get_ygridlines', 'get_ylabel', 'get_ylim', 'get_ymajorticklabels', 'get_ymargin', 'get_yminorticklabels', 'get_yscale', 'get_yticklabels', 'get_yticklines', 'get_yticks','has_data',
+    'format_xdata', 'format_ydata',
     'ignore_existing_data_limits', 'in_axes',    'indicate_inset',
     'indicate_inset_zoom',         'inset_axes', 'invert_xaxis', 'invert_yaxis',
     'label_outer', 'legend_', 'name', 'pcolorfast', 'redraw_in_frame', 'relim',
@@ -102,15 +101,13 @@ my @fig_methods = (
     'add_artist', 'add_axes', 'add_axobserver', 'add_callback', 'add_gridspec',
     'add_subfigure', 'add_subplot',   'align_labels', 'align_titles',
     'align_xlabels', 'align_ylabels', 'artists',
-    'autofmt_xdate',                                  #'axes', # same as plt
+    'autofmt_xdate', #'axes', # same as plt
     'bbox', 'bbox_inches', 'canvas', 'clear', 'clf', 'clipbox',
     'colorbar',    # same name as in plt, have to use on case-by-case
     'contains',           'convert_xunits', 'convert_yunits', 'delaxes', 'dpi',
     'dpi_scale_trans',    'draw', 'draw_artist', 'draw_without_rendering',
     'figbbox',            'figimage',    # 'figure', 'findobj',
-    'format_cursor_data', 'frameon'
-    , #'gca','get_agg_filter','get_alpha','get_animated','get_axes','get_children', 'get_clip_box','get_clip_on','get_clip_path','get_constrained_layout','get_constrained_layout_pads', 'get_cursor_data','get_default_bbox_extra_artists','get_dpi','get_edgecolor','get_facecolor', #'get_figheight', #'get_figure', #'get_figwidth', #'get_frameon','get_gid','get_in_layout','get_label', 'get_layout_engine','get_linewidth','get_mouseover','get_path_effects','get_picker', 'get_rasterized','get_size_inches','get_sketch_params','get_snap', 'get_suptitle', #'get_supxlabel', 'get_supylabel','get_tight_layout','get_tightbbox','get_transform', 'get_transformed_clip_path_and_affine', #'get_url', 'get_visible','get_window_extent','get_zorder', # 'ginput',, keeping plt instead
-    'have_units', 'images',    'is_transform_set',    # 'legend',	 legends',
+    'format_cursor_data', 'frameon', 'have_units', 'images',    'is_transform_set',    # 'legend',	 legends',
     'lines',      'mouseover', 'number', 'patch', 'patches', 'pchanged', 'pick',
     'pickable',   'properties', 'remove',
     'remove_callback',    #'savefig', keeping plt instead
@@ -184,22 +181,22 @@ my @plt_methods = (
     'triplot', 'twinx',     'twiny', 'uninstall_repl_displayhook', 'violinplot',
     'viridis', 'vlines',    'waitforbuttonpress', 'winter', 'xcorr', 'xkcd',
     'xlabel',
-
     #	'xlim',
     'xscale',
-
     #'xticks',
     'ylabel', 'ylim', 'yscale',
-
     #	'yticks'
 );
 
-my @arg = (
-    'input.file', 'execute', 'data', 'plot.type',
-    'ncols',      'plots',   'plot', 'output.filename',
-    'nrows'
-);
-
+my @arg = ('cmap', 'data', 'execute', 'input.file','ncols', 'plot.type',
+ 'plots', 'plot', 'output.filename','nrows');
+my @cb_arg = (
+'cbdrawedges', # for colarbar: Whether to draw lines at color boundaries
+'cblabel',		# The label on the colorbar's long axis
+'cblocation', # of the colorbar None or {'left', 'right', 'top', 'bottom'}
+'cborientation', # None or {'vertical', 'horizontal'}
+'cb_logscale');
+my $cb_regex = join ('|', @cb_arg);
 sub plot_args {    # this is a helper function to other matplotlib subroutines
     my ($args) = @_;
     my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
@@ -219,7 +216,7 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
         die 'the above args are necessary, but were not defined.';
     }
     my @defined_args =
-      ( @reqd_args, @ax_methods, @fig_methods, @plt_methods, @arg );
+      ( @reqd_args, @ax_methods, @fig_methods, @plt_methods, @arg, @cb_arg );
     my @bad_args = grep {
         my $key = $_;
         not grep { $_ eq $key } @defined_args
@@ -299,7 +296,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
         p @undef_args;
         die 'the above args are necessary, but were not defined.';
     }
-    my @barplot_opt = (
+    my @opt = (
         @reqd_args, @ax_methods, @plt_methods, @fig_methods, @arg,
         'ax',
         'color'
@@ -318,10 +315,11 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
         , # float or array-like of shape(N,) or shape(2, N), optional. If not *None*, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - *None*: No errorbar. (Default)
         'yerr',    # same as xerr, but better with bar
     );
+    @opt = grep {$_ !~ m/^(?:$cb_regex)$/} @opt; # args that shouldn't apply
     my $plot      = $args->{plot};
     my @undef_opt = grep {
         my $key = $_;
-        not grep { $_ eq $key } @barplot_opt
+        not grep { $_ eq $key } @opt
     } keys %{$plot};
     my $ax = $args->{ax} // '';
     if ( scalar @undef_opt > 0 ) {
@@ -533,6 +531,7 @@ sub boxplot_helper {
         'plots', 'ncols', 'nrows', 'output.filename', 'input.file',
         'execute'      # these will be ignored
     );
+    @opt = grep {$_ !~ m/^(?:$cb_regex)$/} @opt; # args that shouldn't apply
     my $plot      = $args->{plot};
     my @undef_opt = grep {
         my $key = $_;
@@ -780,6 +779,7 @@ sub hist_helper {
         'plots', 'ncols', 'nrows', 'output.filename', 'input.file',
         'execute'         # these will be ignored
     );
+    @opt = grep {$_ !~ m/^(?:$cb_regex)$/} @opt; # args that shouldn't apply
     my $plot      = $args->{plot};
     my @undef_opt = grep {
         my $key = $_;
@@ -950,6 +950,78 @@ sub hist2d_helper {
     }
 }
 
+sub imshow_helper {
+    my ($args) = @_;
+    my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+      ; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+    unless ( ref $args eq 'HASH' ) {
+        die
+"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+    }
+    my @reqd_args = (
+        'ax',
+        'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+        'plot',    # args to original function
+    );
+    my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+    if ( scalar @undef_args > 0 ) {
+        p @undef_args;
+        die 'the above args are necessary, but were not defined.';
+    }
+    my @opt = (
+        @ax_methods, @plt_methods, @fig_methods, @arg,
+        'cblabel', # colorbar label
+        'cbdrawedges', # for colorbar
+        'cblocation', # of the colorbar None or {'left', 'right', 'top', 'bottom'}
+        'cborientation', # None or {'vertical', 'horizontal'}
+        'cmap', # The Colormap instance or registered colormap name used to map scalar data to colors.
+        'vmax', # float
+        'vmin', # flat
+    );
+    my $plot = $args->{plot};
+    @undef_args = grep {
+        my $key = $_;
+        not grep { $_ eq $key } @opt
+    } keys %{$plot};
+    if ( scalar @undef_args > 0 ) {
+        p @undef_args;
+        die
+"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+    }
+    my $i = 0;
+    print { $args->{fh} } 'd = [';
+    my ($min_val, $max_val) = ('inf', '-inf');
+    foreach my $row (@{ $plot->{data} }) {
+	    say { $args->{fh} } '[' . join (',', @{ $row }) . '],';
+	    $min_val = min(@{ $row }, $min_val);
+	    $max_val = max(@{ $row }, $max_val);
+	 }
+	 say { $args->{fh} } ']';
+	 my $ax = $args->{ax} // '';
+	 my $opts = '';
+	 $plot->{vmax} = $plot->{vmax} // $max_val;
+	 $plot->{vmin} = $plot->{vmin} // $min_val;
+	 foreach my $opt (grep {defined $plot->{$_}} ('cmap')) { # strings
+	 	$opts .= ", $opt = '$plot->{$opt}'";
+	 }
+	 foreach my $opt (grep {defined $plot->{$_}} ('vmax', 'vmin')) { # numeric
+	 	$opts .= ", $opt = $plot->{$opt}";
+	 }
+    say { $args->{fh} } "im$ax = ax$ax.imshow(d $opts)";#, labels = labels $opt)";
+    $opts = '';
+    foreach my $o (grep {defined $plot->{$_}} ('cblabel', 'cblocation', 'cborientation')) { #str
+    	my $mpl_opt = $o;
+    	$mpl_opt =~ s/^cb//;
+    	$opts .= ", $mpl_opt = '$plot->{$o}'";
+    }
+    foreach my $o (grep {defined $plot->{$_}} ('cbdrawedges')) { # numeric
+    	my $mpl_opt = $o;
+    	$mpl_opt =~ s/^cb//;
+    	$opts .= ", $mpl_opt = $plot->{$o}";
+    }
+    say { $args->{fh} } "fig.colorbar(im$ax $opts)";
+}
+
 sub pie_helper {
     my ($args) = @_;
     my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
@@ -977,6 +1049,7 @@ sub pie_helper {
         'labeldistance',
         'pctdistance',
     );
+    @opt = grep {$_ !~ m/^(?:$cb_regex)$/} @opt; # args that shouldn't apply
     my $plot      = $args->{plot};
     my @undef_opt = grep {
         my $key = $_;
@@ -1594,7 +1667,7 @@ sub plot {
         die 'either "plot.type" or "plots" must be defined, but neither were';
     }
     my @defined_args = (
-        @reqd_args, @ax_methods, @fig_methods,  @plt_methods,
+        @reqd_args, @ax_methods, @fig_methods,  @plt_methods, @cb_arg,
         @arg,       'key.order', 'set.options', 'color',
         'colors',   'show.legend'
     );
@@ -1756,6 +1829,15 @@ or a grouped bar plot:
                 }
             );
         }
+        elsif ( $args->{'plot.type'} eq 'imshow' ) {
+            imshow_helper(
+                {
+                    fh   => $fh,
+                    ax   => 0,
+                    plot => $args
+                }
+            );
+        }
         elsif ( $args->{'plot.type'} eq 'pie' ) {
             pie_helper(
                 {
@@ -1890,6 +1972,15 @@ or a grouped bar plot:
         }
         elsif ( $plot->{'plot.type'} eq 'hist2d' ) {
             hist2d_helper(
+                {
+                    fh   => $fh,
+                    ax   => $ax,
+                    plot => $plot
+                }
+            );
+        }
+        elsif ( $plot->{'plot.type'} eq 'imshow' ) {
+            imshow_helper(
                 {
                     fh   => $fh,
                     ax   => $ax,
