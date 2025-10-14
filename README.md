@@ -55,7 +55,7 @@ which produces the following subplots image:
 
 <img width="651" height="424" alt="pies" src="https://github.com/user-attachments/assets/49d3e28b-f897-4b01-9e72-38afa12fa538" />
 
-`bar`, `barh`, `boxplot`, `hexbin`, `hist`, `pie`, `plot`, `scatter`, `violinplot` all match the methods in matplotlib itself.
+`bar`, `barh`, `boxplot`, `hexbin`, `hist`, `hist2d`, `imshow`, `pie`, `plot`, `scatter`, and `violinplot` all match the methods in matplotlib itself.
 # Examples/Plot Types
 Consider the following helper subroutines to generate data to plot:
 
