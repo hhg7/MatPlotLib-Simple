@@ -325,9 +325,11 @@ see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.hexbin.html
 | vmax  | The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap | `'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'` default `linear` |
 | vmin  | The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap | `'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'` default `linear` |
 | xbins | integer that accesses horizontal gridsize | default is 15 |
+| xscale.hexbin | 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the horizontal axis | `'xscale.hexbin' => 'log'`|
 | ybins | integer that accesses vertical gridsize | default is 15 |
+| yscale.hexbin | 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the vertical axis | `'yscale.hexbin' => 'log'`|
 
-### single plot
+### single, simple plot
 ```
 plot({
 	data	=> {
@@ -446,7 +448,8 @@ plot(
     }
 );
 ```
-## p<img width="2010" height="1511" alt="hexbin" src="https://github.com/user-attachments/assets/8d0fc659-b93f-4d14-af52-aef3eccfbf51" />
+which produces the following image:
+## plot<img width="2010" height="1511" alt="hexbin" src="https://github.com/user-attachments/assets/71412ab1-e869-4913-a8cf-e39df15c9590" />
 
 ### single, simple
 
