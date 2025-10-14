@@ -15,6 +15,47 @@ Matplotlib::Simple
 David E. Condon
 =head1 LICENSE
 FreeBSD
+=head1 SYNOPSIS
+Simplest possible use case:
+
+	use Matplotlib::Simple 'plot';
+	plot({
+		'output.filename' => '/tmp/gospel.word.counts.png',
+		'plot.type'       => 'bar',
+		data              => {
+			Matthew => 18345,
+			Mark    => 11304,
+			Luke    => 19482,
+			John    => 15635,
+		}
+	});
+	
+Having a `plots` argument as an array lets the module know to create subplots:
+
+	use Matplotlib::Simple 'plot';
+	plot({
+		'output.filename'	=> 'svg/pies.png',
+		plots             => [
+			{
+				data	=> {
+				 Russian => 106_000_000,  # Primarily European Russia
+				 German => 95_000_000,    # Germany, Austria, Switzerland, etc.
+				},
+				'plot.type'	=> 'pie',
+				title       => 'Top Languages in Europe',
+				suptitle    => 'Pie in subplots',
+			},
+			{
+				data	=> {
+				 Russian => 106_000_000,  # Primarily European Russia
+				 German => 95_000_000,    # Germany, Austria, Switzerland, etc.
+				},
+				'plot.type'	=> 'pie',
+				title       => 'Top Languages in Europe',
+			},
+		],
+		ncols    => 2,
+	});
 =cut
 use List::Util qw(max sum min);
 use Term::ANSIColor;
@@ -1768,23 +1809,6 @@ sub plot {
             die;
         }
         if ( $args->{'plot.type'} =~ m/^barh?$/ ) {  # barplot: "bar" and "barh"
-
-=example input data
-
-Simple bar plot fed from simple hash:
-		{ # simple bar plot
-			Fri	=> 76,	Mon	=> 73,	Sat	=> 26, Sun	=> 11,	Thu	=> 94,	Tue	=> 93,
-			Wed	=> 77
-		},
-or a grouped bar plot:
-		{ # barplot with groups
-			1942 => [ 109867,  310000, 7700000 ], # US, Japan, USSR
-			1943 => [ 221111,  440000, 9000000 ],
-			1944 => [ 318584,  610000, 7000000 ],
-			1945 => [ 318929, 1060000, 3000000 ],
-		},
-=cut
-
             barplot_helper(
                 {
                     fh   => $fh,
@@ -1918,23 +1942,6 @@ or a grouped bar plot:
 "the above args are necessary, but were not defined for plot $ax.";
         }
         if ( $plot->{'plot.type'} =~ m/^barh?$/ ) {  # barplot: "bar" and "barh"
-
-=example input data
-
-Simple bar plot fed from simple hash:
-		{ # simple bar plot
-			Fri	=> 76,	Mon	=> 73,	Sat	=> 26, Sun	=> 11,	Thu	=> 94,	Tue	=> 93,
-			Wed	=> 77
-		},
-or a grouped bar plot:
-		{ # barplot with groups
-			1942 => [ 109867,  310000, 7700000 ], # US, Japan, USSR
-			1943 => [ 221111,  440000, 9000000 ],
-			1944 => [ 318584,  610000, 7000000 ],
-			1945 => [ 318929, 1060000, 3000000 ],
-		},
-=cut
-
             barplot_helper(
                 {
                     fh   => $fh,
