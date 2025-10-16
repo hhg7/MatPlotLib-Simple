@@ -579,6 +579,10 @@ which makes <img width="1211" height="491" alt="plot" src="https://github.com/us
 ### single, simple plot
 ### multiple plots
 # Advanced
+## Notes in Files
+all files that can have notes with them, give notes about how the file was written.  For example, SVG files have the following:
+`<dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm</dc:title>`
+## Speed
 To improve speed, all data can be written into a single temp python3 file thus:
 ```
 use File::Temp 'tempfile';
