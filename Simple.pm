@@ -1189,6 +1189,16 @@ sub plot_helper {
             die
 "$set has $nx x data points, but y has $ny y data points, and they must be equal";
         }
+        foreach my $ax (0,1) {
+        	  my $n = scalar @{ $plot->{data}{$set}[$ax] };
+        	  my @undef_i = grep {not defined $plot->{data}{$set}[$ax][$_]} 0..$n-1;
+        	  if (scalar @undef_i > 0) {
+        	  	p $plot->{data}{$set}[$ax];
+        	  	p @undef_i;
+        	  	my $n_undef = scalar @undef_i;
+        	  	die "set $set axis $ax has $n_undef undefined values, of $n total values";
+        	  }
+        }
         my $options = '';
         say { $args->{fh} } 'x = ['
           . join( ',', @{ $plot->{data}{$set}[0] } ) . ']';
