@@ -11,11 +11,11 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
   NAME             => 'Matplotlib::Simple',
   VERSION_FROM     => 'mpl.pm',
-#  ABSTRACT_FROM    => 'MatPlotLib-Simple/mpl.pm',
+  ABSTRACT_FROM    => 'lib/Matplotlib/Simple.pm',
   AUTHOR           => 'David E. Condon',
-  LICENSE          => 'freebsd',
+  LICENSE          => 'perl_5',
   MIN_PERL_VERSION => '5.012',
-  EXE_FILES        => ['MatPlotLib-Simple'],
+#  EXE_FILES        => ['MatPlotLib-Simple'],
   PREREQ_PM        => {
     'strict'   => 1,
     'warnings' => 1,

@@ -1,3 +1,4 @@
+# ABSTRACT: Access Matplotlib from Perl; providing consistent user interface between different plot types
 #!/usr/bin/env perl
 use strict;
 use warnings FATAL => 'all';
@@ -56,6 +57,9 @@ Having a `plots` argument as an array lets the module know to create subplots:
 		],
 		ncols    => 2,
 	});
+
+See https://github.com/hhg7/MatPlotLib-Simple for more detailed use cases (with images)
+
 =cut
 use List::Util qw(max sum min);
 use Term::ANSIColor;
