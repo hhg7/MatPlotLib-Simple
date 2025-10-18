@@ -8,7 +8,7 @@ use DDP { output => 'STDOUT', array_max => 10, show_memsize => 1 };
 use Devel::Confess 'color';
 
 package Matplotlib::Simple;
-our $VERSION = 0.02;
+our $VERSION = 0.03;
 
 =head1 NAME
 Matplotlib::Simple
@@ -501,7 +501,8 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
         my $hw       = 'height';
         $hw = 'width' if $plot->{'plot.type'} eq 'bar';
         my @bottom = map { 0 } 0 .. scalar @{ $val[0] } - 1;      # initialize
-        while ( my ( $i, $arr ) = each @val ) {
+        my $i = 0;
+        foreach my $arr (@val) {
             my $x = '[' . join( ',', @xticks ) . ']';
             foreach my $p ( 0 .. $#mean_pos ) {
                 $mean_pos[$p] += $xticks[$p];
@@ -523,6 +524,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
               if $plot->{stacked} > 0;
             @xticks = map { $_ + $barwidth } @xticks
               if $plot->{stacked} <= 0;    # for next iteration
+              $i++;
         }
         my $xticks = '["' . join( '","', @key_order ) . '"]';
         my $ticks  = 'yticks';
@@ -1300,9 +1302,12 @@ sub scatter_helper {
         }
         if ( defined $plot->{color_key} ) {
             $color_key = $plot->{color_key};
-            while ( my ( $i, $key ) = each @keys ) {
+            my $i = 0;
+            foreach my $key (@keys) {
+#            while ( my ( $i, $key ) = each @keys ) {
                 next unless $key eq $plot->{color_key};
                 splice @keys, $i, 1;    # remove the color key from @keys
+                $i++;
             }
         }
         elsif ( scalar @keys == 3 ) {
@@ -1768,10 +1773,13 @@ sub plot {
     }
     my @ax = map { "ax$_" } 0 .. $args->{nrows} * $args->{ncols} - 1;
     my ( @py, @y, $fh, $temp_py );
-    while ( my ( $i, $ax ) = each @ax ) {
+    my $i = 0;
+    foreach my $ax (@ax) {
+#    while ( my ( $i, $ax ) = each @ax ) {
         my $a1i = int $i / $args->{ncols};    # 1st index
         my $a2i = $i % $args->{ncols};        # 2nd index
         $y[$a1i][$a2i] = $ax;
+        $i++;
     }
     foreach my $y (@y) {
         push @py, '(' . join( ',', @{$y} ) . ')';
@@ -1802,9 +1810,12 @@ sub plot {
     }
     if ( defined $args->{plots} ) {
         my @undef_plot_types;
-        while ( my ( $i, $plot ) = each @{ $args->{plots} } ) {
+        my $i = 0;
+        foreach my $plot (@{ $args->{plots} }) {
+#        while ( my ( $i, $plot ) = each @{ $args->{plots} } ) {
             next if defined $plot->{'plot.type'};
             push @undef_plot_types, $i;
+            $i++;
         }
         if ( scalar @undef_plot_types > 0 ) {
             p $args;
@@ -1943,8 +1954,9 @@ sub plot {
             }
         );
     }
-    while ( my ( $ax, $plot ) = each @{ $args->{plots} } )
-    {    # for each plot $ax (hash is $plot)
+    my $ax = 0;
+    foreach my $plot (@{ $args->{plots} } ) {
+#    while ( my ( $ax, $plot ) = each @{ $args->{plots} } ) { # for each plot $ax (hash is $plot)
         my @reqd_keys = (
             'data',         # data type, of which several are available
             'plot.type',    # "bar", "barh", "hist", etc.
@@ -2076,6 +2088,7 @@ sub plot {
                 ax   => "ax$ax"
             }
         );
+        $ax++;
     }
     foreach my $ax (@ax) {
         say $fh "if $ax.has_data() == False:";    # remove empty plots
