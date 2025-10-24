@@ -339,6 +339,10 @@ plot(
     }
 );
 ```
+which makes the following image:
+
+<img width="651" height="491" alt="single boxplot" src="https://github.com/user-attachments/assets/19870fa2-fe36-4513-8cbb-23da3a0cf686" />
+
 ### multiple plots
 ```
 plot(
@@ -465,6 +469,9 @@ plot(
     }
 );
 ```
+which makes the following plot:
+
+<img width="1230" height="1211" alt="boxplot" src="https://github.com/user-attachments/assets/7e32e394-86fc-49e7-ad97-f48fd82fc8b0" />
 
 ## hexbin
 see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.hexbin.html
