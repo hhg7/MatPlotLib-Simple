@@ -311,9 +311,13 @@ which produces the plot:
 
 <img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/6d87d13b-dabd-485d-92f7-1418f4acc65b" />
 ## boxplot
+
 ### options
+
 ### single, simple plot
+
 ### multiple plots
+
 ## hexbin
 see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.hexbin.html
 ### options
