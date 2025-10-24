@@ -103,6 +103,9 @@ sub rand_between {
 }
 ```
 ## Barplot/bar/barh
+
+Plot a hash or a hash of arrays as a boxplot
+
 ### Options
 
 | Option | Description | Example |
@@ -313,8 +316,21 @@ which produces the plot:
 
 ## boxplot
 
+Plot a hash of arrays as a series of boxplots
+
 ### options
 
+| Option | Description | Example |
+| -------- | ------- | ------- |
+|`color` | a single color for all plots | `color => 'pink'`|
+|`colors`| a hash, where each data point and color is a hash pair |`colors => { A => 'orange', E => 'yellow', B => 'purple' },`|
+| `key.order`| order that the keys in the entry hash will be plotted | `key.order = ['A', 'E', 'B']` |
+| `orientation`| orientation of the plot, by default `vertical`| `orientation = 'horizontal'` |
+|`showcaps`| Show the caps on the ends of whiskers; default `True` | `showcaps => 'False',` |
+| `showfliers` |Show the outliers beyond the caps; default `True` | `showfliers  => 'False'` |
+|`showmeans` | show means; default = `True` | `showmeans   => 'False'` |
+|`whiskers`| show whiskers, default = 1| ` whiskers    => 0,`|
+				
 ### single, simple plot
 ```
 my $x = generate_normal_dist( 100, 15, 3 * 10 );
@@ -474,7 +490,10 @@ which makes the following plot:
 <img width="1230" height="1211" alt="boxplot" src="https://github.com/user-attachments/assets/7e32e394-86fc-49e7-ad97-f48fd82fc8b0" />
 
 ## hexbin
+
+Plot a hash of arrays as a hexbin
 see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.hexbin.html
+
 ### options
 
 | Option | Description | Example |
