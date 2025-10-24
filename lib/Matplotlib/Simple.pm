@@ -544,8 +544,7 @@ sub boxplot_helper {
         'color'
         , # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
         'colors', 'key.order',
-        'notch'
-        , # Whether to draw a notched boxplot (`True`), or a rectangular boxplot (`False`)
+        'notch', # Whether to draw a notched boxplot (`True`), or a rectangular boxplot (`False`)
         'orientation',    # {'vertical', 'horizontal'}, default: 'vertical'
         'showcaps'
         ,    # bool: Show the caps on the ends of whiskers; default "True"
@@ -578,11 +577,10 @@ sub boxplot_helper {
     }
     my $ax = $args->{ax} // '';
     #	$plot->{medians} = $plot->{medians} // 1; # by default, show median values
-    $plot->{edgecolor}  = $plot->{edgecolor}  // 'black';
+    $plot->{notch}      = $plot->{notch}      // 'False';
     $plot->{showcaps}   = $plot->{showcaps}   // 'True';
     $plot->{showfliers} = $plot->{showfliers} // 'True';
     $plot->{showmeans}  = $plot->{showmeans}  // 'True';
-    $plot->{notch}      = $plot->{notch}      // 'False';
     my $options = "orientation = '$plot->{orientation}'";
     foreach my $arg ( 'showcaps', 'showfliers', 'showmeans', 'notch' ) {
         $options .= ", $arg = $plot->{$arg}";
@@ -594,9 +592,7 @@ sub boxplot_helper {
           . join( ',', @{ $plot->{data}{$key} } ) . '])' . "\n";
     }
     print { $args->{fh} } "bp = ax$ax.boxplot(d, patch_artist = True, $options)\n";
-    if ( defined $plot->{colors} )
-    {    # every hash key should have its own color defined
-
+    if ( defined $plot->{colors} ){ # every hash key should have its own color defined
 # the below code helps to provide better error messages in case I make an error in calling the sub
         my @wrong_keys =
           grep { not defined $plot->{colors}{$_} } keys %{ $plot->{data} };
