@@ -540,14 +540,10 @@ sub boxplot_helper {
     }
     my @opt = (
         @ax_methods, @plt_methods, @fig_methods, @arg,
-        'alpha',    # default 0.5; same for all sets
         'ax',       # used for multiple plots
-        'bins'
-        , # nt or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open
         'color'
         , # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
         'colors', 'key.order',
-        'log',    # if set to > 1, the y-axis will be logarithmic
         'notch'
         , # Whether to draw a notched boxplot (`True`), or a rectangular boxplot (`False`)
         'orientation',    # {'vertical', 'horizontal'}, default: 'vertical'
@@ -556,8 +552,6 @@ sub boxplot_helper {
         'showfliers',
         'showmeans',
         'whiskers',    # 0 or 1
-        'plots', 'ncols', 'nrows', 'output.filename', 'input.file',
-        'execute'      # these will be ignored
     );
     @opt = grep {$_ !~ m/^(?:$cb_regex)$/} @opt; # args that shouldn't apply
     my $plot      = $args->{plot};
@@ -625,8 +619,6 @@ sub boxplot_helper {
             print { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')\n";
         }
         print { $args->{fh} } "\tpc.set_edgecolor('black')\n";
-
-        #		say {$args->{fh}} "\tpc.set_alpha(1)";
     }
     foreach my $key (@key_order) {
         push @xticks, "$key ("
