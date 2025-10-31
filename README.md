@@ -640,14 +640,53 @@ which produces the following image:
 ### single, simple plot
 ### multiple plots
 ## imshow
+
+Plot 2D array of numbers as an image
+
 ### options
+| Option | Description | Example |
+| -------- | ------- | ------- 
+|`cblabel`| colorbar label | `cblabel => 'sin(x) * cos(x)',`
+|`cbdrawedges` |draw edges for colorbar | |
+|`cblocation` | 'left', 'right', 'top', 'bottom'| `cblocation => 'left',`|
+|`cborientation`|  None, or 'vertical', 'horizontal' | 
+|`cmap`| # The Colormap instance or registered colormap name used to map scalar data to colors.|
+|`vmax`| float |
+|`vmin`| float | 
+
 ### single, simple plot
+
+```
+my @imshow_data;
+foreach my $i (0..360) {
+	foreach my $j (0..360) {
+		push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
+	}
+}
+plot({
+	data              => \@imshow_data,
+	execute           => 0,
+   'input.file'      => $tmp_filename,
+	'output.filename' => 'output.images/imshow.single.png',
+	'plot.type'       => 'imshow',
+	set_xlim          => '0, ' . scalar @imshow_data,
+	set_ylim          => '0, ' . scalar @imshow_data,
+});
+```
+<img width="599" height="491" alt="imshow single" src="https://github.com/user-attachments/assets/3fa4ffe6-4817-4133-9c91-b68099400377" />
+
 ### multiple plots
+
 ## pie
+
 ### options
+
 ### single, simple plot
+
 ### multiple plots
+
 ## plot
+
 ### single, simple
 
 ```
