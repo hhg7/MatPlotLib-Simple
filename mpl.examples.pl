@@ -17,14 +17,12 @@ sub linspace {    # mostly written by Grok
     return ()       if $num < 0;     # Return empty array for invalid num
     return ($start) if $num == 1;    # Return single value if num is 1
     my ( @result, $step );
-
     if ($endpoint) {
         $step = ( $stop - $start ) / ( $num - 1 ) if $num > 1;
         for my $i ( 0 .. $num - 1 ) {
             $result[$i] = $start + $i * $step;
         }
-    }
-    else {
+    } else {
         $step = ( $stop - $start ) / $num;
         for my $i ( 0 .. $num - 1 ) {
             $result[$i] = $start + $i * $step;
@@ -61,8 +59,7 @@ my @y  = map { 2 - 1 / $_ } @xw;
 my ( $fh, $tmp_filename ) =
   tempfile( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
 close $fh;
-plot(
-    {
+plot({
         data => {
             Clinical => [
                 [
@@ -90,10 +87,8 @@ plot(
         title        => 'Visualization of similar lines plotted together',
         'input.file' => $tmp_filename,
         execute      => 0,
-    }
-);
-plot(
-    {
+});
+plot({
         data => [
             [
                 [@xw],    # x
@@ -108,10 +103,8 @@ plot(
         title             => 'Visualization of similar lines plotted together',
         'input.file'      => $tmp_filename,
         execute           => 0,
-    }
-);
-plot(
-    {
+});
+plot({
         plots => [
             {
                 data => [
@@ -131,10 +124,8 @@ plot(
         suptitle          => 'SubPlots',
         'input.file'      => $tmp_filename,
         execute           => 0,
-    }
-);
-plot(
-    {
+});
+plot({
         'output.filename' => 'output.images/single.pie.png',
         data              => {                                 # simple hash
             Fri => 76,
@@ -149,8 +140,7 @@ plot(
         title        => 'Single Simple Pie',
         'input.file' => $tmp_filename,
         execute      => 0,
-    }
-);
+});
 plot(
     {
         'output.filename' => 'output.images/pie.png',
@@ -983,8 +973,7 @@ plot(
         nrows => 2,
     }
 );
-plot(
-    {
+plot({
         'input.file'      => $tmp_filename,
         'output.filename' => 'output.images/scatterplots.png',
         execute           => 0,
@@ -1049,10 +1038,69 @@ plot(
                 color_key => 'Z',
             }
         ]
-    }
-);
-plot(
-    {
+});
+my @imshow_data;
+foreach my $i (0..360) {
+	foreach my $j (0..360) {
+		push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
+	}
+}
+plot({
+	data              => \@imshow_data,
+	execute           => 0,
+   'input.file'      => $tmp_filename,
+	'output.filename' => 'output.images/imshow.single.png',
+	'plot.type'       => 'imshow',
+	set_xlim          => '0, ' . scalar @imshow_data,
+	set_ylim          => '0, ' . scalar @imshow_data,
+});
+plot({
+	plots  => [
+		{
+			data => \@imshow_data,
+			'plot.type'       => 'imshow',
+			set_xlim          => '0, ' . scalar @imshow_data,
+			set_ylim          => '0, ' . scalar @imshow_data,
+			title             => 'basic',
+		},
+		{
+			cblabel           => 'sin(x) * cos(x)',
+			data => \@imshow_data,
+			'plot.type'       => 'imshow',
+			set_xlim          => '0, ' . scalar @imshow_data,
+			set_ylim          => '0, ' . scalar @imshow_data,
+			title             => 'cblabel',
+		},
+		{
+			cblabel           => 'sin(x) * cos(x)',
+			cblocation        => 'left',
+			data              => \@imshow_data,
+			'plot.type'       => 'imshow',
+			set_xlim          => '0, ' . scalar @imshow_data,
+			set_ylim          => '0, ' . scalar @imshow_data,
+			title             => 'cblocation = left',
+		},
+		{
+			cblabel           => 'sin(x) * cos(x)',
+			data              => \@imshow_data,
+			aux               => { # add secondary plots
+				
+			},
+			'plot.type'       => 'imshow',
+			set_xlim          => '0, ' . scalar @imshow_data,
+			set_ylim          => '0, ' . scalar @imshow_data,
+			title             => 'auxiliary plots',
+		},
+	],
+	execute           => 0,
+   'input.file'      => $tmp_filename,
+	'output.filename' => 'output.images/imshow.multiple.png',
+	ncols             => 2,
+	nrows             => 2,
+	set_figheight     => 6*3,
+	set_figwidth      => 6*4
+});
+plot({
         plots => [
             {
                 data => {
@@ -1110,6 +1158,4 @@ plot(
         execute           => 1,
         nrows             => 2,
         ncols             => 3,
-    }
-);
-
+});
