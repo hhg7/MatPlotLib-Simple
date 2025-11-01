@@ -8,6 +8,7 @@ use DDP { output => 'STDOUT', array_max => 10, show_memsize => 1 };
 use Devel::Confess 'color';
 
 package Matplotlib::Simple;
+require 5.010;
 our $VERSION = 0.04; # discard Perl versions < 5.10; cleaner CPAN page
 
 =head1 NAME
@@ -80,43 +81,42 @@ use Capture::Tiny 'capture';
 our @EXPORT = ('plot');
 
 sub execute {
-    my ( $cmd, $return, $die ) = @_;
-    $return = $return // 'exit';
-    $die    = $die    // 1;
-    if ( $return !~ m/^(exit|stdout|stderr|all)$/ ) {
-        die
-"you gave \$return = \"$return\", while this subroutine only accepts ^(exit|stdout|stderr)\$";
-    }
-    my ( $stdout, $stderr, $exit ) = capture {
-        system($cmd)
-    };
-    if ( ( $die == 1 ) && ( $exit != 0 ) ) {
-        say STDERR "exit = $exit";
-        say STDERR "STDOUT = $stdout";
-        say STDERR "STDERR = $stderr";
-        die "$cmd\n failed";
-    }
-    if ( $return eq 'exit' ) {
-        return $exit;
-    } elsif ( $return eq 'stderr' ) {
-        chomp $stderr;
-        return $stderr;
-    } elsif ( $return eq 'stdout' ) {
-        chomp $stdout;
-        return $stdout;
-    } elsif ( $return eq 'all' ) {
-        chomp $stdout;
-        chomp $stderr;
-        return {
-            exit   => $exit,
-            stdout => $stdout,
-            stderr => $stderr
-        };
-    }
-    else {
-        die "$return broke pigeonholes";
-    }
-    return $stdout;
+	my ( $cmd, $return, $die ) = @_;
+	$return = $return // 'exit';
+	$die    = $die    // 1;
+	if ( $return !~ m/^(exit|stdout|stderr|all)$/ ) {
+	  die
+	"you gave \$return = \"$return\", while this subroutine only accepts ^(exit|stdout|stderr)\$";
+	}
+	my ( $stdout, $stderr, $exit ) = capture {
+	  system($cmd)
+	};
+	if ( ( $die == 1 ) && ( $exit != 0 ) ) {
+	  say STDERR "exit = $exit";
+	  say STDERR "STDOUT = $stdout";
+	  say STDERR "STDERR = $stderr";
+	  die "$cmd\n failed";
+	}
+	if ( $return eq 'exit' ) {
+	  return $exit;
+	} elsif ( $return eq 'stderr' ) {
+	  chomp $stderr;
+	  return $stderr;
+	} elsif ( $return eq 'stdout' ) {
+	  chomp $stdout;
+	  return $stdout;
+	} elsif ( $return eq 'all' ) {
+	  chomp $stdout;
+	  chomp $stderr;
+	  return {
+		   exit   => $exit,
+		   stdout => $stdout,
+		   stderr => $stderr
+	  };
+	} else {
+	  die "$return broke pigeonholes";
+	}
+	return $stdout;
 }
 my @ax_methods = (
 	'ArtistList',     'add_child_axes', 'add_collection', 'add_container',
@@ -410,7 +410,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
         && ( defined $plot->{width} )
         && ( $plot->{stacked} == 0 ) )
     {
-        print STDERR "grouped, non-stacked barplots ignore width settings\n";
+        say STDERR 'grouped, non-stacked barplots ignore width settings';
         delete $plot->{width};
     }
     my @key_order;
@@ -469,10 +469,10 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
         }
     }
     if ( $plot_type eq 'simple' ) {    # a simple hash -> simple bar plot
-        print { $args->{fh} } 'labels = ["' . join( '","', @key_order ) . '"]' . "\n";
-        print { $args->{fh} } 'vals = ['
-          . join( ',', @{ $plot->{data} }{@key_order} ) . ']' . "\n";
-        print { $args->{fh} } "ax$ax.$plot->{'plot.type'}(labels, vals $options)\n";
+        say { $args->{fh} } 'labels = ["' . join( '","', @key_order ) . '"]';
+        say { $args->{fh} } 'vals = ['
+          . join( ',', @{ $plot->{data} }{@key_order} ) . ']';
+        say { $args->{fh} } "ax$ax.$plot->{'plot.type'}(labels, vals $options)";
     }
     elsif ( $plot_type eq 'grouped' ) {    # grouped bar plot; hash of array
         my @val;
@@ -506,9 +506,9 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
             if ( $plot->{stacked} > 0 ) {
                 $set_options .= ', bottom = [' . join( ',', @bottom ) . ']';
             }
-            print { $args->{fh} } "ax$ax.$plot->{'plot.type'}($x, ["
+            say { $args->{fh} } "ax$ax.$plot->{'plot.type'}($x, ["
               . join( ',', @{$arr} )
-              . "], $hw = $barwidth $options $set_options)\n";
+              . "], $hw = $barwidth $options $set_options)";
             @bottom =
               map { $bottom[$_] + $arr->[$_] } 0 .. scalar @{ $val[0] } - 1
               if $plot->{stacked} > 0;
@@ -520,9 +520,9 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
         my $ticks  = 'yticks';
         $ticks = 'xticks' if $plot->{'plot.type'} eq 'bar';
         $_ /= scalar @val for @mean_pos;
-        print { $args->{fh} } "ax$ax.set_$ticks(["
+        say { $args->{fh} } "ax$ax.set_$ticks(["
           . join( ',', @mean_pos )
-          . "], $xticks)\n";
+          . "], $xticks)";
     } else {
         die
 "\$plot_type = $plot_type & stacked = $plot->{stacked}and isn't defined.";
@@ -593,13 +593,13 @@ sub boxplot_helper {
     foreach my $arg ( 'showcaps', 'showfliers', 'showmeans', 'notch' ) {
         $options .= ", $arg = $plot->{$arg}";
     }
-    print { $args->{fh} } 'd = []' . "\n";
+    say { $args->{fh} } 'd = []';
     foreach my $key (@key_order) {
         @{ $plot->{data}{$key} } = grep { defined } @{ $plot->{data}{$key} };
-        print { $args->{fh} } 'd.append(['
-          . join( ',', @{ $plot->{data}{$key} } ) . '])' . "\n";
+        say { $args->{fh} } 'd.append(['
+          . join( ',', @{ $plot->{data}{$key} } ) . '])';
     }
-    print { $args->{fh} } "bp = ax$ax.boxplot(d, patch_artist = True, $options)\n";
+    say { $args->{fh} } "bp = ax$ax.boxplot(d, patch_artist = True, $options)";
     if ( defined $plot->{colors} ){ # every hash key should have its own color defined
 # the below code helps to provide better error messages in case I make an error in calling the sub
         my @wrong_keys =
@@ -614,29 +614,29 @@ sub boxplot_helper {
           . join( '","', @{ $plot->{colors} }{@key_order} ) . '"]' . "\n";
 
        # the above color list will have the same order, via the above hash slice
-        print { $args->{fh} } 'for patch, color in zip(bp["boxes"], colors):' . "\n";
-        print { $args->{fh} } "\tpatch.set_facecolor(color)\n";
-        print { $args->{fh} } "\tpatch.set_edgecolor('black')\n";
+        say { $args->{fh} } 'for patch, color in zip(bp["boxes"], colors):';
+        say { $args->{fh} } "\tpatch.set_facecolor(color)";
+        say { $args->{fh} } "\tpatch.set_edgecolor('black')";
     } else {
-        print { $args->{fh} } 'for pc in bp["boxes"]:' . "\n";
+        say { $args->{fh} } 'for pc in bp["boxes"]:';
         if ( defined $plot->{color} ) {
-            print { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')\n";
+            say { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')";
         }
-        print { $args->{fh} } "\tpc.set_edgecolor('black')\n";
+        say { $args->{fh} } "\tpc.set_edgecolor('black')";
     }
     foreach my $key (@key_order) {
         push @xticks, "$key ("
           . format_commas( scalar @{ $plot->{data}{$key} }, '%.0u' ) . ')';
     }
     if ( $plot->{orientation} eq 'vertical' ) {
-        print { $args->{fh} } "ax$ax.set_xticks(["
+        say { $args->{fh} } "ax$ax.set_xticks(["
           . join( ',',   1 .. scalar @key_order ) . '], ["'
-          . join( '","', @xticks ) . '"])' . "\n";
+          . join( '","', @xticks ) . '"])';
     }
     else {
-        print { $args->{fh} } "ax$ax.set_yticks(["
+        say { $args->{fh} } "ax$ax.set_yticks(["
           . join( ',',   1 .. scalar @key_order ) . '], ["'
-          . join( '","', @xticks ) . '"])' . "\n";
+          . join( '","', @xticks ) . '"])';
     }
 }
 
@@ -712,10 +712,10 @@ sub hexbin_helper {
     }
     my $n_points = scalar @{ $plot->{data}{ $keys[0] } };
     if ( scalar @{ $plot->{data}{ $keys[1] } } != $n_points ) {
-        print "\"$keys[0]\" has $n_points points.\n";
-        print "\"$keys[1]\" has "
+        say "\"$keys[0]\" has $n_points points.";
+        say "\"$keys[1]\" has "
           . scalar @{ $plot->{data}{ $keys[1] } }
-          . " points.\n";
+          . " points.";
         die 'The length of both keys must be equal.';
     }
     $plot->{xlabel} = $plot->{xlabel} // $keys[0];
@@ -725,7 +725,7 @@ sub hexbin_helper {
       ", gridsize = ($plot->{xbins}, $plot->{ybins}), cmap = '$plot->{cmap}'"
       ;    # these args go to the plt.hist call
     if ( $plot->{cb_logscale} > 0 ) {
-        print { $args->{fh} } "from matplotlib.colors import LogNorm\n";
+        say { $args->{fh} } 'from matplotlib.colors import LogNorm';
         $options .= ', norm = LogNorm()';
     }
     foreach my $opt (
@@ -745,16 +745,16 @@ sub hexbin_helper {
     if ((defined $plot->{marginals}) && ($plot->{marginals} > 0)) {
     	$options .= ', marginals = True';
     }
-    print { $args->{fh} } 'x = ['
-      . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']' . "\n";
-    print { $args->{fh} } 'y = ['
-      . join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']' . "\n";
+    say { $args->{fh} } 'x = ['
+      . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
+    say { $args->{fh} } 'y = ['
+      . join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']';
     my $ax = $args->{ax} // '';
-    print { $args->{fh} } "im = ax$ax.hexbin(x, y $options)\n";
+    say { $args->{fh} } "im = ax$ax.hexbin(x, y $options)\n";
     if ( defined $plot->{cblabel} ) {
-        print { $args->{fh} } 'plt.colorbar(im' . ", label = '$plot->{cblabel}')\n";
+        say { $args->{fh} } 'plt.colorbar(im' . ", label = '$plot->{cblabel}')";
     } else {
-        print { $args->{fh} } 'plt.colorbar(im, label = "Density")' . "\n";
+        say { $args->{fh} } 'plt.colorbar(im, label = "Density")';
     }
 }
 
@@ -845,9 +845,9 @@ sub hist_helper {
                 $set_options .= ", $arg = $plot->{$arg}{$set}";
             }
         }
-        print { $args->{fh} } "ax$args->{ax}.hist(["
+        say { $args->{fh} } "ax$args->{ax}.hist(["
           . join( ',', @{ $plot->{data}{$set} } )
-          . "], alpha = $plot->{alpha}, label = '$set' $options $set_options)\n";
+          . "], alpha = $plot->{alpha}, label = '$set' $options $set_options)";
     }
 }
 
@@ -924,10 +924,10 @@ sub hist2d_helper {
     }
     my $n_points = scalar @{ $plot->{data}{ $keys[0] } };
     if ( scalar @{ $plot->{data}{ $keys[1] } } != $n_points ) {
-        print "$keys[0] has $n_points points.\n";
-        print "$keys[1] has "
+        say "$keys[0] has $n_points points.";
+        say "$keys[1] has "
           . scalar @{ $plot->{data}{ $keys[1] } }
-          . " points.\n";
+          . " points.";
         die 'The length of both keys must be equal.';
     }
     $plot->{xlabel} = $plot->{xlabel} // $keys[0];
@@ -936,7 +936,7 @@ sub hist2d_helper {
     my $options =
       ", cmap = '$plot->{cmap}'";    # these args go to the plt.hist call
     if ( $plot->{cb_logscale} > 0 ) {
-        print { $args->{fh} } "from matplotlib.colors import LogNorm\n";
+        say { $args->{fh} } 'from matplotlib.colors import LogNorm';
         $options .= ', norm = LogNorm()';
     }
     foreach my $opt ( grep { defined $plot->{$_} }
@@ -944,12 +944,12 @@ sub hist2d_helper {
     {
         $options .= ", $opt = $plot->{$opt}";
     }
-    print { $args->{fh} } 'x = ['
-      . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']' . "\n";
+    say { $args->{fh} } 'x = ['
+      . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
     $plot->{xmin} = $plot->{xmin} // min( @{ $plot->{data}{ $keys[0] } } );
     $plot->{xmax} = $plot->{xmax} // max( @{ $plot->{data}{ $keys[0] } } );
-    print { $args->{fh} } 'y = ['
-      . join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']' . "\n";
+    say { $args->{fh} } 'y = ['
+      . join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']';
     $plot->{ymin} = $plot->{ymin} // min( @{ $plot->{data}{ $keys[1] } } );
     $plot->{ymax} = $plot->{ymax} // max( @{ $plot->{data}{ $keys[1] } } );
     my $ax = $args->{ax} // '';
@@ -957,8 +957,8 @@ sub hist2d_helper {
     # the range argument ensures that there are no empty parts of the plot
     my $range =
 ", range = [($plot->{xmin}, $plot->{xmax}), ($plot->{ymin}, $plot->{ymax})]";
-    print { $args->{fh} }
-"im$ax = ax$ax.hist2d(x, y, ($plot->{xbins}, $plot->{ybins}) $options $range)\n";
+    say { $args->{fh} }
+"im$ax = ax$ax.hist2d(x, y, ($plot->{xbins}, $plot->{ybins}) $options $range)";
     return 0 if $plot->{'show.colorbar'} == 0;
     if ( defined $plot->{cblabel} ) {
         say { $args->{fh} } "plt.colorbar(im$ax"
@@ -1284,23 +1284,23 @@ sub scatter_helper {
         elsif ( scalar @keys == 3 ) {
             $color_key = pop @keys;
         }    #			my $options = '';# these args go to the plt.hist call
-        print { $args->{fh} } 'x = ['
-          . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']' . "\n";
-        print { $args->{fh} } 'y = ['
-          . join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']' . "\n";
+        say { $args->{fh} } 'x = ['
+          . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
+        say { $args->{fh} } 'y = ['
+          . join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']';
         if (   ( defined $plot->{'set.options'} )
             && ( ref $plot->{'set.options'} eq '' ) )
         {
             $options = ", $plot->{'set.options'}";
         }
         if ( defined $color_key ) {
-            print { $args->{fh} } 'z = ['
-              . join( ',', @{ $plot->{data}{$color_key} } ) . ']' . "\n";
-            print { $args->{fh} }
-              "im = ax$ax.scatter(x, y, c = z, cmap = 'gist_rainbow' $options)\n";
-            print { $args->{fh} } "plt.colorbar(im, label = '$color_key')\n";
+            say { $args->{fh} } 'z = ['
+              . join( ',', @{ $plot->{data}{$color_key} } ) . ']';
+            say { $args->{fh} }
+              "im = ax$ax.scatter(x, y, c = z, cmap = 'gist_rainbow' $options)";
+            say { $args->{fh} } "plt.colorbar(im, label = '$color_key')";
         } else {
-            print { $args->{fh} } "ax$ax.scatter(x, y, $options)\n";
+            say { $args->{fh} } "ax$ax.scatter(x, y, $options)";
         }
         $plot->{xlabel} = $plot->{xlabel} // $keys[0];
         $plot->{ylabel} = $plot->{ylabel} // $keys[1];
@@ -1314,8 +1314,8 @@ sub scatter_helper {
         if ( scalar @undefined_opts > 0 ) {
             p $plot->{data};
             p $plot;
-            print
-"The data and options are above, but the following sets have options without data:\n";
+            say
+'The data and options are above, but the following sets have options without data:';
             p @undefined_opts;
             die 'no data was defined for the above options';
         }
@@ -1339,26 +1339,26 @@ sub scatter_helper {
             if ( defined $plot->{'set.options'}{$set} ) {
                 $options = ", $plot->{'set.options'}{$set}";
             }
-            print { $args->{fh} } 'x = ['
-              . join( ',', @{ $plot->{data}{$set}{ $keys[0] } } ) . ']' . "\n";
-            print { $args->{fh} } 'y = ['
-              . join( ',', @{ $plot->{data}{$set}{ $keys[1] } } ) . ']' . "\n";
+            say { $args->{fh} } 'x = ['
+              . join( ',', @{ $plot->{data}{$set}{ $keys[0] } } ) . ']';
+            say { $args->{fh} } 'y = ['
+              . join( ',', @{ $plot->{data}{$set}{ $keys[1] } } ) . ']';
             if ( defined $color_key ) {
-                print { $args->{fh} } 'z = ['
-                  . join( ',', @{ $plot->{data}{$set}{$color_key} } ) . ']' . "\n";
+                say { $args->{fh} } 'z = ['
+                  . join( ',', @{ $plot->{data}{$set}{$color_key} } ) . ']';
                 unless ( $options =~ m/label\s*=/ ) {
                     $options .= ", label = '$set'";
                 }
-                print { $args->{fh} }
-"im = ax$ax.scatter(x, y, c = z, cmap = '$plot->{cmap}' $options)\n";
+                say { $args->{fh} }
+"im = ax$ax.scatter(x, y, c = z, cmap = '$plot->{cmap}' $options)";
             } else {
-                print { $args->{fh} }
-                  "ax$ax.scatter(x, y, label = '$set' $options)\n";
+                say { $args->{fh} }
+                  "ax$ax.scatter(x, y, label = '$set' $options)";
             }
             $plot->{xlabel} = $plot->{xlabel} // $keys[0];
             $plot->{ylabel} = $plot->{ylabel} // $keys[1];
         }
-        print { $args->{fh} } "plt.colorbar(im, label = '$color_key')\n"
+        say { $args->{fh} } "plt.colorbar(im, label = '$color_key')"
           if defined $color_key;
     }
 }
@@ -1427,16 +1427,16 @@ sub violin_helper {
     if ( ( defined $plot->{'log'} ) && ( $plot->{'log'} > 0 ) ) {
         $options .= ', log = True';
     }
-    print { $args->{fh} } 'd = []' . "\n";
+    say { $args->{fh} } 'd = []';
     my $min_n_points = 'inf';
     foreach my $key (@key_order) {
         @{ $plot->{data}{$key} } = grep { defined } @{ $plot->{data}{$key} };
-        print { $args->{fh} } 'd.append(['
-          . join( ',', @{ $plot->{data}{$key} } ) . '])' . "\n";
+        say { $args->{fh} } 'd.append(['
+          . join( ',', @{ $plot->{data}{$key} } ) . '])';
         $min_n_points = min( scalar @{ $plot->{data}{$key} }, $min_n_points );
     }
-    print { $args->{fh} }
-"vp = ax$ax.violinplot(d, showmeans=False, points = $min_n_points, orientation = '$plot->{orientation}', showmedians = $plot->{medians})\n";
+    say { $args->{fh} }
+"vp = ax$ax.violinplot(d, showmeans=False, points = $min_n_points, orientation = '$plot->{orientation}', showmedians = $plot->{medians})";
     if ( defined $plot->{colors} )
     {    # every hash key should have its own color defined
 
@@ -1453,12 +1453,12 @@ sub violin_helper {
           . join( '","', @{ $plot->{colors} }{@key_order} ) . '"]' . "\n";
 
        # the above color list will have the same order, via the above hash slice
-        print { $args->{fh} } 'for i, pc in enumerate(vp["bodies"], 1):' . "\n";
-        print { $args->{fh} } "\tpc.set_facecolor(colors[i-1])\n";
-        print { $args->{fh} } "\tpc.set_edgecolor('black')\n";
+        say { $args->{fh} } 'for i, pc in enumerate(vp["bodies"], 1):';
+        say { $args->{fh} } "\tpc.set_facecolor(colors[i-1])";
+        say { $args->{fh} } "\tpc.set_edgecolor('black')";
     }
     else {
-        print { $args->{fh} } 'for pc in vp["bodies"]:' . "\n";
+        say { $args->{fh} } 'for pc in vp["bodies"]:';
         if ( defined $plot->{color} ) {
             print { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')\n";
         }
@@ -1469,75 +1469,72 @@ sub violin_helper {
     if ( $plot->{whiskers} > 0 ) {
 
        # https://matplotlib.org/stable/gallery/statistics/customized_violin.html
-        print { $args->{fh} } 'import numpy as np' . "\n";
-        print { $args->{fh} } 'def adjacent_values(vals, q1, q3):' . "\n";
-        print { $args->{fh} } '	upper_adjacent_value = q3 + (q3 - q1) * 1.5' . "\n";
-        print { $args->{fh} }
-          '	upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])' . "\n";
-        print { $args->{fh} } '	lower_adjacent_value = q1 - (q3 - q1) * 1.5' . "\n";
-        print { $args->{fh} }
-          '	lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)' . "\n";
-        print { $args->{fh} }
-          '	return lower_adjacent_value, upper_adjacent_value' . "\n";
-        print { $args->{fh} } 'np_data = np.array(d, dtype = object)' . "\n";
-        print { $args->{fh} } 'quartile1 = []' . "\n";
-        print { $args->{fh} } 'medians   = []' . "\n";
-        print { $args->{fh} } 'quartile3 = []' . "\n";
-        print { $args->{fh} } 'for subset in list(range(0, len(np_data))):' . "\n";
-        print { $args->{fh} }
+        say { $args->{fh} } 'import numpy as np';
+        say { $args->{fh} } 'def adjacent_values(vals, q1, q3):';
+        say { $args->{fh} } '	upper_adjacent_value = q3 + (q3 - q1) * 1.5';
+        say { $args->{fh} }
+          '	upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])';
+        say { $args->{fh} } '	lower_adjacent_value = q1 - (q3 - q1) * 1.5';
+        say { $args->{fh} }
+          '	lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)';
+        say { $args->{fh} }
+          '	return lower_adjacent_value, upper_adjacent_value';
+        say { $args->{fh} } 'np_data = np.array(d, dtype = object)';
+        say { $args->{fh} } 'quartile1 = []';
+        say { $args->{fh} } 'medians   = []';
+        say { $args->{fh} } 'quartile3 = []';
+        say { $args->{fh} } 'for subset in list(range(0, len(np_data))):';
+        say { $args->{fh} }
 '	local_quartile1, local_medians, local_quartile3 = np.percentile(d[subset], [25, 50, 75])' . "\n";
-        print { $args->{fh} } '	quartile1.append(local_quartile1)' . "\n";
-        print { $args->{fh} } '	medians.append(local_medians)' . "\n";
-        print { $args->{fh} } '	quartile3.append(local_quartile3)' . "\n";
-        print { $args->{fh} } 'whiskers = np.array([' . "\n";
-        print { $args->{fh} } '    adjacent_values(sorted_array, q1, q3)' . "\n";
-        print { $args->{fh} }
-          '    for sorted_array, q1, q3 in zip(d, quartile1, quartile3)])' . "\n";
-        print { $args->{fh} }
-          'whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]' . "\n";
-        print { $args->{fh} } 'inds = np.arange(1, len(medians) + 1)' . "\n";
-
+        say { $args->{fh} } '	quartile1.append(local_quartile1)';
+        say { $args->{fh} } '	medians.append(local_medians)';
+        say { $args->{fh} } '	quartile3.append(local_quartile3)';
+        say { $args->{fh} } 'whiskers = np.array([';
+        say { $args->{fh} } '    adjacent_values(sorted_array, q1, q3)';
+        say { $args->{fh} }
+          '    for sorted_array, q1, q3 in zip(d, quartile1, quartile3)])';
+        say { $args->{fh} }
+          'whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]';
+        say { $args->{fh} } 'inds = np.arange(1, len(medians) + 1)';
         if ( $plot->{orientation} eq 'vertical' ) {
-            print { $args->{fh} } "ax$ax"
-              . '.vlines(inds, quartile1, quartile3, color="k", linestyle="-", lw=5)' . "\n";
-            print { $args->{fh} } "ax$ax"
-              . '.vlines(inds, whiskers_min, whiskers_max, color="k", linestyle="-", lw=1)' . "\n";
-        }
-        else {
-            print { $args->{fh} } "ax$ax"
-              . '.hlines(inds, quartile1, quartile3, color="k", linestyle="-", lw=5)' . "\n";
-            print { $args->{fh} } "ax$ax"
-              . '.hlines(inds, whiskers_min, whiskers_max, color="k", linestyle="-", lw=1)' . "\n";
+            say { $args->{fh} } "ax$ax"
+              . '.vlines(inds, quartile1, quartile3, color="k", linestyle="-", lw=5)';
+            say { $args->{fh} } "ax$ax"
+              . '.vlines(inds, whiskers_min, whiskers_max, color="k", linestyle="-", lw=1)';
+        } else {
+            say { $args->{fh} } "ax$ax"
+              . '.hlines(inds, quartile1, quartile3, color="k", linestyle="-", lw=5)';
+            say { $args->{fh} } "ax$ax"
+              . '.hlines(inds, whiskers_min, whiskers_max, color="k", linestyle="-", lw=1)';
         }
     }
     foreach my $key (@key_order) {
         push @xticks, "$key ("
           . format_commas( scalar @{ $plot->{data}{$key} }, '%.0u' ) . ')';
         if ( $plot->{orientation} eq 'vertical' ) {
-            print { $args->{fh} } "ax$ax.plot("
+            say { $args->{fh} } "ax$ax.plot("
               . scalar @xticks . ', '
               . ( sum( @{ $plot->{data}{$key} } ) /
                   scalar @{ $plot->{data}{$key} } )
-              . ', "ro")' . "\n";    # plot mean point, which is red
+              . ', "ro")';    # plot mean point, which is red
         }
         else {                # orientation = horizontal
-            print { $args->{fh} } "ax$ax.plot("
+            say { $args->{fh} } "ax$ax.plot("
               . ( sum( @{ $plot->{data}{$key} } ) /
                   scalar @{ $plot->{data}{$key} } )
               . ', '
               . scalar @xticks
-              . ', "ro")' . "\n";    # plot mean point, which is red
+              . ', "ro")';    # plot mean point, which is red
         }
     }
     if ( $plot->{orientation} eq 'vertical' ) {
-        print { $args->{fh} } "ax$ax.set_xticks(["
+        say { $args->{fh} } "ax$ax.set_xticks(["
           . join( ',',   1 .. scalar @key_order ) . '], ["'
-          . join( '","', @xticks ) . '"])' . "\n";
-    }
-    else {
-        print { $args->{fh} } "ax$ax.set_yticks(["
+          . join( '","', @xticks ) . '"])';
+    } else {
+        say { $args->{fh} } "ax$ax.set_yticks(["
           . join( ',',   1 .. scalar @key_order ) . '], ["'
-          . join( '","', @xticks ) . '"])' . "\n";
+          . join( '","', @xticks ) . '"])';
     }
 }
 
@@ -1575,7 +1572,7 @@ sub wide_helper {
         die
 "The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
     }
-    print { $args->{fh} } 'import numpy as np' . "\n";
+    say { $args->{fh} } 'import numpy as np';
     my $ax       = $args->{ax} // '';
     my $ref_type = ref $plot->{data};
     if ( $ref_type eq 'HASH' ) {    # multiple groups, no label
@@ -1587,7 +1584,7 @@ sub wide_helper {
                 $min_x = min( $min_x, @{ $plot->{data}{$group}[$run][0] } );
                 $max_x = max( $max_x, @{ $plot->{data}{$group}[$run][0] } );
             }
-            print { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)\n";
+            say { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)";
             foreach my $run ( 0 .. scalar @{ $plot->{data}{$group} } - 1 ) {
                 say { $args->{fh} } 'x = ['
                   . join( ',', @{ $plot->{data}{$group}[$run][0] } ) . ']';
@@ -1601,7 +1598,7 @@ sub wide_helper {
             say { $args->{fh} } 'mean_ys = ys.mean(axis=0)';
             say { $args->{fh} } 'std = ys.std(axis=0)';
             say { $args->{fh} } 'ys_upper = np.minimum(mean_ys + std, 1)';
-            print { $args->{fh} } "ys_lower = mean_ys - std\n";
+            say { $args->{fh} } 'ys_lower = mean_ys - std';
             if ( $plot->{'show.legend'} > 0 ) {
 	            say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color', label = '$group')";
 	         } else {
@@ -1613,30 +1610,30 @@ sub wide_helper {
     }
     elsif ( $ref_type eq 'ARRAY' ) {
         my $color = $plot->{color} // 'b';
-        print { $args->{fh} } 'ys = []' . "\n";
+        say { $args->{fh} } 'ys = []';
         my ( $min_x, $max_x ) = ( 'inf', '-inf' );
         foreach my $run ( 0 .. scalar @{ $plot->{data} } - 1 ) {
             $min_x = min( $min_x, @{ $plot->{data}[$run][0] } );
             $max_x = max( $max_x, @{ $plot->{data}[$run][0] } );
         }
-        print { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)\n";
+        say { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)";
         foreach my $run ( 0 .. scalar @{ $plot->{data} } - 1 ) {
-            print { $args->{fh} } 'x = ['
-              . join( ',', @{ $plot->{data}[$run][0] } ) . ']' . "\n";
-            print { $args->{fh} } 'y = ['
-              . join( ',', @{ $plot->{data}[$run][1] } ) . ']' . "\n";
-            print { $args->{fh} } "ax$ax.plot(x, y, '$color', alpha=0.15)\n";
-            print { $args->{fh} } 'y = np.interp(base_y, x, y)' . "\n";
-            print { $args->{fh} } 'ys.append(y)' . "\n";
+            say { $args->{fh} } 'x = ['
+              . join( ',', @{ $plot->{data}[$run][0] } ) . ']';
+            say { $args->{fh} } 'y = ['
+              . join( ',', @{ $plot->{data}[$run][1] } ) . ']';
+            say { $args->{fh} } "ax$ax.plot(x, y, '$color', alpha=0.15)";
+            say { $args->{fh} } 'y = np.interp(base_y, x, y)';
+            say { $args->{fh} } 'ys.append(y)';
         }
-        print { $args->{fh} } "ys = np.array(ys)\n";
-        print { $args->{fh} } "mean_ys = ys.mean(axis=0)\n";
-        print { $args->{fh} } "std = ys.std(axis=0)\n";
-        print { $args->{fh} } "ys_upper = np.minimum(mean_ys + std, 1)\n";
-        print { $args->{fh} } "ys_lower = mean_ys - std\n";
-        print { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color')\n";
-        print { $args->{fh} }
-"ax$ax.fill_between(base_y, ys_lower, ys_upper, color='$color', alpha=0.3)\n";
+        say { $args->{fh} } 'ys = np.array(ys)';
+        say { $args->{fh} } 'mean_ys = ys.mean(axis=0)';
+        say { $args->{fh} } 'std = ys.std(axis=0)';
+        say { $args->{fh} } 'ys_upper = np.minimum(mean_ys + std, 1)';
+        say { $args->{fh} } 'ys_lower = mean_ys - std';
+        say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color')";
+        say { $args->{fh} }
+"ax$ax.fill_between(base_y, ys_lower, ys_upper, color='$color', alpha=0.3)";
     }
     else {
         die "$current_sub cannot take ref type \"$ref_type\" for \"data\"";
@@ -1699,9 +1696,9 @@ sub plot {
         die 'either "plot.type" or "plots" must be defined, but neither were';
     }
     my @defined_args = (
-        @reqd_args, @ax_methods, @fig_methods,  @plt_methods, @cb_arg,
-        @arg,       'key.order', 'set.options', 'color',
-        'colors',   'show.legend'
+		@reqd_args, @ax_methods, @fig_methods,  @plt_methods, @cb_arg,
+		@arg,       'key.order', 'set.options', 'color',
+		'colors',   'show.legend'
     );
     my @bad_args = grep {
         my $key = $_;
@@ -1709,7 +1706,7 @@ sub plot {
     } keys %{$args};
     if ( scalar @bad_args > 0 ) {
         p @bad_args, array_max => scalar @bad_args;
-        print "the above arguments are not recognized.\n";
+        say 'the above arguments are not recognized.';
         p @defined_args, array_max => scalar @defined_args;
         die "The above args are accepted by \"$current_sub\"";
     }
@@ -1719,11 +1716,11 @@ sub plot {
     }
     if ( ( $single_plot == 1 ) && ( not defined $args->{'plot.type'} ) ) {
         p $args;
-        print "$single_example\n";
+        say $single_example;
         die "\"plot.type\" was not defined for a single plot in $current_sub";
     }
     if ( ( $single_plot == 0 ) && ( not defined $args->{plots} ) ) {
-        print "$multi_example\n";
+        say $multi_example;
         die
 "$current_sub: single plots need \"data\" and \"plot.type\", see example above";
     }
@@ -1731,6 +1728,16 @@ sub plot {
         p $args;
         die "$current_sub \"plots\" must have an array entered into it";
     }
+    if ( ( $single_plot == 0 ) && ( scalar @{ $args->{plots} } == 0 ) ) {
+        p $args;
+        die "$current_sub \"plots\" has 0 plots entered.";
+    }
+    if ($single_plot == 1) {
+		 foreach my $arg (grep {defined $args->{$_} && $args->{$_} > 1} ('ncols', 'nrows')) {
+		 	warn "\"$arg\" is set to >1, but there is only 1 plot: resetting $arg to 1.";
+		 	$args->{$arg} = 1;
+		 }
+	 }
     $args->{nrows} = $args->{nrows} // 1;
     $args->{ncols} = $args->{ncols} // 1;
     if (   ( $single_plot == 0 )
@@ -1739,8 +1746,8 @@ sub plot {
     {
         p $args;
         my $n_plots = scalar @{ $args->{plots} };
-        print
-"ncols = $args->{ncols}; nrows = $args->{nrows}, but there are $n_plots plots.\n\n";
+        say
+"ncols = $args->{ncols}; nrows = $args->{nrows}, but there are $n_plots plots.\n";
         die 'There are not enough subplots for the data';
     }
     my @ax = map { "ax$_" } 0 .. $args->{nrows} * $args->{ncols} - 1;
@@ -1767,15 +1774,13 @@ sub plot {
     say $fh 'import matplotlib.pyplot as plt';
     if ( $single_plot == 0 ) {
         $args->{sharex} = $args->{sharex} // 'False';
-        print $fh 'fig, ('
+        say $fh 'fig, ('
           . join( ',', @py )
           . ") = plt.subplots($args->{nrows}, $args->{ncols}, sharex = $args->{sharex}, layout = 'constrained') #"
-          . __LINE__ . "\n";
-    }
-    elsif ( $single_plot == 1 ) {
-        print $fh 'fig, ax0 = plt.subplots(1,1, layout = "constrained")' . "\n";
-    }
-    else {
+          . __LINE__;
+    } elsif ( $single_plot == 1 ) {
+        say $fh 'fig, ax0 = plt.subplots(1,1, layout = "constrained")';
+    } else {
         die "\$single_plot = $single_plot breaks pigeonholes";
     }
     if ( defined $args->{plots} ) {
@@ -1796,62 +1801,49 @@ sub plot {
     my $find_global_min_max =
       scalar grep { $_->{'plot.type'} eq 'hist2d' } @{ $args->{plots} };
     if ( $find_global_min_max > 0 ) {
-        print $fh 'global_max = float("-inf")' . "\n";
-        print $fh 'global_min = float("inf")' . "\n";
+        say $fh 'global_max = float("-inf")';
+        say $fh 'global_min = float("inf")';
     }
     if ( $single_plot == 1 ) {
         if ( not defined $args->{'plot.type'} ) {
             die;
         }
         if ( $args->{'plot.type'} =~ m/^barh?$/ ) {  # barplot: "bar" and "barh"
-            barplot_helper(
-                {
-                    fh   => $fh,
-                    ax   => 0,
-                    plot => $args
-                }
-            );
-        }
-        elsif ( $args->{'plot.type'} eq 'boxplot' ) {
-            boxplot_helper(
-                {
-                    fh   => $fh,
-                    ax   => 0,
-                    plot => $args
-                }
-            );
+            barplot_helper({
+              fh   => $fh,
+              ax   => 0,
+              plot => $args
+            });
+        } elsif ( $args->{'plot.type'} eq 'boxplot' ) {
+            boxplot_helper({
+              fh   => $fh,
+              ax   => 0,
+              plot => $args
+            });
         } elsif ( $args->{'plot.type'} eq 'hexbin' ) {
-            hexbin_helper(
-                {
-                    fh   => $fh,
-                    ax   => 0,
-                    plot => $args
-                }
-            );
+            hexbin_helper({
+              fh   => $fh,
+              ax   => 0,
+              plot => $args
+            });
         } elsif ( $args->{'plot.type'} eq 'hist' ) {    # histogram
-            hist_helper(
-                {
-                    fh   => $fh,
-                    ax   => 0,
-                    plot => $args
-                }
-            );
+            hist_helper({
+              fh   => $fh,
+              ax   => 0,
+              plot => $args
+           });
         } elsif ( $args->{'plot.type'} eq 'hist2d' ) {
-            hist2d_helper(
-                {
-                    fh   => $fh,
-                    ax   => 0,
-                    plot => $args
-                }
-            );
+            hist2d_helper({
+              fh   => $fh,
+              ax   => 0,
+              plot => $args
+            });
         } elsif ( $args->{'plot.type'} eq 'imshow' ) {
-            imshow_helper(
-                {
-                    fh   => $fh,
-                    ax   => 0,
-                    plot => $args
-                }
-            );
+            imshow_helper({
+              fh   => $fh,
+              ax   => 0,
+              plot => $args
+            });
         } elsif ( $args->{'plot.type'} eq 'pie' ) {
             pie_helper(
                 {
@@ -1933,8 +1925,7 @@ sub plot {
                     plot => $plot
                 }
             );
-        }
-        elsif ( $plot->{'plot.type'} eq 'boxplot' ) {
+        } elsif ( $plot->{'plot.type'} eq 'boxplot' ) {
             boxplot_helper(
                 {
                     fh   => $fh,
@@ -1951,35 +1942,25 @@ sub plot {
                     plot => $plot
                 }
             );
-        }
-        elsif ( $plot->{'plot.type'} eq 'hist' ) {    # histogram
-            hist_helper(
-                {
-                    fh   => $fh,
-                    ax   => $ax,
-                    plot => $plot
-                }
-            );
-        }
-        elsif ( $plot->{'plot.type'} eq 'hist2d' ) {
-            hist2d_helper(
-                {
-                    fh   => $fh,
-                    ax   => $ax,
-                    plot => $plot
-                }
-            );
-        }
-        elsif ( $plot->{'plot.type'} eq 'imshow' ) {
-            imshow_helper(
-                {
-                    fh   => $fh,
-                    ax   => $ax,
-                    plot => $plot
-                }
-            );
-        }
-        elsif ( $plot->{'plot.type'} eq 'pie' ) {
+        }  elsif ( $plot->{'plot.type'} eq 'hist' ) {    # histogram
+            hist_helper({
+              fh   => $fh,
+              ax   => $ax,
+              plot => $plot
+            });
+        } elsif ( $plot->{'plot.type'} eq 'hist2d' ) {
+            hist2d_helper({
+              fh   => $fh,
+              ax   => $ax,
+              plot => $plot
+            });
+        } elsif ( $plot->{'plot.type'} eq 'imshow' ) {
+            imshow_helper({
+                 fh   => $fh,
+                 ax   => $ax,
+                 plot => $plot
+            });
+        } elsif ( $plot->{'plot.type'} eq 'pie' ) {
             pie_helper(
                 {
                     fh   => $fh,
@@ -1987,8 +1968,7 @@ sub plot {
                     plot => $plot
                 }
             );
-        }
-        elsif ( $plot->{'plot.type'} eq 'plot' ) {
+        } elsif ( $plot->{'plot.type'} eq 'plot' ) {
             plot_helper(
                 {
                     fh   => $fh,
@@ -1996,8 +1976,7 @@ sub plot {
                     plot => $plot
                 }
             );
-        }
-        elsif ( $plot->{'plot.type'} eq 'scatter' ) {    # scatterplot
+        } elsif ( $plot->{'plot.type'} eq 'scatter' ) {    # scatterplot
             scatter_helper(
                 {
                     fh   => $fh,
@@ -2005,8 +1984,7 @@ sub plot {
                     plot => $plot
                 }
             );
-        }
-        elsif ( $plot->{'plot.type'} eq 'violinplot' ) {
+        } elsif ( $plot->{'plot.type'} eq 'violinplot' ) {
             violin_helper(
                 {
                     fh   => $fh,
@@ -2014,15 +1992,12 @@ sub plot {
                     plot => $plot
                 }
             );
-        }
-        elsif ( $plot->{'plot.type'} eq 'wide' ) {
-            wide_helper(
-                {
-                    fh   => $fh,
-                    ax   => $ax,
-                    plot => $plot
-                }
-            );
+        } elsif ( $plot->{'plot.type'} eq 'wide' ) {
+            wide_helper({
+              fh   => $fh,
+              ax   => $ax,
+              plot => $plot
+            });
         }
         else {
             die
@@ -2033,44 +2008,38 @@ sub plot {
             title  => 'set_title',
             ylabel => 'set_ylabel',
             legend => 'legend',
-
             #			xlim => 'set_xlim',
         );
         foreach my $opt ( grep { defined $rename{$_} } keys %{$plot} ) {
             $plot->{ $rename{$opt} } = delete $plot->{$opt};
         }
-        plot_args(
-            {
-                fh   => $fh,
-                args => $plot,
-                ax   => "ax$ax"
-            }
-        );
+        plot_args({
+          fh   => $fh,
+          args => $plot,
+          ax   => "ax$ax"
+        });
         $ax++;
     }
     foreach my $ax (@ax) {
-        print $fh "if $ax.has_data() == False:\n";    # remove empty plots
-        print $fh "\t$ax.remove()\n";                 # remove empty plots
+        say $fh "if $ax.has_data() == False:";    # remove empty plots
+        say $fh "\t$ax.remove()";                 # remove empty plots
     }
     my %methods = map { $_ => 1 } @plt_methods;
     foreach my $plt_method ( grep { defined $methods{$_} } keys %{$args} ) {
         my $ref = ref $args->{$plt_method};
         if ( $ref eq '' ) {
-
             #			if ($args->{$plt_method} =~ m/^([^\"\',]+)$/) {
             #				$args->{$plt_method} = "'$args->{$plt_method}'";
             #			}
             $args->{$plt_method} =~ s/^\'+//;
             $args->{$plt_method} =~ s/\'+$//;
-            print $fh "plt.$plt_method('$args->{$plt_method}')#" . __LINE__ . "\n";
+            say $fh "plt.$plt_method('$args->{$plt_method}')#" . __LINE__;
         }
         elsif ( $ref eq 'ARRAY' ) {
-            foreach my $j ( @{ $args->{$plt_method} } )
-            {    # say $fh "plt.$method($plt)";
-                print $fh "plt.$plt_method($j)#" . __LINE__ . "\n";
+            foreach my $j ( @{ $args->{$plt_method} } ) {    # say $fh "plt.$method($plt)";
+                say $fh "plt.$plt_method($j)#" . __LINE__;
             }
-        }
-        else {
+        } else {
             p $args;
             die "$plt_method = \"$ref\" only accepts scalar or array types";
         }
@@ -2079,35 +2048,32 @@ sub plot {
     foreach my $fig_method ( grep { defined $methods{$_} } keys %{$args} ) {
         my $ref = ref $args->{$fig_method};
         if ( $ref eq '' ) {
-            print $fh "fig.$fig_method($args->{$fig_method})#" . __LINE__ . "\n";
-        }
-        elsif ( $ref eq 'ARRAY' ) {
+            say $fh "fig.$fig_method($args->{$fig_method})#" . __LINE__;
+        } elsif ( $ref eq 'ARRAY' ) {
             foreach my $j ( @{ $args->{$fig_method} } ) {    # say $fh "plt.$method($plt)";
-                print $fh "fig.$fig_method($j)\n";
+                say $fh "fig.$fig_method($j)";
             }
         } else {
             p $args;
             die "$fig_method = \"$ref\" only accepts scalar or array types";
         }
     }
-    print $fh
+    say $fh
 "plt.savefig('$args->{'output.filename'}', bbox_inches = 'tight', metadata={'Creator': 'made/written by "
       . getcwd()
-      . "/$RealScript called using \"$current_sub\" in "
-      . __FILE__ . "'})\n";
+      . "/$RealScript called using \"$current_sub\" in " . __FILE__ . "'})";
     $args->{execute} = $args->{execute} // 1;
     if ( $args->{execute} == 0 ) {
-        print $fh "plt.close()\n";
+        say $fh 'plt.close()';
     }
     if ( $args->{execute} > 0 ) {
         my $r = execute( "python3 $temp_py", 'all' );
-        print 'wrote '
-          . colored( ['cyan on_bright_yellow'], "$args->{'output.filename'}" ) . "\n";
+        say 'wrote '
+          . colored( ['cyan on_bright_yellow'], "$args->{'output.filename'}" );
         p $r;
-    }
-    else {    # not running yet
-        print 'will write '
-          . colored( ['cyan on_bright_yellow'], "$args->{'output.filename'}" ) . "\n";
+    } else {    # not running yet
+        say 'will write '
+          . colored( ['cyan on_bright_yellow'], "$args->{'output.filename'}" );
     }
 }
 1;
