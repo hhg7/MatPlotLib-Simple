@@ -401,71 +401,71 @@ my @e = generate_normal_dist( 100, 15, 3 * 200 );
 my @b = generate_normal_dist( 85,  15, 3 * 200 );
 my @a = generate_normal_dist( 105, 15, 3 * 200 );
 plot({
-        'input.file'      => $tmp_filename,
-        execute           => 0,
-        'output.filename' => 'output.images/violin.png',
-        plots             => [
-            {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'plot.type'  => 'violinplot',
-                title        => 'Basic',
-                xlabel       => 'xlabel',
-                set_figwidth => 12,
-                suptitle     => 'Violinplot'
-            },
-            {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'plot.type' => 'violinplot',
-                color       => 'red',
-                title       => 'Set Same Color for All',
-            },
-            {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'plot.type' => 'violinplot',
-                colors      => {
-                    E => 'yellow',
-                    B => 'black'
-                },
-                title => 'Color by Key',
-            },
-            {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                orientation => 'horizontal',
-                'plot.type' => 'violinplot',
-                colors      => {
-                    E => 'yellow',
-                    B => 'black'
-                },
-                title => 'Horizontal orientation',
-            },
-            {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                whiskers    => 0,
-                'plot.type' => 'violinplot',
-                colors      => {
-                    E => 'yellow',
-                    B => 'black'
-                },
-                title => 'Whiskers off',
-            },
-        ],
-        ncols => 3,
-        nrows => 2,
+	'input.file'      => $tmp_filename,
+	execute           => 0,
+	'output.filename' => 'output.images/violin.png',
+	plots             => [
+		{
+		    data => {
+		        E => @e,
+		        B => @b
+		    },
+		    'plot.type'  => 'violinplot',
+		    title        => 'Basic',
+		    xlabel       => 'xlabel',
+		    set_figwidth => 12,
+		    suptitle     => 'Violinplot'
+		},
+		{
+		    data => {
+		        E => @e,
+		        B => @b
+		    },
+		    'plot.type' => 'violinplot',
+		    color       => 'red',
+		    title       => 'Set Same Color for All',
+		},
+		{
+		    data => {
+		        E => @e,
+		        B => @b
+		    },
+		    'plot.type' => 'violinplot',
+		    colors      => {
+		        E => 'yellow',
+		        B => 'black'
+		    },
+		    title => 'Color by Key',
+		},
+		{
+		    data => {
+		        E => @e,
+		        B => @b
+		    },
+		    orientation => 'horizontal',
+		    'plot.type' => 'violinplot',
+		    colors      => {
+		        E => 'yellow',
+		        B => 'black'
+		    },
+		    title => 'Horizontal orientation',
+		},
+		{
+		    data => {
+		        E => @e,
+		        B => @b
+		    },
+		    whiskers    => 0,
+		    'plot.type' => 'violinplot',
+		    colors      => {
+		        E => 'yellow',
+		        B => 'black'
+		    },
+		    title => 'Whiskers off',
+		},
+	],
+	ncols => 3,
+	nrows => 2,
 });
 plot({
 	'output.filename' => 'output.images/single.barplot.png',
@@ -893,9 +893,21 @@ plot({
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
+	'output.filename' => 'output.images/single.hist.png',
+	data              => {
+		E => @e,
+		B => @b,
+		A => @a,
+	},
+	'plot.type'       => 'hist'
+});
+plot({
+	'input.file'      => $tmp_filename,
+	execute           => 0,
 	'output.filename' => 'output.images/histogram.png',
+   suptitle          => 'hist Examples',
 	plots             => [
-		{ # simple histogram
+		{ # 1st subplot
 		    data => {
 		        E => @e,
 		        B => @b,
@@ -916,10 +928,8 @@ plot({
 		      . '], label = "scatter"',
 		    xlabel   => 'Value',
 		    ylabel   => 'Frequency',
-		    suptitle =>
-		      'Types of Plots',    # applies to all #				'log'					=> 1,
 		},
-		{ # simple histogram
+		{ # 2nd subplot
 		    data => {
 				E => @e,
 				B => @b,
@@ -939,8 +949,22 @@ plot({
 		    suptitle =>
 		      'Types of Plots',    # applies to all #				'log'					=> 1,
 		},
-		{                          # simple histogram
-		    data => {
+		{ # 3rd subplot
+			add               => [ # add secondary plots/graphs/methods
+			{ # 1st additional plot/graph
+				data              => {
+					'Gaussian'       => [
+						[40..150],
+						[map {150 * exp(-0.5*($_-100)**2)} 40..150]
+					]
+				},
+				'plot.type' => 'plot',
+				'set.options' => {
+					'Gaussian' =>  'color = "red", linestyle = "dashed"'
+				}
+			}
+			],
+		   data => {
 		        E => @e,
 		        B => @b,
 		        A => @a,
@@ -964,7 +988,7 @@ plot({
 		    suptitle     =>
 		      'Types of Plots',    # applies to all #				'log'					=> 1,
 		},
-		{                          # simple histogram
+		{# 4th subplot
 		    data => {
 		        E => @e,
 		        B => @b,

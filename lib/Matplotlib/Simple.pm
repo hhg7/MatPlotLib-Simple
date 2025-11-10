@@ -9,7 +9,7 @@ use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.05; # discard Perl versions < 5.10; cleaner CPAN page
+our $VERSION = 0.06; # discard Perl versions < 5.10; cleaner CPAN page
 use List::Util qw(max sum min);
 use Term::ANSIColor;
 use Cwd 'getcwd';
@@ -791,11 +791,9 @@ sub hist_helper {
             else {                                      # I'm assuming numeric
                 $options .= ", $arg = $plot->{$arg}";
             }
-        }
-        elsif ( $ref eq 'ARRAY' ) {
+        } elsif ( $ref eq 'ARRAY' ) {
             $options .= ", $arg = [" . join( ',', @{ $plot->{$arg} } ) . '"]';
-        }
-        else {
+        } else {
             p $plot;
             die "$ref for $arg isn't acceptable";
         }
@@ -808,8 +806,7 @@ sub hist_helper {
             next unless defined $plot->{$arg}{$set};
             if ( $plot->{$arg}{$set} =~ m/^[A-Za-z]+$/ ) {  # "Red" needs quotes
                 $set_options .= ", $arg = '$plot->{$arg}{$set}'";
-            }
-            else {    # I'm assuming numeric; "10" doesn't need quotes
+            } else {    # I'm assuming numeric; "10" doesn't need quotes
                 $set_options .= ", $arg = $plot->{$arg}{$set}";
             }
         }
@@ -2215,6 +2212,7 @@ Having a `plots` argument as an array lets the module know to create subplots:
 	});
 
 =begin html
+
 see <a href="https://github.com/hhg7/MatPlotLib-Simple">GitHub</a> for more details
 
 the simplest plot:
