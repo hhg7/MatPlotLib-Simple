@@ -402,15 +402,15 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 	  }
 	}    # args that can be either arrays or strings below; NUMERIC:
 	foreach my $c ( grep { defined $plot->{$_} } ('linewidth') ) {
-	  my $ref = ref $plot->{$c};
-	  if ( $ref eq '' ) {    # single color
-		   $options .= ", $c = $plot->{$c}";
-	  } elsif ( $ref eq 'ARRAY' ) {
-		   $options .= ", $c = [" . join( ',', @{ $plot->{$c} } ) . ']';
-	  } else {
-		   p $args;
-		   die "$ref for $c isn't acceptable";
-	  }
+		my $ref = ref $plot->{$c};
+		if ( $ref eq '' ) {    # single color
+			$options .= ", $c = $plot->{$c}";
+		} elsif ( $ref eq 'ARRAY' ) {
+			$options .= ", $c = [" . join( ',', @{ $plot->{$c} } ) . ']';
+		} else {
+			p $args;
+			die "$ref for $c isn't acceptable";
+		}
 	}
 	foreach my $err ( grep { defined $plot->{$_} } ( 'xerr', 'yerr' ) ) {
 	  my $ref = ref $plot->{$err};
@@ -1068,99 +1068,102 @@ sub pie_helper {
 }
 
 sub plot_helper {
-    my ($args) = @_;
-    my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
-      ; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-    unless ( ref $args eq 'HASH' ) {
-        die
-"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
-    }
-    my @reqd_args = (
-        'ax',
-        'fh',      # e.g. $py, $fh, which will be passed by the subroutine
-        'plot',    # args to original function
-    );
-    my @undef_args = grep { !defined $args->{$_} } @reqd_args;
-    if ( scalar @undef_args > 0 ) {
-        p @undef_args;
-        die 'the above args are necessary, but were not defined.';
-    }
-    my @opt = (
-        @ax_methods, @fig_methods, @arg, @plt_methods,
-        'key.order',      # an array of key strings (which are defined in data)
-        'show.legend',    # be default on; should be 0 if off
-        'set.options'
-    );
-    my $plot      = $args->{plot};
-    my @undef_opt = grep {
-        my $key = $_;
-        not grep { $_ eq $key } @opt
-    } keys %{$plot};
-    if ( scalar @undef_opt > 0 ) {
-        p @undef_opt;
-        p $args;
-        die
-"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
-    }
-    $plot->{'show.legend'} = $plot->{'show.legend'} // 1;
-    my @key_order;
-    if ( defined $plot->{'key.order'} ) {
-        @key_order = @{ $plot->{'key.order'} };
-    }
-    else {
-        @key_order = sort keys %{ $plot->{data} };
-    }
-    foreach my $set (@key_order) {
-        my $set_ref = ref $plot->{data}{$set};
-        if ( $set_ref ne 'ARRAY' ) {
-            p $plot->{data}{$set};
-            die
-"$set must have two arrays, x and y coordinates, but instead has a $set_ref";
-        }
-        my $n_arrays = scalar @{ $plot->{data}{$set} };
-        if ( $n_arrays != 2 ) {
-            p $plot->{data}{$set};
-            die "$n_arrays were entered for $set, but there must be exactly 2";
-        }
-        my ( $nx, $ny ) = (
-            scalar @{ $plot->{data}{$set}[0] },
-            scalar @{ $plot->{data}{$set}[1] }
-        );
-        if ( $nx != $ny ) {
-            p $plot->{data}{$set};
-            die
-"$set has $nx x data points, but y has $ny y data points, and they must be equal";
-        }
-        foreach my $ax (0,1) {
-        	  my $n = scalar @{ $plot->{data}{$set}[$ax] };
-        	  my @undef_i = grep {not defined $plot->{data}{$set}[$ax][$_]} 0..$n-1;
-        	  if (scalar @undef_i > 0) {
-        	  	p $plot->{data}{$set}[$ax];
-        	  	p @undef_i;
-        	  	my $n_undef = scalar @undef_i;
-        	  	die "set $set axis $ax has $n_undef undefined values, of $n total values";
-        	  }
-        }
-        my $options = '';
-        say { $args->{fh} } 'x = ['
-          . join( ',', @{ $plot->{data}{$set}[0] } ) . ']';
-        say { $args->{fh} } 'y = ['
-          . join( ',', @{ $plot->{data}{$set}[1] } ) . ']';
-        if (   ( defined $plot->{'set.options'} )
-            && ( ref $plot->{'set.options'} eq '' ) )
-        {
-            $options = ", $plot->{'set.options'}";
-        }
-        if ( defined $plot->{'set.options'}{$set} ) {
-            $options = ", $plot->{'set.options'}{$set}";
-        }
-        my $label = '';
-        if ( $plot->{'show.legend'} > 0 ) {
-            $label = ",label = '$set'";
-        }
-        say { $args->{fh} } "ax$args->{ax}.plot(x, y $label $options) # "
-          . __LINE__;
-    }
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	unless ( ref $args eq 'HASH' ) {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+		'ax',
+		'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+		'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (
+	  @ax_methods, @fig_methods, @arg, @plt_methods,
+	  'key.order',      # an array of key strings (which are defined in data)
+	  'show.legend',    # be default on; should be 0 if off
+	  'set.options'
+	);
+	my $plot      = $args->{plot};
+	my @undef_opt = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_opt > 0 ) {
+	  p @undef_opt;
+	  p $args;
+	  die	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+	}
+	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
+	my @key_order;
+	if ( defined $plot->{'key.order'} ) {
+	  @key_order = @{ $plot->{'key.order'} };
+	} else {
+	  @key_order = sort keys %{ $plot->{data} };
+	}
+	if ((defined $plot->{'set.options'}) && (ref $plot->{'set.options'} eq 'HASH')) {
+		my @undef_set_opt = sort grep {!defined $plot->{data}{$_}} keys %{ $plot->{'set.options'} };
+		if (scalar @undef_set_opt > 0) {
+			p @undef_set_opt;
+			die "the above options are defined for undefined data sets in $current_sub.";
+		}
+	}
+	foreach my $set (@key_order) {
+		my $set_ref = ref $plot->{data}{$set};
+		if ( $set_ref ne 'ARRAY' ) {
+			p $plot->{data}{$set};
+			die
+		"$set must have two arrays, x and y coordinates, but instead has a $set_ref";
+	  }
+	  my $n_arrays = scalar @{ $plot->{data}{$set} };
+	  if ( $n_arrays != 2 ) {
+		   p $plot->{data}{$set};
+		   die "$n_arrays were entered for $set, but there must be exactly 2";
+	  }
+	  my ( $nx, $ny ) = (
+		   scalar @{ $plot->{data}{$set}[0] },
+		   scalar @{ $plot->{data}{$set}[1] }
+	  );
+	  if ( $nx != $ny ) {
+		   p $plot->{data}{$set};
+		   die
+	"$set has $nx x data points, but y has $ny y data points, and they must be equal";
+	  }
+	  foreach my $ax (0,1) {
+	  	  my $n = scalar @{ $plot->{data}{$set}[$ax] };
+	  	  my @undef_i = grep {not defined $plot->{data}{$set}[$ax][$_]} 0..$n-1;
+	  	  if (scalar @undef_i > 0) {
+	  	  	p $plot->{data}{$set}[$ax];
+	  	  	p @undef_i;
+	  	  	my $n_undef = scalar @undef_i;
+	  	  	die "set $set axis $ax has $n_undef undefined values, of $n total values";
+	  	  }
+	  }
+	  my $options = '';
+	  say { $args->{fh} } 'x = ['
+		 . join( ',', @{ $plot->{data}{$set}[0] } ) . ']';
+	  say { $args->{fh} } 'y = ['
+		 . join( ',', @{ $plot->{data}{$set}[1] } ) . ']';
+	  if (   ( defined $plot->{'set.options'} )
+		   && ( ref $plot->{'set.options'} eq '' ) )
+	  {
+		   $options = ", $plot->{'set.options'}";
+	  }
+	  if ( defined $plot->{'set.options'}{$set} ) {
+		   $options = ", $plot->{'set.options'}{$set}";
+	  }
+	  my $label = '';
+	  if ( $plot->{'show.legend'} > 0 ) {
+		   $label = ",label = '$set'";
+	  }
+	  say { $args->{fh} } "ax$args->{ax}.plot(x, y $label $options) # " . __LINE__;
+	}
 }
 
 sub scatter_helper {

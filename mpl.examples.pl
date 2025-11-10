@@ -737,154 +737,154 @@ plot({
 		    ylabel        => 'No. of Rejections'
 		},
 		{                                    # grouped bar plot
-		    'plot.type' => 'bar',
-		    data        => {
-		        1941 => {
-		            UK      => 6.6,
-		            US      => 6.2,
-		            USSR    => 17.8,
-		            Germany => 26.6
-		        },
-		        1942 => {
-		            UK      => 7.6,
-		            US      => 26.4,
-		            USSR    => 19.2,
-		            Germany => 29.7
-		        },
-		        1943 => {
-		            UK      => 7.9,
-		            US      => 61.4,
-		            USSR    => 22.5,
-		            Germany => 34.9
-		        },
-		        1944 => {
-		            UK      => 7.4,
-		            US      => 80.5,
-		            USSR    => 27.0,
-		            Germany => 31.4
-		        },
-		        1945 => {
-		            UK      => 5.4,
-		            US      => 83.1,
-		            USSR    => 25.5,
-		            Germany => 11.2    #Rapid decrease due to war's end
-		        },
-		    },
-		    stacked => 0,
-		    title   => 'Hash of Hash Grouped Unstacked Barplot',
-		    xlabel  => 'r"$\it{anno}$ $\it{domini}$"',             # italic
-		    ylabel  => 'Military Expenditure (Billions of $)'
+			 'plot.type' => 'bar',
+			 data        => {
+				  1941 => {
+				      UK      => 6.6,
+				      US      => 6.2,
+				      USSR    => 17.8,
+				      Germany => 26.6
+				  },
+				  1942 => {
+				      UK      => 7.6,
+				      US      => 26.4,
+				      USSR    => 19.2,
+				      Germany => 29.7
+				  },
+				  1943 => {
+				      UK      => 7.9,
+				      US      => 61.4,
+				      USSR    => 22.5,
+				      Germany => 34.9
+				  },
+				  1944 => {
+				      UK      => 7.4,
+				      US      => 80.5,
+				      USSR    => 27.0,
+				      Germany => 31.4
+				  },
+				  1945 => {
+				      UK      => 5.4,
+				      US      => 83.1,
+				      USSR    => 25.5,
+				      Germany => 11.2    #Rapid decrease due to war's end
+				  },
+			 },
+			 stacked => 0,
+			 title   => 'Hash of Hash Grouped Unstacked Barplot',
+			 xlabel  => 'r"$\it{anno}$ $\it{domini}$"',             # italic
+			 ylabel  => 'Military Expenditure (Billions of $)'
 		},
 		{    # grouped bar plot
-		    'plot.type' => 'bar',
-		    data        => {
-		        1941 => {
-		            UK      => 6.6,
-		            US      => 6.2,
-		            USSR    => 17.8,
-		            Germany => 26.6
-		        },
-		        1942 => {
-		            UK      => 7.6,
-		            US      => 26.4,
-		            USSR    => 19.2,
-		            Germany => 29.7
-		        },
-		        1943 => {
-		            UK      => 7.9,
-		            US      => 61.4,
-		            USSR    => 22.5,
-		            Germany => 34.9
-		        },
-		        1944 => {
-		            UK      => 7.4,
-		            US      => 80.5,
-		            USSR    => 27.0,
-		            Germany => 31.4
-		        },
-		        1945 => {
-		            UK      => 5.4,
-		            US      => 83.1,
-		            USSR    => 25.5,
-		            Germany => 11.2    #Rapid decrease due to war's end
-		        },
-		    },
-		    stacked => 1,
-		    title   => 'Hash of Hash Grouped Stacked Barplot',
-		    xlabel  => 'r"$\it{anno}$ $\it{domini}$"',           # italic
-		    ylabel  => 'Military Expenditure (Billions of $)'
+			 'plot.type' => 'bar',
+			 data        => {
+				  1941 => {
+				      UK      => 6.6,
+				      US      => 6.2,
+				      USSR    => 17.8,
+				      Germany => 26.6
+				  },
+				  1942 => {
+				      UK      => 7.6,
+				      US      => 26.4,
+				      USSR    => 19.2,
+				      Germany => 29.7
+				  },
+				  1943 => {
+				      UK      => 7.9,
+				      US      => 61.4,
+				      USSR    => 22.5,
+				      Germany => 34.9
+				  },
+				  1944 => {
+				      UK      => 7.4,
+				      US      => 80.5,
+				      USSR    => 27.0,
+				      Germany => 31.4
+				  },
+				  1945 => {
+				      UK      => 5.4,
+				      US      => 83.1,
+				      USSR    => 25.5,
+				      Germany => 11.2    #Rapid decrease due to war's end
+				  },
+			 },
+			 stacked => 1,
+			 title   => 'Hash of Hash Grouped Stacked Barplot',
+			 xlabel  => 'r"$\it{anno}$ $\it{domini}$"',           # italic
+			 ylabel  => 'Military Expenditure (Billions of $)'
 		},
 		{ # grouped barplot: arrays indicate Union, Confederate which must be specified in options hash
-		    data =>
-		      { # 4th plot: arrays indicate Union, Confederate which must be specified in options hash
-		        'Antietam'         => [ 12400, 10300 ],
-		        'Gettysburg'       => [ 23000, 28000 ],
-		        'Chickamauga'      => [ 16000, 18000 ],
-		        'Chancellorsville' => [ 17000, 13000 ],
-		        'Wilderness'       => [ 17500, 11000 ],
-		        'Spotsylvania'     => [ 18000, 12000 ],
-		        'Cold Harbor'      => [ 12000, 5000 ],
-		        'Shiloh'           => [ 13000, 10700 ],
-		        'Second Bull Run'  => [ 10000, 8000 ],
-		        'Fredericksburg'   => [ 12600, 5300 ],
-		      },
-		    'plot.type' => 'barh',
-		    color       => [ 'blue', 'gray' ]
-		    ,    # colors match indices of data arrays
-		    label => [ 'North', 'South' ]
-		    ,    # colors match indices of data arrays
-		    xlabel => 'Casualties',
-		    ylabel => 'Battle',
-		    title  => 'barh: hash of array'
+			 data =>
+				{ # 4th plot: arrays indicate Union, Confederate which must be specified in options hash
+				  'Antietam'         => [ 12400, 10300 ],
+				  'Gettysburg'       => [ 23000, 28000 ],
+				  'Chickamauga'      => [ 16000, 18000 ],
+				  'Chancellorsville' => [ 17000, 13000 ],
+				  'Wilderness'       => [ 17500, 11000 ],
+				  'Spotsylvania'     => [ 18000, 12000 ],
+				  'Cold Harbor'      => [ 12000, 5000 ],
+				  'Shiloh'           => [ 13000, 10700 ],
+				  'Second Bull Run'  => [ 10000, 8000 ],
+				  'Fredericksburg'   => [ 12600, 5300 ],
+				},
+			 'plot.type' => 'barh',
+			 color       => [ 'blue', 'gray' ]
+			 ,    # colors match indices of data arrays
+			 label => [ 'North', 'South' ]
+			 ,    # colors match indices of data arrays
+			 xlabel => 'Casualties',
+			 ylabel => 'Battle',
+			 title  => 'barh: hash of array'
 		},
 		{        # 5th plot: barplot with groups
-		    data => {
-		        1942 => [ 109867, 310000,  7700000 ],    # US, Japan, USSR
-		        1943 => [ 221111, 440000,  9000000 ],
-		        1944 => [ 318584, 610000,  7000000 ],
-		        1945 => [ 318929, 1060000, 3000000 ],
-		    },
-		    color => [ 'blue', 'pink', 'red' ]
-		    ,    # colors match indices of data arrays
-		    label => [ 'USA', 'Japan', 'USSR' ]
-		    ,    # colors match indices of data arrays
-		    'log'       => 1,
-		    title       => 'grouped bar: Casualties in WWII',
-		    ylabel      => 'Casualties',
-		    'plot.type' => 'bar'
+			 data => {
+				  1942 => [ 109867, 310000,  7700000 ],    # US, Japan, USSR
+				  1943 => [ 221111, 440000,  9000000 ],
+				  1944 => [ 318584, 610000,  7000000 ],
+				  1945 => [ 318929, 1060000, 3000000 ],
+			 },
+			 color => [ 'blue', 'pink', 'red' ]
+			 ,    # colors match indices of data arrays
+			 label => [ 'USA', 'Japan', 'USSR' ]
+			 ,    # colors match indices of data arrays
+			 'log'       => 1,
+			 title       => 'grouped bar: Casualties in WWII',
+			 ylabel      => 'Casualties',
+			 'plot.type' => 'bar'
 		},
 		{        # nuclear weapons barplot
-		    'plot.type' => 'bar',
-		    color       => 'red',
-		    data        => {
-		        'USA'         => 5277,    # FAS Estimate
-		        'Russia'      => 5449,    # FAS Estimate
-		        'UK'          => 225,     # Consistent estimate
-		        'France'      => 290,     # Consistent estimate
-		        'China'       => 600,     # FAS Estimate
-		        'India'       => 180,     # FAS Estimate
-		        'Pakistan'    => 130,     # FAS Estimate
-		        'Israel'      => 90,      # FAS Estimate
-		        'North Korea' => 50,      # FAS Estimate
-		    },
-		    edgecolor => 'blue',
-		    label     => 'labelXXX',
-		    title     => 'Simple hash for barchart with yerr',
-		    xlabel    => 'Country',
-		    yerr      => {
-		        'USA'         => [ 15,  29 ],
-		        'Russia'      => [ 199, 1000 ],
-		        'UK'          => [ 15,  19 ],
-		        'France'      => [ 19,  29 ],
-		        'China'       => [ 200, 159 ],
-		        'India'       => [ 15,  25 ],
-		        'Pakistan'    => [ 15,  49 ],
-		        'Israel'      => [ 90,  50 ],
-		        'North Korea' => [ 10,  20 ],
-		    },
-		    ylabel    => '# of Nuclear Warheads',
-		    linewidth => 2,
-		    'log'     => 'True',                    #	linewidth				=> 1,
+			 'plot.type' => 'bar',
+			 color       => 'red',
+			 data        => {
+				  'USA'         => 5277,    # FAS Estimate
+				  'Russia'      => 5449,    # FAS Estimate
+				  'UK'          => 225,     # Consistent estimate
+				  'France'      => 290,     # Consistent estimate
+				  'China'       => 600,     # FAS Estimate
+				  'India'       => 180,     # FAS Estimate
+				  'Pakistan'    => 130,     # FAS Estimate
+				  'Israel'      => 90,      # FAS Estimate
+				  'North Korea' => 50,      # FAS Estimate
+			 },
+			 edgecolor => 'blue',
+			 label     => 'labelXXX',
+			 title     => 'Simple hash for barchart with yerr',
+			 xlabel    => 'Country',
+			 yerr      => {
+				  'USA'         => [ 15,  29 ],
+				  'Russia'      => [ 199, 1000 ],
+				  'UK'          => [ 15,  19 ],
+				  'France'      => [ 19,  29 ],
+				  'China'       => [ 200, 159 ],
+				  'India'       => [ 15,  25 ],
+				  'Pakistan'    => [ 15,  49 ],
+				  'Israel'      => [ 90,  50 ],
+				  'North Korea' => [ 10,  20 ],
+			 },
+			 ylabel    => '# of Nuclear Warheads',
+			 linewidth => 2,
+			 'log'     => 'True',                    #	linewidth				=> 1,
 		}
 	],
 	ncols => 3,
