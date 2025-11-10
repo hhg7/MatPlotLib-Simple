@@ -632,9 +632,150 @@ plot(
 which produces the following image:
 <img width="2010" height="1511" alt="hexbin" src="https://github.com/user-attachments/assets/71412ab1-e869-4913-a8cf-e39df15c9590" />
 ## hist
+
+Plot a hash of arrays as a series of histograms
+
 ### options
+
 ### single, simple plot
+
+```
+my @e = generate_normal_dist( 100, 15, 3 * 200 );
+my @b = generate_normal_dist( 85,  15, 3 * 200 );
+my @a = generate_normal_dist( 105, 15, 3 * 200 );
+
+plot({
+	'input.file'      => $tmp_filename,
+	execute           => 0,
+	'output.filename' => 'output.images/single.hist.png',
+	data              => {
+		E => @e,
+		B => @b,
+		A => @a,
+	},
+	'plot.type'       => 'hist'
+});
+```
+<img width="651" height="491" alt="single hist" src="https://github.com/user-attachments/assets/fafcf787-6c4f-4998-88c4-77a15d878fa6" />
+
 ### multiple plots
+
+```
+plot({
+	'input.file'      => $tmp_filename,
+	execute           => 0,
+	'output.filename' => 'output.images/histogram.png',
+   suptitle          => 'hist Examples',
+	plots             => [
+		{ # 1st subplot
+		    data => {
+		        E => @e,
+		        B => @b,
+		        A => @a,
+		    },
+		    'plot.type' => 'hist',
+		    alpha       => 0.25,
+		    bins        => 50,
+		    title       => 'alpha = 0.25',
+		    color       => {
+		        B => 'Black',
+		        E => 'Orange',
+		        A => 'Yellow',
+		    },
+		    scatter => '['
+		      . join( ',', 22 .. 44 ) . '],['  # x coords
+		      . join( ',', 22 .. 44 )          # y coords
+		      . '], label = "scatter"',
+		    xlabel   => 'Value',
+		    ylabel   => 'Frequency',
+		},
+		{ # 2nd subplot
+		    data => {
+				E => @e,
+				B => @b,
+				A => @a,
+		    },
+		    'plot.type' => 'hist',
+		    alpha       => 0.75,
+		    bins        => 50,
+		    title       => 'alpha = 0.75',
+		    color       => {
+		        B => 'Black',
+		        E => 'Orange',
+		        A => 'Yellow',
+		    },
+		    xlabel   => 'Value',
+		    ylabel   => 'Frequency',
+		    suptitle =>
+		      'Types of Plots',    # applies to all #				'log'					=> 1,
+		},
+		{ # 3rd subplot
+			add               => [ # add secondary plots/graphs/methods
+			{ # 1st additional plot/graph
+				data              => {
+					'Gaussian'       => [
+						[40..150],
+						[map {150 * exp(-0.5*($_-100)**2)} 40..150]
+					]
+				},
+				'plot.type' => 'plot',
+				'set.options' => {
+					'Gaussian' =>  'color = "red", linestyle = "dashed"'
+				}
+			}
+			],
+		   data => {
+		        E => @e,
+		        B => @b,
+		        A => @a,
+		    },
+		    'plot.type' => 'hist',
+		    alpha       => 0.75,
+		    bins        => {
+		        A => 10,
+		        B => 25,
+		        E => 50
+		    },
+		    title => 'Varying # of bins',
+		    color => {
+		        B => 'Black',
+		        E => 'Orange',
+		        A => 'Yellow',
+		    },
+		    xlabel       => 'Value',
+		    ylabel       => 'Frequency',
+		    set_figwidth => 15,
+		    suptitle     =>
+		      'Types of Plots',    # applies to all #				'log'					=> 1,
+		},
+		{# 4th subplot
+		    data => {
+		        E => @e,
+		        B => @b,
+		        A => @a,
+		    },
+		    'plot.type' => 'hist',
+		    alpha       => 0.75,
+		    color       => {
+		        B => 'Black',
+		        E => 'Orange',
+		        A => 'Yellow',
+		    },
+		    orientation  => 'horizontal',    # assign x and y labels smartly
+		    set_figwidth => 15,
+		    suptitle     => 'Types of Plots',           # applies to all
+		    title        => 'Horizontal orientation',
+		    ylabel       => 'Value',
+		    xlabel       => 'Frequency',                #				'log'					=> 1,
+		},
+	],
+	ncols => 3,
+	nrows => 2,
+});
+```
+
+<img width="1511" height="491" alt="histogram" src="https://github.com/user-attachments/assets/2fbeaacd-770f-4422-940c-53611679b5e8" />
+
 ## hist2d
 ### options
 ### single, simple plot
