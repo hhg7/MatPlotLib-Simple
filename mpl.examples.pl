@@ -985,8 +985,7 @@ plot({
 		    xlabel       => 'Value',
 		    ylabel       => 'Frequency',
 		    set_figwidth => 15,
-		    suptitle     =>
-		      'Types of Plots',    # applies to all #				'log'					=> 1,
+		    suptitle     => 'Types of Plots',
 		},
 		{# 4th subplot
 		    data => {

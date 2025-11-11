@@ -9,7 +9,7 @@ use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.05; # discard Perl versions < 5.10; cleaner CPAN page
+our $VERSION = 0.06; # discard Perl versions < 5.10; cleaner CPAN page
 use List::Util qw(max sum min);
 use Term::ANSIColor;
 use Cwd 'getcwd';
@@ -402,15 +402,15 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 	  }
 	}    # args that can be either arrays or strings below; NUMERIC:
 	foreach my $c ( grep { defined $plot->{$_} } ('linewidth') ) {
-	  my $ref = ref $plot->{$c};
-	  if ( $ref eq '' ) {    # single color
-		   $options .= ", $c = $plot->{$c}";
-	  } elsif ( $ref eq 'ARRAY' ) {
-		   $options .= ", $c = [" . join( ',', @{ $plot->{$c} } ) . ']';
-	  } else {
-		   p $args;
-		   die "$ref for $c isn't acceptable";
-	  }
+		my $ref = ref $plot->{$c};
+		if ( $ref eq '' ) {    # single color
+			$options .= ", $c = $plot->{$c}";
+		} elsif ( $ref eq 'ARRAY' ) {
+			$options .= ", $c = [" . join( ',', @{ $plot->{$c} } ) . ']';
+		} else {
+			p $args;
+			die "$ref for $c isn't acceptable";
+		}
 	}
 	foreach my $err ( grep { defined $plot->{$_} } ( 'xerr', 'yerr' ) ) {
 	  my $ref = ref $plot->{$err};
@@ -791,11 +791,9 @@ sub hist_helper {
             else {                                      # I'm assuming numeric
                 $options .= ", $arg = $plot->{$arg}";
             }
-        }
-        elsif ( $ref eq 'ARRAY' ) {
+        } elsif ( $ref eq 'ARRAY' ) {
             $options .= ", $arg = [" . join( ',', @{ $plot->{$arg} } ) . '"]';
-        }
-        else {
+        } else {
             p $plot;
             die "$ref for $arg isn't acceptable";
         }
@@ -808,8 +806,7 @@ sub hist_helper {
             next unless defined $plot->{$arg}{$set};
             if ( $plot->{$arg}{$set} =~ m/^[A-Za-z]+$/ ) {  # "Red" needs quotes
                 $set_options .= ", $arg = '$plot->{$arg}{$set}'";
-            }
-            else {    # I'm assuming numeric; "10" doesn't need quotes
+            } else {    # I'm assuming numeric; "10" doesn't need quotes
                 $set_options .= ", $arg = $plot->{$arg}{$set}";
             }
         }
@@ -1071,99 +1068,102 @@ sub pie_helper {
 }
 
 sub plot_helper {
-    my ($args) = @_;
-    my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
-      ; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-    unless ( ref $args eq 'HASH' ) {
-        die
-"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
-    }
-    my @reqd_args = (
-        'ax',
-        'fh',      # e.g. $py, $fh, which will be passed by the subroutine
-        'plot',    # args to original function
-    );
-    my @undef_args = grep { !defined $args->{$_} } @reqd_args;
-    if ( scalar @undef_args > 0 ) {
-        p @undef_args;
-        die 'the above args are necessary, but were not defined.';
-    }
-    my @opt = (
-        @ax_methods, @fig_methods, @arg, @plt_methods,
-        'key.order',      # an array of key strings (which are defined in data)
-        'show.legend',    # be default on; should be 0 if off
-        'set.options'
-    );
-    my $plot      = $args->{plot};
-    my @undef_opt = grep {
-        my $key = $_;
-        not grep { $_ eq $key } @opt
-    } keys %{$plot};
-    if ( scalar @undef_opt > 0 ) {
-        p @undef_opt;
-        p $args;
-        die
-"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
-    }
-    $plot->{'show.legend'} = $plot->{'show.legend'} // 1;
-    my @key_order;
-    if ( defined $plot->{'key.order'} ) {
-        @key_order = @{ $plot->{'key.order'} };
-    }
-    else {
-        @key_order = sort keys %{ $plot->{data} };
-    }
-    foreach my $set (@key_order) {
-        my $set_ref = ref $plot->{data}{$set};
-        if ( $set_ref ne 'ARRAY' ) {
-            p $plot->{data}{$set};
-            die
-"$set must have two arrays, x and y coordinates, but instead has a $set_ref";
-        }
-        my $n_arrays = scalar @{ $plot->{data}{$set} };
-        if ( $n_arrays != 2 ) {
-            p $plot->{data}{$set};
-            die "$n_arrays were entered for $set, but there must be exactly 2";
-        }
-        my ( $nx, $ny ) = (
-            scalar @{ $plot->{data}{$set}[0] },
-            scalar @{ $plot->{data}{$set}[1] }
-        );
-        if ( $nx != $ny ) {
-            p $plot->{data}{$set};
-            die
-"$set has $nx x data points, but y has $ny y data points, and they must be equal";
-        }
-        foreach my $ax (0,1) {
-        	  my $n = scalar @{ $plot->{data}{$set}[$ax] };
-        	  my @undef_i = grep {not defined $plot->{data}{$set}[$ax][$_]} 0..$n-1;
-        	  if (scalar @undef_i > 0) {
-        	  	p $plot->{data}{$set}[$ax];
-        	  	p @undef_i;
-        	  	my $n_undef = scalar @undef_i;
-        	  	die "set $set axis $ax has $n_undef undefined values, of $n total values";
-        	  }
-        }
-        my $options = '';
-        say { $args->{fh} } 'x = ['
-          . join( ',', @{ $plot->{data}{$set}[0] } ) . ']';
-        say { $args->{fh} } 'y = ['
-          . join( ',', @{ $plot->{data}{$set}[1] } ) . ']';
-        if (   ( defined $plot->{'set.options'} )
-            && ( ref $plot->{'set.options'} eq '' ) )
-        {
-            $options = ", $plot->{'set.options'}";
-        }
-        if ( defined $plot->{'set.options'}{$set} ) {
-            $options = ", $plot->{'set.options'}{$set}";
-        }
-        my $label = '';
-        if ( $plot->{'show.legend'} > 0 ) {
-            $label = ",label = '$set'";
-        }
-        say { $args->{fh} } "ax$args->{ax}.plot(x, y $label $options) # "
-          . __LINE__;
-    }
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	unless ( ref $args eq 'HASH' ) {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+		'ax',
+		'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+		'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (
+	  @ax_methods, @fig_methods, @arg, @plt_methods,
+	  'key.order',      # an array of key strings (which are defined in data)
+	  'show.legend',    # be default on; should be 0 if off
+	  'set.options'
+	);
+	my $plot      = $args->{plot};
+	my @undef_opt = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_opt > 0 ) {
+	  p @undef_opt;
+	  p $args;
+	  die	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+	}
+	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
+	my @key_order;
+	if ( defined $plot->{'key.order'} ) {
+	  @key_order = @{ $plot->{'key.order'} };
+	} else {
+	  @key_order = sort keys %{ $plot->{data} };
+	}
+	if ((defined $plot->{'set.options'}) && (ref $plot->{'set.options'} eq 'HASH')) {
+		my @undef_set_opt = sort grep {!defined $plot->{data}{$_}} keys %{ $plot->{'set.options'} };
+		if (scalar @undef_set_opt > 0) {
+			p @undef_set_opt;
+			die "the above options are defined for undefined data sets in $current_sub.";
+		}
+	}
+	foreach my $set (@key_order) {
+		my $set_ref = ref $plot->{data}{$set};
+		if ( $set_ref ne 'ARRAY' ) {
+			p $plot->{data}{$set};
+			die
+		"$set must have two arrays, x and y coordinates, but instead has a $set_ref";
+	  }
+	  my $n_arrays = scalar @{ $plot->{data}{$set} };
+	  if ( $n_arrays != 2 ) {
+		   p $plot->{data}{$set};
+		   die "$n_arrays were entered for $set, but there must be exactly 2";
+	  }
+	  my ( $nx, $ny ) = (
+		   scalar @{ $plot->{data}{$set}[0] },
+		   scalar @{ $plot->{data}{$set}[1] }
+	  );
+	  if ( $nx != $ny ) {
+		   p $plot->{data}{$set};
+		   die
+	"$set has $nx x data points, but y has $ny y data points, and they must be equal";
+	  }
+	  foreach my $ax (0,1) {
+	  	  my $n = scalar @{ $plot->{data}{$set}[$ax] };
+	  	  my @undef_i = grep {not defined $plot->{data}{$set}[$ax][$_]} 0..$n-1;
+	  	  if (scalar @undef_i > 0) {
+	  	  	p $plot->{data}{$set}[$ax];
+	  	  	p @undef_i;
+	  	  	my $n_undef = scalar @undef_i;
+	  	  	die "set $set axis $ax has $n_undef undefined values, of $n total values";
+	  	  }
+	  }
+	  my $options = '';
+	  say { $args->{fh} } 'x = ['
+		 . join( ',', @{ $plot->{data}{$set}[0] } ) . ']';
+	  say { $args->{fh} } 'y = ['
+		 . join( ',', @{ $plot->{data}{$set}[1] } ) . ']';
+	  if (   ( defined $plot->{'set.options'} )
+		   && ( ref $plot->{'set.options'} eq '' ) )
+	  {
+		   $options = ", $plot->{'set.options'}";
+	  }
+	  if ( defined $plot->{'set.options'}{$set} ) {
+		   $options = ", $plot->{'set.options'}{$set}";
+	  }
+	  my $label = '';
+	  if ( $plot->{'show.legend'} > 0 ) {
+		   $label = ",label = '$set'";
+	  }
+	  say { $args->{fh} } "ax$args->{ax}.plot(x, y $label $options) # " . __LINE__;
+	}
 }
 
 sub scatter_helper {
@@ -2159,67 +2159,1036 @@ sub plot {
 
 =pod
 
-=head1 NAME
+=head1 Synopsis
 
-Matplotlib::Simple
+Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in C</tmp>, to be edited at the user's discretion.
+Requires python3 and matplotlib installations.
 
-=head1 AUTHOR
+=head2 Single Plots
 
-David E. Condon
+Simplest use case:
+C<< 
+use Matplotlib::Simple 'plot';
+plot({
+    'output.filename' =E<gt> '/tmp/gospel.word.counts.png',
+    'plot.type'       =E<gt> 'bar',
+    data              =E<gt> {
+        Matthew =E<gt> 18345,
+        Mark    =E<gt> 11304,
+        Luke    =E<gt> 19482,
+        John    =E<gt> 15635,
+    }
+});
+ >>
+where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself. C<plot.type>, C<data>, C<input.file> are all specific to C<MatPlotLib::Simple>.
 
-=head1 LICENSE
+<img width="651" height="491" alt="gospel word counts" src="https://github.com/user-attachments/assets/a008dece-2e34-47bf-af0f-8603709f7d52" />
 
-Perl5
+=head2 Multiple Plots
 
-=head1 SYNOPSIS
+Having a C<plots> argument as an array lets the module know to create subplots:
+C<< 
+use Matplotlib::Simple 'plot';
+plot({
+    'output.filename'   =E<gt> 'svg/pies.png',
+    plots             =E<gt> [
+        {
+            data    =E<gt> {
+             Russian =E<gt> 106_000_000,  # Primarily European Russia
+             German =E<gt> 95_000_000,    # Germany, Austria, Switzerland, etc.
+            },
+            'plot.type' =E<gt> 'pie',
+            title       =E<gt> 'Top Languages in Europe',
+            suptitle    =E<gt> 'Pie in subplots',
+        },
+        {
+            data    =E<gt> {
+             Russian =E<gt> 106_000_000,  # Primarily European Russia
+             German =E<gt> 95_000_000,    # Germany, Austria, Switzerland, etc.
+            },
+            'plot.type' =E<gt> 'pie',
+            title       =E<gt> 'Top Languages in Europe',
+        },
+    ],
+    ncols    =E<gt> 2,
+});
+ >>
+which produces the following subplots image:
 
-Simplest possible use case:
+<img width="651" height="424" alt="pies" src="https://github.com/user-attachments/assets/49d3e28b-f897-4b01-9e72-38afa12fa538" />
 
-	use Matplotlib::Simple 'plot';
-	plot({
-		'output.filename' => '/tmp/gospel.word.counts.png',
-		'plot.type'       => 'bar',
-		data              => {
-			Matthew => 18345,
-			Mark    => 11304,
-			Luke    => 19482,
-			John    => 15635,
-		}
-	});
-	
-Having a `plots` argument as an array lets the module know to create subplots:
+C<bar>, C<barh>, C<boxplot>, C<hexbin>, C<hist>, C<hist2d>, C<imshow>, C<pie>, C<plot>, C<scatter>, and C<violinplot> all match the methods in matplotlib itself.
+=head1 Examples/Plot Types
 
-	use Matplotlib::Simple 'plot';
-	plot({
-		'output.filename'	=> 'svg/pies.png',
-		plots             => [
-			{
-				data	=> {
-				 Russian => 106_000_000,  # Primarily European Russia
-				 German => 95_000_000,    # Germany, Austria, Switzerland, etc.
-				},
-				'plot.type'	=> 'pie',
-				title       => 'Top Languages in Europe',
-				suptitle    => 'Pie in subplots',
-			},
-			{
-				data	=> {
-				 Russian => 106_000_000,  # Primarily European Russia
-				 German => 95_000_000,    # Germany, Austria, Switzerland, etc.
-				},
-				'plot.type'	=> 'pie',
-				title       => 'Top Languages in Europe',
-			},
-		],
-		ncols    => 2,
-	});
+Consider the following helper subroutines to generate data to plot:
 
-=begin html
-see <a href="https://github.com/hhg7/MatPlotLib-Simple">GitHub</a> for more details
+```
+sub linspace { # mostly written by Grok
+    my ($start, $stop, $num, $endpoint) = @_; # endpoint means include $stop
+    $num = defined $num ? int($num) : 50; # Default to 50 points
+    $endpoint = defined $endpoint ? $endpoint : 1; # Default to include endpoint
+    return () if $num < 0; # Return empty array for invalid num
+    return ($start) if $num == 1; # Return single value if num is 1
+    my (@result, $step);
 
-the simplest plot:
+ if ($endpoint) {
+   $step = ($stop - $start) / ($num - 1) if $num > 1;
+   for my $i (0 .. $num - 1) {
+        $result[$i] = $start + $i * $step;
+   }
+ } else {
+   $step = ($stop - $start) / $num;
+   for my $i (0 .. $num - 1) {
+        $result[$i] = $start + $i * $step;
+   }
+ }
+ return @result;
 
-<p><center><img src="https://private-user-images.githubusercontent.com/17788973/486139108-a008dece-2e34-47bf-af0f-8603709f7d52.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NjIzNzg1MzQsIm5iZiI6MTc2MjM3ODIzNCwicGF0aCI6Ii8xNzc4ODk3My80ODYxMzkxMDgtYTAwOGRlY2UtMmUzNC00N2JmLWFmMGYtODYwMzcwOWY3ZDUyLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTExMDUlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUxMTA1VDIxMzAzNFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTNkNWYwM2ZlMDhjOTIzZDQ4NDg2MmIxYzY3Y2IxYzMwYjlmNTk3MjY5MzI0Yzk2YzljMDMxOTA3ZmYwOWIzYzImWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.zpgP04I8RyA4iSXSoUbBPEQV4bUeti8w11KQyZgXkFk" width="640" height="420" alt="Basic Plot" /></center></p>
+}
 
-=end html
+sub generate_normal_dist {
+    my ($mean, $std_dev, $size) = @I<;
+    $size = defined $size ? int $size : 100; # default to 100 points
+    my @numbers;
+    for (1 .. int($size / 2) + 1) {# Box-Muller transform
+        my $u1 = rand();
+        my $u2 = rand();
+        my $z0 = sqrt(-2.0 * log($u1)) * cos(2.0 * 3.141592653589793 * $u2);
+        my $z1 = sqrt(-2.0 * log($u1)) * sin(2.0 * 3.141592653589793 * $u2); # Scale and shift to match mean and std>dev
+        push @numbers, ($z0 * $std_dev + $mean, $z1 * $std_dev + $mean);
+    } # Trim to exact size if needed
+    @numbers = @numbers[0 .. $size - 1] if @numbers > $size;
+    @numbers = map {sprintf '%.1f', $I<} @numbers;
+    return \@numbers;
+}
+sub rand>between {
+    my ($min, $max) = @_;
+    return $min + rand($max - $min)
+}
+```
+=head2 Barplot/bar/barh
+
+Plot a hash or a hash of arrays as a boxplot
+
+=head3 Options
+
+| Option | Description | Example |
+| -------- | ------- | ------- 
+|color| :mpltype:C<color> or list of :mpltype:C<color>, optional; The colors of the bar faces. This is an alias for I<facecolor>. If both are given, I<facecolor> takes precedence # if entering multiple colors, quoting isn't needed|C<< color =E<gt> ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'], >> or a single color for all bars C<< color =E<gt> 'red' >>
+|edgecolor| :mpltype:C<color> or list of :mpltype:C<color>, optional; The colors of the bar edges|C<< edgecolor      =E<gt> 'black' >>
+|key.order|  define the keys in an order (an array reference)|C<< 'key.order'      =E<gt> ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], >>
+|linewidth| float or array, optional; Width of the bar edge(s). If 0, don't draw edges. Only does anything with defined C<edgecolor>|C<< linewidth =E<gt> 2, >>
+|log| bool, default: False; If I<True>, set the y-axis to be log scale.|C<log = 'True',>
+|stacked| stack the groups on top of one another; default 0 = off|C<< stacked  =E<gt> 1, >>
+|width| float only, default: 0.8; The width(s) of the bars.  C<width> will be deactivated with grouped, non-stacked bar plots |C<< width =E<gt> 0.4, >>
+|xerr| float or array-like of shape(N,) or shape(2, N), optional. If not I<None>, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - I<None>: No errorbar. (Default)|C<< yerr                      =E<gt> {'USA'               =E<gt> [15,29], 'Russia'            =E<gt> [199,1000],} >>
+|yerr|same as xerr, but better with bar|
+
+an example of multiple plots, showing many options:
+
+=head3 single, simple plot
+
+C<< 
+use Matplotlib::Simple 'plot';
+plot({
+    'output.filename'           =E<gt> 'output.images/single.barplot.png',
+    data    =E<gt> { # simple hash
+        Fri =E<gt> 76, Mon  =E<gt> 73, Sat =E<gt> 26, Sun =E<gt> 11, Thu    =E<gt> 94, Tue  =E<gt> 93, Wed  =E<gt> 77
+    },
+    'plot.type' =E<gt> 'bar',
+    xlabel      =E<gt> '# of Days',
+    ylabel      =E<gt> 'Count',
+    title       =E<gt> 'Customer Calls by Days'
+});
+ >>
+
+where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself. C<plot.type>, C<data>, C<input.file> are all specific to C<MatPlotLib::Simple>.
+<img width="651" height="491" alt="single barplot" src="https://github.com/user-attachments/assets/eae009a8-5571-4608-abdb-1016e3cff5fd" />
+
+=head3 multiple plots
+
+C<< 
+plot({
+    'input.file'        =E<gt> $tmp_filename,
+    execute             =E<gt> 0,
+    'output.filename'   =E<gt> 'output.images/barplots.png',
+    plots                   =E<gt> [
+        { # simple plot
+            data    =E<gt> { # simple hash
+                Fri =E<gt> 76, Mon  =E<gt> 73, Sat =E<gt> 26, Sun =E<gt> 11, Thu    =E<gt> 94, Tue  =E<gt> 93, Wed  =E<gt> 77
+            },
+            'plot.type' =E<gt> 'bar',
+            'key.order'     =E<gt> ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+            suptitle            =E<gt> 'Types of Plots', # applies to all
+            color               =E<gt> ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],
+            edgecolor       =E<gt> 'black',
+            set_figwidth    =E<gt> 40/1.5, # applies to all plots
+            set_figheight   =E<gt> 30/2, # applies to all plots
+            title               =E<gt> 'bar: Rejections During Job Search',
+            xlabel          =E<gt> 'Day of the Week',
+            ylabel          =E<gt> 'No. of Rejections'
+        },
+        { # grouped bar plot
+            'plot.type' =E<gt> 'bar',
+            data    =E<gt> {
+                1941 =E<gt> {
+                  UK      =E<gt> 6.6,
+                  US      =E<gt> 6.2,
+                  USSR    =E<gt> 17.8,
+                  Germany =E<gt> 26.6
+                },
+                1942 =E<gt> {
+                  UK      =E<gt> 7.6,
+                  US      =E<gt> 26.4,
+                  USSR    =E<gt> 19.2,
+                  Germany =E<gt> 29.7
+                },
+                1943 =E<gt> {
+                  UK      =E<gt> 7.9,
+                  US      =E<gt> 61.4,
+                  USSR    =E<gt> 22.5,
+                  Germany =E<gt> 34.9
+                },
+                1944 =E<gt> {
+                  UK      =E<gt> 7.4,
+                  US      =E<gt> 80.5,
+                  USSR    =E<gt> 27.0,
+                  Germany =E<gt> 31.4
+                },
+                1945 =E<gt> {
+                  UK      =E<gt> 5.4,
+                  US      =E<gt> 83.1,
+                  USSR    =E<gt> 25.5,
+                  Germany =E<gt> 11.2 #Rapid decrease due to war's end <br />
+                },
+            },
+            stacked =E<gt> 0,
+            title       =E<gt> 'Hash of Hash Grouped Unstacked Barplot',
+            width       =E<gt> 0.23,
+            xlabel  =E<gt> 'r"$\it{anno}$ $\it{domini}$"', # italic
+            ylabel  =E<gt> 'Military Expenditure (Billions of $)'
+        },
+        { # grouped bar plot
+            'plot.type' =E<gt> 'bar',
+            data    =E<gt> {
+                1941 =E<gt> {
+                  UK      =E<gt> 6.6,
+                  US      =E<gt> 6.2,
+                  USSR    =E<gt> 17.8,
+                  Germany =E<gt> 26.6
+                },
+                1942 =E<gt> {
+                  UK      =E<gt> 7.6,
+                  US      =E<gt> 26.4,
+                  USSR    =E<gt> 19.2,
+                  Germany =E<gt> 29.7
+                },
+                1943 =E<gt> {
+                  UK      =E<gt> 7.9,
+                  US      =E<gt> 61.4,
+                  USSR    =E<gt> 22.5,
+                  Germany =E<gt> 34.9
+                },
+                1944 =E<gt> {
+                  UK      =E<gt> 7.4,
+                  US      =E<gt> 80.5,
+                  USSR    =E<gt> 27.0,
+                  Germany =E<gt> 31.4
+                },
+                1945 =E<gt> {
+                  UK      =E<gt> 5.4,
+                  US      =E<gt> 83.1,
+                  USSR    =E<gt> 25.5,
+                  Germany =E<gt> 11.2 #Rapid decrease due to war's end <br />
+                },
+            },
+            stacked =E<gt> 1,
+            title       =E<gt> 'Hash of Hash Grouped Stacked Barplot',
+            xlabel  =E<gt> 'r"$\it{anno}$ $\it{domini}$"', # italic
+            ylabel  =E<gt> 'Military Expenditure (Billions of $)'
+        },
+        {# grouped barplot: arrays indicate Union, Confederate which must be specified in options hash
+            data                    =E<gt> { # 4th plot: arrays indicate Union, Confederate which must be specified in options hash
+             'Antietam'             =E<gt> [ 12400, 10300 ],
+             'Gettysburg'           =E<gt> [ 23000, 28000 ],
+             'Chickamauga'          =E<gt> [ 16000, 18000 ],
+             'Chancellorsville' =E<gt> [ 17000, 13000 ],
+             'Wilderness'           =E<gt> [ 17500, 11000 ],
+             'Spotsylvania'     =E<gt> [ 18000, 12000 ],
+             'Cold Harbor'          =E<gt> [ 12000, 5000  ],
+             'Shiloh'               =E<gt> [ 13000, 10700 ],
+             'Second Bull Run'  =E<gt> [ 10000, 8000  ],
+             'Fredericksburg'       =E<gt> [ 12600, 5300  ],
+            },
+            'plot.type' =E<gt> 'barh',
+            color       =E<gt>  ['blue', 'gray'], # colors match indices of data arrays
+            label       =E<gt> ['North', 'South'], # colors match indices of data arrays
+            xlabel  =E<gt> 'Casualties',
+            ylabel  =E<gt> 'Battle',
+            title       =E<gt> 'barh: hash of array'
+        },
+        { # 5th plot: barplot with groups
+            data    =E<gt> {
+                1942 =E<gt> [ 109867,  310000, 7700000 ], # US, Japan, USSR
+                1943 =E<gt> [ 221111,  440000, 9000000 ],
+                1944 =E<gt> [ 318584,  610000, 7000000 ],
+                1945 =E<gt> [ 318929, 1060000, 3000000 ],
+            },
+            color       =E<gt> ['blue', 'pink', 'red'], # colors match indices of data arrays
+            label       =E<gt> ['USA', 'Japan', 'USSR'], # colors match indices of data arrays
+            'log'       =E<gt> 1,
+            title       =E<gt> 'grouped bar: Casualties in WWII',
+            ylabel  =E<gt> 'Casualties',
+            'plot.type' =E<gt> 'bar'
+        }, <br />
+        { # nuclear weapons barplot
+            'plot.type'     =E<gt> 'bar',
+            data =E<gt> {
+                'USA'               =E<gt> 5277, # FAS Estimate
+                'Russia'            =E<gt> 5449, # FAS Estimate
+                'UK'                =E<gt> 225, # Consistent estimate
+                'France'            =E<gt> 290, # Consistent estimate
+                'China'         =E<gt> 600, # FAS Estimate
+                'India'         =E<gt> 180, # FAS Estimate
+                'Pakistan'      =E<gt> 130, # FAS Estimate
+                'Israel'            =E<gt> 90, # FAS Estimate
+                'North Korea'   =E<gt> 50, # FAS Estimate
+            },
+            title       =E<gt> 'Simple hash for barchart with yerr',
+            xlabel  =E<gt> 'Country',
+            yerr                        =E<gt> {
+                'USA'               =E<gt> [15,29],
+                'Russia'            =E<gt> [199,1000],
+                'UK'                =E<gt> [15,19],
+                'France'            =E<gt> [19,29],
+                'China'         =E<gt> [200,159],
+                'India'         =E<gt> [15,25],
+                'Pakistan'      =E<gt> [15,49],
+                'Israel'            =E<gt> [90,50],
+                'North Korea'   =E<gt> [10,20],
+            },
+            ylabel  =E<gt> '# of Nuclear Warheads',
+            'log'                       =E<gt> 'True', #    linewidth               =E<gt> 1,
+        }
+    ],
+    ncols   =E<gt> 3,
+    nrows   =E<gt> 4
+});
+ >>
+which produces the plot:
+
+<img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/6d87d13b-dabd-485d-92f7-1418f4acc65b" />
+
+=head2 boxplot
+
+Plot a hash of arrays as a series of boxplots
+
+=head3 options
+
+| Option | Description | Example |
+| -------- | ------- | ------- |
+|C<color> | a single color for all plots | C<< color =E<gt> 'pink' >>|
+|C<colors>| a hash, where each data point and color is a hash pair |C<< colors =E<gt> { A =E<gt> 'orange', E =E<gt> 'yellow', B =E<gt> 'purple' }, >>|
+| C<key.order>| order that the keys in the entry hash will be plotted | C<key.order = ['A', 'E', 'B']> |
+| C<orientation>| orientation of the plot, by default C<vertical>| C<orientation = 'horizontal'> |
+|C<showcaps>| Show the caps on the ends of whiskers; default C<True> | C<< showcaps =E<gt> 'False', >> |
+| C<showfliers> |Show the outliers beyond the caps; default C<True> | C<< showfliers  =E<gt> 'False' >> |
+|C<showmeans> | show means; default = C<True> | C<< showmeans   =E<gt> 'False' >> |
+|C<whiskers>| show whiskers, default = 1| C<< whiskers    =E<gt> 0, >>|
+
+=head3 single, simple plot
+
+```
+my $x = generate_normal_dist( 100, 15, 3 * 10 );
+my $y = generate_normal_dist( 85,  15, 3 * 10 );
+my $z = generate_normal_dist( 106, 15, 3 * 10 );
+
+=head1 single plots are simple
+
+plot(
+    {
+        'output.filename' => 'output.images/single.boxplot.png',
+        data              => {                                     # simple hash
+            E => [ 55,    @{$x}, 160 ],
+            B => [ @{$y}, 140 ],
+
+         #       A => @a
+     },
+     'plot.type'  => 'boxplot',
+     title        => 'Single Box Plot: Specified Colors',
+     colors       => { E => 'yellow', B => 'purple' },
+     'input.file' => $tmp_filename,
+     execute      => 0,
+ }
+
+);
+```
+which makes the following image:
+
+<img width="651" height="491" alt="single boxplot" src="https://github.com/user-attachments/assets/19870fa2-fe36-4513-8cbb-23da3a0cf686" />
+
+=head3 multiple plots
+
+C<< 
+plot(
+    {
+        'output.filename' =E<gt> 'output.images/boxplot.png',
+        execute           =E<gt> 0,
+        'input.file'      =E<gt> $tmp_filename,
+        plots             =E<gt> [
+            {
+                data =E<gt> {
+                    A =E<gt> [ 55, @{$z} ],
+                    E =E<gt> [ @{$y} ],
+                    B =E<gt> [ 122, @{$z} ],
+                },
+                title       =E<gt> 'Simple Boxplot',
+                ylabel      =E<gt> 'ylabel',
+                xlabel      =E<gt> 'label',
+                'plot.type' =E<gt> 'boxplot',
+                suptitle    =E<gt> 'Boxplot examples'
+            },
+            {
+                color =E<gt> 'pink',
+                data  =E<gt> {
+                    A =E<gt> [ 55, @{$z} ],
+                    E =E<gt> [ @{$y} ],
+                    B =E<gt> [ 122, @{$z} ],
+                },
+                title       =E<gt> 'Specify single color',
+                ylabel      =E<gt> 'ylabel',
+                xlabel      =E<gt> 'label',
+                'plot.type' =E<gt> 'boxplot'
+            },
+            {
+                colors =E<gt> {
+                    A =E<gt> 'orange',
+                    E =E<gt> 'yellow',
+                    B =E<gt> 'purple'
+                },
+                data =E<gt> {
+                    A =E<gt> [ 55, @{$z} ],
+                    E =E<gt> [ @{$y} ],
+                    B =E<gt> [ 122, @{$z} ],
+                },
+                title       =E<gt> 'Specify set-specific color; showfliers = False',
+                ylabel      =E<gt> 'ylabel',
+                xlabel      =E<gt> 'label',
+                'plot.type' =E<gt> 'boxplot',
+                showmeans   =E<gt> 'True',
+                showfliers  =E<gt> 'False',
+                set_figwidth =E<gt> 12
+            },
+            {
+                colors =E<gt> {
+                    A =E<gt> 'orange',
+                    E =E<gt> 'yellow',
+                    B =E<gt> 'purple'
+                },
+                data =E<gt> {
+                    A =E<gt> [ 55, @{$z} ],
+                    E =E<gt> [ @{$y} ],
+                    B =E<gt> [ 122, @{$z} ],
+                },
+                title       =E<gt> 'Specify set-specific color; showmeans = False',
+                ylabel      =E<gt> 'ylabel',
+                xlabel      =E<gt> 'label',
+                'plot.type' =E<gt> 'boxplot',
+                showmeans   =E<gt> 'False',
+            },
+            {
+                colors =E<gt> {
+                    A =E<gt> 'orange',
+                    E =E<gt> 'yellow',
+                    B =E<gt> 'purple'
+                },
+                data =E<gt> {
+                    A =E<gt> [ 55, @{$z} ],
+                    E =E<gt> [ @{$y} ],
+                    B =E<gt> [ 122, @{$z} ],
+                },
+                title       =E<gt> 'Set-specific color; orientation = horizontal',
+                ylabel      =E<gt> 'ylabel',
+                xlabel      =E<gt> 'label',
+                orientation =E<gt> 'horizontal',
+                'plot.type' =E<gt> 'boxplot',
+            },
+            {
+                colors =E<gt> {
+                    A =E<gt> 'orange',
+                    E =E<gt> 'yellow',
+                    B =E<gt> 'purple'
+                },
+                data =E<gt> {
+                    A =E<gt> [ 55, @{$z} ],
+                    E =E<gt> [ @{$y} ],
+                    B =E<gt> [ 122, @{$z} ],
+                },
+                title       =E<gt> 'Notch = True',
+                ylabel      =E<gt> 'ylabel',
+                xlabel      =E<gt> 'label',
+                notch       =E<gt> 'True',
+                'plot.type' =E<gt> 'boxplot',
+            },
+            {
+                colors =E<gt> {
+                    A =E<gt> 'orange',
+                    E =E<gt> 'yellow',
+                    B =E<gt> 'purple'
+                },
+                data =E<gt> {
+                    A =E<gt> [ 55, @{$z} ],
+                    E =E<gt> [ @{$y} ],
+                    B =E<gt> [ 122, @{$z} ],
+                },
+                title         =E<gt> 'showcaps = False',
+                ylabel        =E<gt> 'ylabel',
+                xlabel        =E<gt> 'label',
+                showcaps      =E<gt> 'False',
+                'plot.type'   =E<gt> 'boxplot',
+                set_figheight =E<gt> 12,
+            },
+        ],
+        ncols =E<gt> 3,
+        nrows =E<gt> 3,
+    }
+);
+ >>
+which makes the following plot:
+
+<img width="1230" height="1211" alt="boxplot" src="https://github.com/user-attachments/assets/7e32e394-86fc-49e7-ad97-f48fd82fc8b0" />
+
+=head2 hexbin
+
+Plot a hash of arrays as a hexbin
+see https://matplotlib.org/stable/api/I<as>gen/matplotlib.pyplot.hexbin.html
+
+=head3 options
+
+| Option | Description | Example |
+| -------- | ------- | ------- 
+| cb_logscale | colorbar log scale C<from matplotlib.colors import LogNorm> | default 0, any value > 0 enables |
+|cmap| The Colormap instance or registered colormap name used to map scalar data to colors | default C<gist_rainbow> |
+|key.order|  define the keys in an order (an array reference)|C<< 'key.order' =E<gt> ['X-rays', 'Yak Butter'], >>
+| marginals | integer, by default off = 0 | C<< marginals =E<gt> 1 >> |
+| mincnt | int >= 0, default: None; If not None, only display cells with at least mincnt number of points in the cell. |  C<< mincnt =E<gt> 2 >>|
+| vmax  | The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap | C<'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'> default C<linear> |
+| vmin  | The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap | C<'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'> default C<linear> |
+| xbins | integer that accesses horizontal gridsize | default is 15 |
+| xscale.hexbin | 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the horizontal axis | C<< 'xscale.hexbin' =E<gt> 'log' >>|
+| ybins | integer that accesses vertical gridsize | default is 15 |
+| yscale.hexbin | 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the vertical axis | C<< 'yscale.hexbin' =E<gt> 'log' >>|
+
+=head3 single, simple plot
+
+C<< 
+plot({
+    data    =E<gt> {
+        E   =E<gt> generate_normal_dist(100, 15, 3*210),
+        B   =E<gt> generate_normal_dist(85, 15, 3*210)
+    },
+    'output.filename'   =E<gt> 'output.images/single.hexbin.png',
+    'plot.type' =E<gt> 'hexbin',
+    set_figwidth =E<gt> 12,
+    title           =E<gt> 'Simple Hexbin',
+});
+ >>
+which makes the following plot:
+<img width="1208" height="491" alt="single hexbin" src="https://github.com/user-attachments/assets/129c41cd-2d7d-43de-978a-2b9c441b8939" />
+=head3 multiple plots
+
+C<< 
+plot(
+    {
+        'input.file'      =E<gt> $tmp_filename,
+        execute           =E<gt> 0,
+        'output.filename' =E<gt> 'output.images/hexbin.png',
+        plots             =E<gt> [
+            {
+                data =E<gt> {
+                    E =E<gt> @e,
+                    B =E<gt> @b
+                },
+                'plot.type'  =E<gt> 'hexbin',
+                title        =E<gt> 'Simple Hexbin',
+            },
+            {
+                data =E<gt> {
+                    E =E<gt> @e,
+                    B =E<gt> @b
+                },
+                'plot.type' =E<gt> 'hexbin',
+                title       =E<gt> 'colorbar logscale',
+                cb_logscale =E<gt> 1
+            },
+            {
+                cmap =E<gt> 'jet',
+                data =E<gt> {
+                    E =E<gt> @e,
+                    B =E<gt> @b
+                },
+                'plot.type'  =E<gt> 'hexbin',
+                title        =E<gt> 'cmap is jet',
+                xlabel       =E<gt> 'xlabel',
+            },
+             {
+                data =E<gt> {
+                    E =E<gt> @e,
+                    B =E<gt> @b
+                },
+                'key.order'  =E<gt> ['E', 'B'],
+                'plot.type'  =E<gt> 'hexbin',
+                title        =E<gt> 'Switch axes with key.order',
+            },
+             {
+                data =E<gt> {
+                    E =E<gt> @e,
+                    B =E<gt> @b
+                },
+                'plot.type'  =E<gt> 'hexbin',
+                title        =E<gt> 'vmax set to 25',
+                vmax         =E<gt> 25
+            },
+             {
+                data =E<gt> {
+                    E =E<gt> @e,
+                    B =E<gt> @b
+                },
+                'plot.type'  =E<gt> 'hexbin',
+                title        =E<gt> 'vmin set to -4',
+                vmin         =E<gt> -4
+            },
+            {
+                data =E<gt> {
+                    E =E<gt> @e,
+                    B =E<gt> @b
+                },
+                'plot.type'  =E<gt> 'hexbin',
+                title        =E<gt> 'mincnt set to 7',
+                mincnt       =E<gt> 7
+            },
+            {
+                data =E<gt> {
+                    E =E<gt> @e,
+                    B =E<gt> @b
+                },
+                'plot.type'  =E<gt> 'hexbin',
+                title        =E<gt> 'xbins set to 9',
+                xbins        =E<gt> 9
+            },
+            {
+                data =E<gt> {
+                    E =E<gt> @e,
+                    B =E<gt> @b
+                },
+                'plot.type'  =E<gt> 'hexbin',
+                title        =E<gt> 'ybins set to 9',
+                ybins        =E<gt> 9
+            },
+            {
+                data =E<gt> {
+                    E =E<gt> @e,
+                    B =E<gt> @b
+                },
+                'plot.type'  =E<gt> 'hexbin',
+                title        =E<gt> 'marginals = 1',
+                marginals    =E<gt> 1
+            },
+        ],
+        ncols =E<gt> 2
+    }
+);
+ >>
+which produces the following image:
+<img width="2010" height="1511" alt="hexbin" src="https://github.com/user-attachments/assets/71412ab1-e869-4913-a8cf-e39df15c9590" />
+=head2 hist
+
+Plot a hash of arrays as a series of histograms
+
+=head3 options
+
+=head3 single, simple plot
+
+```
+my @e = generate_normal_dist( 100, 15, 3 * 200 );
+my @b = generate_normal_dist( 85,  15, 3 * 200 );
+my @a = generate_normal_dist( 105, 15, 3 * 200 );
+
+plot({
+    'input.file'      => $tmp_filename,
+    execute           => 0,
+    'output.filename' => 'output.images/single.hist.png',
+    data              => {
+        E => @e,
+        B => @b,
+        A => @a,
+    },
+    'plot.type'       => 'hist'
+});
+```
+<img width="651" height="491" alt="single hist" src="https://github.com/user-attachments/assets/fafcf787-6c4f-4998-88c4-77a15d878fa6" />
+
+=head3 multiple plots
+
+C<< 
+plot({
+    'input.file'      =E<gt> $tmp_filename,
+    execute           =E<gt> 0,
+    'output.filename' =E<gt> 'output.images/histogram.png',
+   suptitle          =E<gt> 'hist Examples',
+    plots             =E<gt> [
+        { # 1st subplot
+            data =E<gt> {
+                E =E<gt> @e,
+                B =E<gt> @b,
+                A =E<gt> @a,
+            },
+            'plot.type' =E<gt> 'hist',
+            alpha       =E<gt> 0.25,
+            bins        =E<gt> 50,
+            title       =E<gt> 'alpha = 0.25',
+            color       =E<gt> {
+                B =E<gt> 'Black',
+                E =E<gt> 'Orange',
+                A =E<gt> 'Yellow',
+            },
+            scatter =E<gt> '['
+              . join( ',', 22 .. 44 ) . '],['  # x coords
+              . join( ',', 22 .. 44 )          # y coords
+              . '], label = "scatter"',
+            xlabel   =E<gt> 'Value',
+            ylabel   =E<gt> 'Frequency',
+        },
+        { # 2nd subplot
+            data =E<gt> {
+                E =E<gt> @e,
+                B =E<gt> @b,
+                A =E<gt> @a,
+            },
+            'plot.type' =E<gt> 'hist',
+            alpha       =E<gt> 0.75,
+            bins        =E<gt> 50,
+            title       =E<gt> 'alpha = 0.75',
+            color       =E<gt> {
+                B =E<gt> 'Black',
+                E =E<gt> 'Orange',
+                A =E<gt> 'Yellow',
+            },
+            xlabel   =E<gt> 'Value',
+            ylabel   =E<gt> 'Frequency',
+            suptitle =E<gt>
+              'Types of Plots',    # applies to all #               'log'                   =E<gt> 1,
+        },
+        { # 3rd subplot
+            add               =E<gt> [ # add secondary plots/graphs/methods
+            { # 1st additional plot/graph
+                data              =E<gt> {
+                    'Gaussian'       =E<gt> [
+                        [40..150],
+                        [map {150 * exp(-0.5*($_-100)**2)} 40..150]
+                    ]
+                },
+                'plot.type' =E<gt> 'plot',
+                'set.options' =E<gt> {
+                    'Gaussian' =E<gt>  'color = "red", linestyle = "dashed"'
+                }
+            }
+            ],
+           data =E<gt> {
+                E =E<gt> @e,
+                B =E<gt> @b,
+                A =E<gt> @a,
+            },
+            'plot.type' =E<gt> 'hist',
+            alpha       =E<gt> 0.75,
+            bins        =E<gt> {
+                A =E<gt> 10,
+                B =E<gt> 25,
+                E =E<gt> 50
+            },
+            title =E<gt> 'Varying # of bins',
+            color =E<gt> {
+                B =E<gt> 'Black',
+                E =E<gt> 'Orange',
+                A =E<gt> 'Yellow',
+            },
+            xlabel       =E<gt> 'Value',
+            ylabel       =E<gt> 'Frequency',
+            set_figwidth =E<gt> 15,
+            suptitle     =E<gt>
+              'Types of Plots',    # applies to all #               'log'                   =E<gt> 1,
+        },
+        {# 4th subplot
+            data =E<gt> {
+                E =E<gt> @e,
+                B =E<gt> @b,
+                A =E<gt> @a,
+            },
+            'plot.type' =E<gt> 'hist',
+            alpha       =E<gt> 0.75,
+            color       =E<gt> {
+                B =E<gt> 'Black',
+                E =E<gt> 'Orange',
+                A =E<gt> 'Yellow',
+            },
+            orientation  =E<gt> 'horizontal',    # assign x and y labels smartly
+            set_figwidth =E<gt> 15,
+            suptitle     =E<gt> 'Types of Plots',           # applies to all
+            title        =E<gt> 'Horizontal orientation',
+            ylabel       =E<gt> 'Value',
+            xlabel       =E<gt> 'Frequency',                #               'log'                   =E<gt> 1,
+        },
+    ],
+    ncols =E<gt> 3,
+    nrows =E<gt> 2,
+});
+ >>
+
+<img width="1511" height="491" alt="histogram" src="https://github.com/user-attachments/assets/2fbeaacd-770f-4422-940c-53611679b5e8" />
+
+=head2 hist2d
+
+=head3 options
+
+=head3 single, simple plot
+
+=head3 multiple plots
+
+=head2 imshow
+
+Plot 2D array of numbers as an image
+
+=head3 options
+
+| Option | Description | Example |
+| -------- | ------- | ------- 
+|C<cblabel>| colorbar label | C<< cblabel =E<gt> 'sin(x) * cos(x)', >>
+|C<cbdrawedges> |draw edges for colorbar | |
+|C<cblocation> | 'left', 'right', 'top', 'bottom'| C<< cblocation =E<gt> 'left', >>|
+|C<cborientation>|  None, or 'vertical', 'horizontal' | 
+|C<cmap>| # The Colormap instance or registered colormap name used to map scalar data to colors.|
+|C<vmax>| float |
+|C<vmin>| float | 
+
+=head3 single, simple plot
+
+C<< 
+my @imshow_data;
+foreach my $i (0..360) {
+    foreach my $j (0..360) {
+        push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
+    }
+}
+plot({
+    data              =E<gt> \@imshow_data,
+    execute           =E<gt> 0,
+   'input.file'      =E<gt> $tmp_filename,
+    'output.filename' =E<gt> 'output.images/imshow.single.png',
+    'plot.type'       =E<gt> 'imshow',
+    set_xlim          =E<gt> '0, ' . scalar @imshow_data,
+    set_ylim          =E<gt> '0, ' . scalar @imshow_data,
+});
+ >>
+<img width="599" height="491" alt="imshow single" src="https://github.com/user-attachments/assets/3fa4ffe6-4817-4133-9c91-b68099400377" />
+
+=head3 multiple plots
+
+=head2 pie
+
+=head3 options
+
+=head3 single, simple plot
+
+=head3 multiple plots
+
+=head2 plot
+
+=head3 single, simple
+
+C<< 
+plot(
+    {
+        'input.file'      =E<gt> $tmp_filename,
+        execute           =E<gt> 0,
+        'output.filename' =E<gt> 'output.images/plot.single.png',
+        data              =E<gt> {
+            'sin(x)' =E<gt> [
+                [@x],                     # x
+                [ map { sin($_) } @x ]    # y
+            ],
+            'cos(x)' =E<gt> [
+                [@x],                     # x
+                [ map { cos($_) } @x ]    # y
+            ],
+        },
+        'plot.type' =E<gt> 'plot',
+        title       =E<gt> 'simple plot',
+        set_xticks  =E<gt>
+"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+          . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+        'set.options' =E<gt> {    # set options overrides global settings
+            'sin(x)' =E<gt> 'color="blue", linewidth=2',
+            'cos(x)' =E<gt> 'color="red",  linewidth=2'
+        }
+    }
+);
+ >>
+
+which makes the following "plot" plot: <img width="651" height="491" alt="plot single" src="https://github.com/user-attachments/assets/6cbd6aad-c464-4703-b962-b420ec08bb66" />
+
+=head3 multiple sub-plots
+
+C<< 
+my $pi = atan2( 0, -1 );
+my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
+plot(
+    {
+        'input.file'      =E<gt> $tmp_filename,
+        execute           =E<gt> 0,
+        'output.filename' =E<gt> 'output.images/plot.png',
+        plots             =E<gt> [
+            {    # plot 1
+                data =E<gt> {
+                    'sin(x)' =E<gt> [
+                        [@x],                     # x
+                        [ map { sin($_) } @x ]    # y
+                    ],
+                    'cos(x)' =E<gt> [
+                        [@x],                     # x
+                        [ map { cos($_) } @x ]    # y
+                    ],
+                },
+                'plot.type' =E<gt> 'plot',
+                title       =E<gt> 'simple plot',
+                set_xticks  =E<gt>
+"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+                  . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+                'set.options' =E<gt> {    # set options overrides global settings
+                    'sin(x)' =E<gt> 'color="blue", linewidth=2',
+                    'cos(x)' =E<gt> 'color="red",  linewidth=2'
+                },
+                set_xlim =E<gt> "$x[0], $x[-1]",    # set min and max as a string
+            },
+            {                                   # plot 2
+                data =E<gt> {
+                    'csc(x)' =E<gt> [
+                        [@x],                         # x
+                        [ map { 1 / sin($_) } @x ]    # y
+                    ],
+                    'sec(x)' =E<gt> [
+                        [@x],                         # x
+                        [ map { 1 / cos($_) } @x ]    # y
+                    ],
+                },
+                'plot.type' =E<gt> 'plot',
+                title       =E<gt> 'simple plot',
+                set_xticks  =E<gt>
+"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+                  . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+                'set.options' =E<gt> {    # set options overrides global settings
+                    'csc(x)' =E<gt> 'color="purple", linewidth=2',
+                    'sec(x)' =E<gt> 'color="green",  linewidth=2'
+                },
+                set_xlim =E<gt> "$x[0], $x[-1]",    # set min and max as a string
+                set_ylim =E<gt> '-9,9',
+            },
+        ],
+        ncols        =E<gt> 2,
+        set_figwidth =E<gt> 12,
+    }
+);
+ >>
+which makes <img width="1211" height="491" alt="plot" src="https://github.com/user-attachments/assets/a8312147-e13d-4aa9-9997-49430bb5c74a" />
+=head2 scatter
+
+=head3 options
+
+=head3 single, simple plot
+
+=head3 multiple plots
+
+=head2 violin
+
+=head3 options
+
+=head3 single, simple plot
+
+=head3 multiple plots
+
+=head2 wide
+
+=head3 options
+
+=head3 single, simple plot
+
+=head3 multiple plots
+
+=head1 Advanced
+
+=head2 Notes in Files
+
+all files that can have notes with them, give notes about how the file was written.  For example, SVG files have the following:
+C<< E<lt>dc:titleE<gt>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pmE<lt>/dc:titleE<gt> >>
+=head2 Speed
+
+To improve speed, all data can be written into a single temp python3 file thus:
+```
+use File::Temp 'tempfile';
+
+my ( $fh, $tmp_filename ) =  tempfile( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
+close $fh;
+=head1 all files will be written to $tmp_filename; be sure to put C<< execute =E<gt> 0 >>
+
+plot(
+    {
+        data => {
+            Clinical => [
+                [
+                    [@xw],    # x
+                    [@y]      # y
+                ],
+                [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
+                [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
+            ],
+            HGI => [
+                [
+                    [@xw],                            # x
+                    [ map { 1.9 - 1.1 / $_ } @xw ]    # y
+                ],
+                [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
+                [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
+            ]
+        },
+        'output.filename' => 'output.images/single.wide.png',
+        'plot.type'       => 'wide',
+        color             => {
+            Clinical => 'blue',
+            HGI      => 'green'
+        },
+        title        => 'Visualization of similar lines plotted together',
+        'input.file' => $tmp_filename,
+        execute      => 0,
+    }
+);
+=head1 the last plot should have C<< execute =E<gt> 1 >>
+
+plot(
+    {
+        data => [
+            [
+                [@xw],    # x
+                [@y]      # y
+            ],
+            [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
+            [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
+        ],
+        'output.filename' => 'output.images/single.array.png',
+        'plot.type'       => 'wide',
+        color             => 'red',
+        title             => 'Visualization of similar lines plotted together',
+        'input.file'      => $tmp_filename,
+        execute           => 1,
+    }
+);
+```
 
