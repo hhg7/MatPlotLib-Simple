@@ -637,6 +637,15 @@ Plot a hash of arrays as a series of histograms
 
 ### options
 
+
+| Option | Description | Example |
+| -------- | ------- | ------- |
+|`alpha` | default 0.5; same for all sets| |
+|`bins` | # nt or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open|
+|`color` | a hash, where keys are the keys in data, and values are colors | `X => 'blue'`|
+|`log`| if set to > 1, the y-axis will be logarithmic | 
+|`orientation`| {'vertical', 'horizontal'}, default: 'vertical'|
+
 ### single, simple plot
 
 ```
@@ -665,6 +674,7 @@ plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 	'output.filename' => 'output.images/histogram.png',
+   set_figwidth => 15,
    suptitle          => 'hist Examples',
 	plots             => [
 		{ # 1st subplot
@@ -706,8 +716,6 @@ plot({
 		    },
 		    xlabel   => 'Value',
 		    ylabel   => 'Frequency',
-		    suptitle =>
-		      'Types of Plots',    # applies to all #				'log'					=> 1,
 		},
 		{ # 3rd subplot
 			add               => [ # add secondary plots/graphs/methods
@@ -744,9 +752,6 @@ plot({
 		    },
 		    xlabel       => 'Value',
 		    ylabel       => 'Frequency',
-		    set_figwidth => 15,
-		    suptitle     =>
-		      'Types of Plots',    # applies to all #				'log'					=> 1,
 		},
 		{# 4th subplot
 		    data => {
@@ -762,8 +767,6 @@ plot({
 		        A => 'Yellow',
 		    },
 		    orientation  => 'horizontal',    # assign x and y labels smartly
-		    set_figwidth => 15,
-		    suptitle     => 'Types of Plots',           # applies to all
 		    title        => 'Horizontal orientation',
 		    ylabel       => 'Value',
 		    xlabel       => 'Frequency',                #				'log'					=> 1,
@@ -773,8 +776,7 @@ plot({
 	nrows => 2,
 });
 ```
-
-<img width="1511" height="491" alt="histogram" src="https://github.com/user-attachments/assets/2fbeaacd-770f-4422-940c-53611679b5e8" />
+<img width="1511" height="491" alt="histogram" src="https://github.com/user-attachments/assets/b13b4cc8-6e64-40b0-913d-6a5886cee0db" />
 
 ## hist2d
 ### options
