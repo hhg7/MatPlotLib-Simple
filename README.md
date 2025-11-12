@@ -58,7 +58,7 @@ which produces the following subplots image:
 `bar`, `barh`, `boxplot`, `hexbin`, `hist`, `hist2d`, `imshow`, `pie`, `plot`, `scatter`, and `violinplot` all match the methods in matplotlib itself.
 # Examples/Plot Types
 Consider the following helper subroutines to generate data to plot:
-
+<!-- start code -->
 ```
 sub linspace { # mostly written by Grok
 	my ($start, $stop, $num, $endpoint) = @_; # endpoint means include $stop
@@ -102,6 +102,7 @@ sub rand_between {
 	return $min + rand($max - $min)
 }
 ```
+<!-- start code -->
 ## Barplot/bar/barh
 
 Plot a hash or a hash of arrays as a boxplot
