@@ -950,14 +950,17 @@ sub hist2d_helper {
 	# the range argument ensures that there are no empty parts of the plot
 	my $range =
 	", range = [($plot->{xmin}, $plot->{xmax}), ($plot->{ymin}, $plot->{ymax})]";
-	say { $args->{fh} }
-	"im$ax = ax$ax.hist2d(x, y, ($plot->{xbins}, $plot->{ybins}) $options $range)";
+	say {$args->{fh}}
+	"hist2d_n, hist2d_xedges, hist2d_yedges, im$ax = ax$ax.hist2d(x, y, ($plot->{xbins}, $plot->{ybins}) $options $range)";
+	say {$args->{fh}} 'import numpy as np';
+	say {$args->{fh}} 'max_hist2d_box = np.max(hist2d_n)';
+	say {$args->{fh}} 'min_hist2d_box = np.min(hist2d_n)';
+	say {$args->{fh}} 'print(f"hist2d density range = [{min_hist2d_box}, {max_hist2d_box}]")';
 	return 0 if $plot->{'show.colorbar'} == 0;
 	if ( defined $plot->{cblabel} ) {
-	  say { $args->{fh} } "plt.colorbar(im$ax"
-		 . "[3], label = '$plot->{cblabel}')";
+	  say { $args->{fh} } "plt.colorbar(im$ax, label = '$plot->{cblabel}')";
 	} else {
-	  say { $args->{fh} } "plt.colorbar(im$ax" . "[3], label = 'Density')";
+	  say { $args->{fh} } "plt.colorbar(im$ax, label = 'Density')";
 	}
 }
 
