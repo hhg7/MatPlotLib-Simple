@@ -2,7 +2,6 @@
 
 use strict;
 use warnings FATAL => 'all';
-use warnings::unused;
 use autodie ':all';
 use feature 'say';
 use File::Temp 'tempfile';
@@ -57,11 +56,14 @@ sub rand_between {
 my @xw = linspace( 0.1, 1, 100 );
 my @y  = map { 2 - 1 / $_ } @xw;
 my $pi = atan2( 0, -1 );
+my $x = generate_normal_dist( 100, 15, 3 * 10 );
+my $y = generate_normal_dist( 85,  15, 3 * 10 );
+my $z = generate_normal_dist( 106, 15, 3 * 10 );
 my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
 my ( $fh, $tmp_filename ) = tempfile( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
 close $fh;
 plot({
-	'output.filename' => 'output.images/add.single.png',
+	'output.file' => 'output.images/add.single.png',
 	'plot.type'       => 'plot',
 	data              => {
 		'sin(2x)'       => [
@@ -121,7 +123,7 @@ plot({
 		    [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
 		]
 	},
-	'output.filename' => 'output.images/single.wide.png',
+	'output.file' => 'output.images/single.wide.png',
 	'plot.type'       => 'wide',
 	color             => {
 		Clinical => 'blue',
@@ -140,7 +142,7 @@ plot({
 		[ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
 		[ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
 	],
-	'output.filename' => 'output.images/single.array.png',
+	'output.file' => 'output.images/single.array.png',
 	'plot.type'       => 'wide',
 	color             => 'red',
 	title             => 'Visualization of similar lines plotted together',
@@ -163,13 +165,13 @@ plot({
 			title       => 'Visualization of similar lines plotted together'
 		}
 	],
-	'output.filename' => 'output.images/wide.subplots.png',
+	'output.file' => 'output.images/wide.subplots.png',
 	suptitle          => 'SubPlots',
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 });
 plot({
-	'output.filename' => 'output.images/single.pie.png',
+	'output.file' => 'output.images/single.pie.png',
 	data              => {                                 # simple hash
 		Fri => 76,
 		Mon => 73,
@@ -185,7 +187,7 @@ plot({
 	execute      => 0,
 });
 plot({
-	'output.filename' => 'output.images/pie.png',
+	'output.file' => 'output.images/pie.png',
 	plots             => [
 		{
 		    data => {
@@ -244,13 +246,10 @@ plot({
 	execute      => 0,
 	ncols        => 3,
 });
-my $x = generate_normal_dist( 100, 15, 3 * 10 );
-my $y = generate_normal_dist( 85,  15, 3 * 10 );
-my $z = generate_normal_dist( 106, 15, 3 * 10 );
 
 # single plots are simple
 plot({
-        'output.filename' => 'output.images/single.boxplot.png',
+        'output.file' => 'output.images/single.boxplot.png',
         data              => {                                     # simple hash
             E => [ 55,    @{$x}, 160 ],
             B => [ @{$y}, 140 ],
@@ -264,7 +263,7 @@ plot({
         execute      => 0,
 });
 plot({
-        'output.filename' => 'output.images/boxplot.png',
+        'output.file' => 'output.images/boxplot.png',
         execute           => 0,
         'input.file'      => $tmp_filename,
         plots             => [
@@ -385,7 +384,7 @@ plot({
         nrows => 3,
 });
 plot({
-	'output.filename' => 'output.images/single.violinplot.png',
+	'output.file' => 'output.images/single.violinplot.png',
 	data              => {                                     # simple hash
 		A => [ 55, @{$z} ],
 		E => [ @{$y} ],
@@ -403,7 +402,7 @@ my @a = generate_normal_dist( 105, 15, 3 * 200 );
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/violin.png',
+	'output.file' => 'output.images/violin.png',
 	plots             => [
 		{
 		    data => {
@@ -468,7 +467,7 @@ plot({
 	nrows => 2,
 });
 plot({
-	'output.filename' => 'output.images/single.barplot.png',
+	'output.file' => 'output.images/single.barplot.png',
 	data              => { # simple hash
 		Fri => 76,
 		Mon => 73,
@@ -492,13 +491,13 @@ plot({
         },
         execute           => 0,
         'input.file'      => $tmp_filename,
-        'output.filename' => 'output.images/single.hexbin.png',
+        'output.file' => 'output.images/single.hexbin.png',
         'plot.type'       => 'hexbin',
         set_figwidth      => 12,
         title             => 'Simple Hexbin',
 });
 plot({
-        'output.filename' => 'output.images/single.hist2d.png',
+        'output.file' => 'output.images/single.hist2d.png',
         data              => {
             E => @e,
             B => @b
@@ -511,7 +510,7 @@ plot({
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/hexbin.png',
+	'output.file' => 'output.images/hexbin.png',
 	plots             => [
 		{
 		    data => {
@@ -631,7 +630,7 @@ plot({
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/plot.png',
+	'output.file' => 'output.images/plot.png',
 	plots             => [
 		{    # plot 1
 		    data => {
@@ -685,7 +684,7 @@ plot({
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/plot.single.png',
+	'output.file' => 'output.images/plot.single.png',
 	data              => {
 		'sin(x)' => [
 			[@x],                     # x
@@ -709,7 +708,7 @@ plot({
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/barplots.png',
+	'output.file' => 'output.images/barplots.png',
 	plots             => [
 		{    # simple plot
 			data => {    # simple hash
@@ -893,7 +892,7 @@ plot({
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/single.hist.png',
+	'output.file' => 'output.images/single.hist.png',
 	data              => {
 		E => @e,
 		B => @b,
@@ -904,7 +903,8 @@ plot({
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/histogram.png',
+	'output.file' => 'output.images/histogram.png',
+   set_figwidth => 15,
    suptitle          => 'hist Examples',
 	plots             => [
 		{ # 1st subplot
@@ -946,8 +946,6 @@ plot({
 		    },
 		    xlabel   => 'Value',
 		    ylabel   => 'Frequency',
-		    suptitle =>
-		      'Types of Plots',    # applies to all #				'log'					=> 1,
 		},
 		{ # 3rd subplot
 			add               => [ # add secondary plots/graphs/methods
@@ -984,8 +982,6 @@ plot({
 		    },
 		    xlabel       => 'Value',
 		    ylabel       => 'Frequency',
-		    set_figwidth => 15,
-		    suptitle     => 'Types of Plots',
 		},
 		{# 4th subplot
 		    data => {
@@ -1001,8 +997,6 @@ plot({
 		        A => 'Yellow',
 		    },
 		    orientation  => 'horizontal',    # assign x and y labels smartly
-		    set_figwidth => 15,
-		    suptitle     => 'Types of Plots',           # applies to all
 		    title        => 'Horizontal orientation',
 		    ylabel       => 'Value',
 		    xlabel       => 'Frequency',                #				'log'					=> 1,
@@ -1013,7 +1007,7 @@ plot({
 });
 plot({
 	'input.file'      => $tmp_filename,
-	'output.filename' => 'output.images/scatterplots.png',
+	'output.file' => 'output.images/scatterplots.png',
 	execute           => 0,
 	nrows             => 2,
 	ncols             => 3,
@@ -1068,11 +1062,10 @@ plot({
 		    },
 		    'plot.type'   => 'scatter',
 		    title         => 'Multiple Set Scatter w/ colorbar',
-		    'set.options' =>
-		      {    # arguments to ax.scatter, for each set in data
-		        X => 'marker = "."',    # diamond
-		        Y => 'marker = "d"'     # diamond
-		      },
+		    'set.options' => {    # arguments to ax.scatter, for each set in data
+		    	X => 'marker = "."',    # diamond
+		    	Y => 'marker = "d"'     # diamond
+		    },
 		    color_key => 'Z',
 		}
 	]
@@ -1087,7 +1080,7 @@ plot({
 	data              => \@imshow_data,
 	execute           => 0,
    'input.file'      => $tmp_filename,
-	'output.filename' => 'output.images/imshow.single.png',
+	'output.file' => 'output.images/imshow.single.png',
 	'plot.type'       => 'imshow',
 	set_xlim          => '0, ' . scalar @imshow_data,
 	set_ylim          => '0, ' . scalar @imshow_data,
@@ -1141,70 +1134,90 @@ plot({
 			title             => 'auxiliary plots',
 		},
 	],
-	execute           => 0,
-   'input.file'      => $tmp_filename,
-	'output.filename' => 'output.images/imshow.multiple.png',
-	ncols             => 2,
-	nrows             => 2,
-	set_figheight     => 6*3,
-	set_figwidth      => 6*4
+	execute         => 0,
+   'input.file'    => $tmp_filename,
+	'output.file'   => 'output.images/imshow.multiple.png',
+	ncols           => 2,
+	nrows           => 2,
+	set_figheight   => 6*3,
+	set_figwidth    => 6*4
 });
 plot({
+	'input.file'      => $tmp_filename,
+	execute           => 1,
+	ncols             => 3,
+	nrows             => 3,
+	suptitle    => 'Types of hist2d plots: all of the data is identical',
 	plots => [
 		{
-		    data => {
-				X => $x,    # x-axis
-				Y => $y,    # y-axis
-		    },
-		    'plot.type' => 'hist2d',
-		    title       => 'Simple hist2d',
-		    suptitle    => 'Types of hist2d plots: all of the data is identical'
+			data => {
+			X => $x,    # x-axis
+			Y => $y,    # y-axis
+			},
+			'plot.type' => 'hist2d',
+			title       => 'Simple hist2d',
 		},
 		{
-		    data => {
-		        X => $x,    # x-axis
-		        Y => $y,    # y-axis
-		    },
-		    'plot.type' => 'hist2d',
-		    title       => 'different cmap',
-		    cmap        => 'terrain'
+			data => {
+			  X => $x,    # x-axis
+			  Y => $y,    # y-axis
+			},
+			'plot.type' => 'hist2d',
+			title       => 'cmap = terrain',
+			cmap        => 'terrain'
 		},
 		{
 			cmap => 'ocean',
 			data => {
 				X => $x,    # x-axis
 				Y => $y,    # y-axis
-		    },
-		    'plot.type' => 'hist2d',
-		    title => 'cmap = ocean and set colorbar range with vmin/vmax',
-		    set_figwidth => 15,
-		    vmin         => -2,
-		    vmax         => 14
+			 },
+			 'plot.type' => 'hist2d',
+			 title => 'cmap = ocean and set colorbar range with vmin/vmax',
+			 set_figwidth => 15,
+			 vmin         => -2,
+			 vmax         => 14
 		},
 		{
-		    data => {
-		        X => $x,    # x-axis
-		        Y => $y,    # y-axis
-		    },
-		    'plot.type' => 'hist2d',
-		    title       => 'density = True',
-		    cmap        => 'terrain',
-		    density     => 'True'
+			data => {
+			  X => $x,    # x-axis
+			  Y => $y,    # y-axis
+			},
+			'plot.type' => 'hist2d',
+			title       => 'density = True',
+			cmap        => 'terrain',
+			density     => 'True'
 		},
 		{
-		    data => {
-		        X => $x,    # x-axis
-		        Y => $y,    # y-axis
-		    },
-		    'plot.type' => 'hist2d',
-		    title       => 'key.order flips axes',
-		    cmap        => 'terrain',
-		    'key.order' => [ 'Y', 'X' ]
+			data => {
+			  X => $x,    # x-axis
+			  Y => $y,    # y-axis
+			},
+			'plot.type' => 'hist2d',
+			title       => 'key.order flips axes',
+			cmap        => 'terrain',
+			'key.order' => [ 'Y', 'X' ]
+		},
+		{
+			cb_logscale => 1,
+			data => {
+			  X => $x,    # x-axis
+			  Y => $y,    # y-axis
+			},
+			'plot.type' => 'hist2d',
+			title       => 'cb_logscale = 1',
+		},
+		{
+			cb_logscale => 1,
+			data => {
+			  X => $x,    # x-axis
+			  Y => $y,    # y-axis
+			},
+			'plot.type' => 'hist2d',
+			title       => 'cb_logscale = 1 with vmax set',
+			vmax        => 2.1,
+			vmin        => 1
 		},
 	],
-	'input.file'      => $tmp_filename,
-	'output.filename' => 'output.images/hist2d.png',
-	execute           => 1,
-	nrows             => 2,
-	ncols             => 3,
+	'output.file' => 'output.images/hist2d.png',
 });

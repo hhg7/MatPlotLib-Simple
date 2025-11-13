@@ -25,10 +25,7 @@ Simplest use case:
 
 where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself. C<plot.type>, C<data>, C<input.file> are all specific to C<MatPlotLib::Simple>.
 
-=for html
-<p>
 <img alt="gospel word counts" height="491" src="https://github.com/user-attachments/assets/a008dece-2e34-47bf-af0f-8603709f7d52" width="651" />
-<p>
 
 
 =head2 Multiple Plots
@@ -62,10 +59,7 @@ Having a C<plots> argument as an array lets the module know to create subplots:
 
 which produces the following subplots image:
 
-=for html
-<p>
 <img alt="pies" height="424" src="https://github.com/user-attachments/assets/49d3e28b-f897-4b01-9e72-38afa12fa538" width="651" />
-<p>
 
 C<bar>, C<barh>, C<boxplot>, C<hexbin>, C<hist>, C<hist2d>, C<imshow>, C<pie>, C<plot>, C<scatter>, and C<violinplot> all match the methods in matplotlib itself.
 
@@ -74,28 +68,31 @@ C<bar>, C<barh>, C<boxplot>, C<hexbin>, C<hist>, C<hist2d>, C<imshow>, C<pie>, C
 
 Consider the following helper subroutines to generate data to plot:
 
-  sub linspace { # mostly written by Grok
-	my ($start, $stop, $num, $endpoint) = @_; # endpoint means include $stop
-	$num = defined $num ? int($num) : 50; # Default to 50 points
-	$endpoint = defined $endpoint ? $endpoint : 1; # Default to include endpoint
-	return () if $num < 0; # Return empty array for invalid num
-	return ($start) if $num == 1; # Return single value if num is 1
-	my (@result, $step);
-	if ($endpoint) {
-	$step = ($stop - $start) / ($num - 1) if $num > 1;
-	for my $i (0 .. $num - 1) {
-		  $result[$i] = $start + $i * $step;
-	}
-	} else {
-	$step = ($stop - $start) / $num;
-	for my $i (0 .. $num - 1) {
-		  $result[$i] = $start + $i * $step;
-	}
-	}
-	return @result;
-  }
+```
+sub linspace { # mostly written by Grok
+    my ($start, $stop, $num, $endpoint) = @_; # endpoint means include $stop
+    $num = defined $num ? int($num) : 50; # Default to 50 points
+    $endpoint = defined $endpoint ? $endpoint : 1; # Default to include endpoint
+    return () if $num < 0; # Return empty array for invalid num
+    return ($start) if $num == 1; # Return single value if num is 1
+    my (@result, $step);
 
-  sub generate_normal_dist {
+    if ($endpoint) {
+      $step = ($stop - $start) / ($num - 1) if $num > 1;
+      for my $i (0 .. $num - 1) {
+           $result[$i] = $start + $i * $step;
+      }
+    } else {
+      $step = ($stop - $start) / $num;
+      for my $i (0 .. $num - 1) {
+           $result[$i] = $start + $i * $step;
+      }
+    }
+    return @result;
+
+}
+
+sub generateI<normal>dist {
     my ($mean, $stdI<dev, $size) = @>;
     $size = defined $size ? int $size : 100; # default to 100 points
     my @numbers;
@@ -109,11 +106,13 @@ Consider the following helper subroutines to generate data to plot:
     @numbers = @numbers[0 .. $size - 1] if @numbers > $size;
     @numbers = map {sprintf '%.1f', $_} @numbers;
     return \@numbers;
-  }
-  sub rand_between {
+}
+sub rand_between {
     my ($min, $max) = @_;
     return $min + rand($max - $min)
-  }
+}
+```
+
 
 =head2 Barplot/bar/barh
 
@@ -154,10 +153,7 @@ an example of multiple plots, showing many options:
 
 
 where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself. C<plot.type>, C<data>, C<input.file> are all specific to C<MatPlotLib::Simple>.
-=for html
-<p>
 <img alt="single barplot" height="491" src="https://github.com/user-attachments/assets/eae009a8-5571-4608-abdb-1016e3cff5fd" width="651" />
-<p>
 
 
 =head3 multiple plots
@@ -332,10 +328,7 @@ where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself
 
 which produces the plot:
 
-=for html
-<p>
 <img alt="barplots" height="849" src="https://github.com/user-attachments/assets/6d87d13b-dabd-485d-92f7-1418f4acc65b" width="2678" />
-<p>
 
 
 =head2 boxplot
@@ -387,10 +380,7 @@ plot(
 ```
 which makes the following image:
 
-=for html
-<p>
 <img alt="single boxplot" height="491" src="https://github.com/user-attachments/assets/19870fa2-fe36-4513-8cbb-23da3a0cf686" width="651" />
-<p>
 
 
 =head3 multiple plots
@@ -522,10 +512,7 @@ which makes the following image:
 
 which makes the following plot:
 
-=for html
-<p>
 <img alt="boxplot" height="1211" src="https://github.com/user-attachments/assets/7e32e394-86fc-49e7-ad97-f48fd82fc8b0" width="1230" />
-<p>
 
 
 =head2 hexbin
@@ -566,10 +553,7 @@ see https://matplotlib.org/stable/api/I<as>gen/matplotlib.pyplot.hexbin.html
  });
 
 which makes the following plot:
-=for html
-<p>
 <img alt="single hexbin" height="491" src="https://github.com/user-attachments/assets/129c41cd-2d7d-43de-978a-2b9c441b8939" width="1208" />
-<p>
 
 
 =head3 multiple plots
@@ -677,10 +661,7 @@ which makes the following plot:
  );
 
 which produces the following image:
-=for html
-<p>
 <img alt="hexbin" height="1511" src="https://github.com/user-attachments/assets/71412ab1-e869-4913-a8cf-e39df15c9590" width="2010" />
-<p>
 
 
 =head2 hist
@@ -830,10 +811,7 @@ plot({
      nrows => 2,
  });
 
-=for html
-<p>
 <img alt="histogram" height="491" src="https://github.com/user-attachments/assets/b13b4cc8-6e64-40b0-913d-6a5886cee0db" width="1511" />
-<p>
 
 
 =head2 hist2d
@@ -885,10 +863,7 @@ Plot 2D array of numbers as an image
      set_ylim          => '0, ' . scalar @imshow_data,
  });
 
-=for html
-<p>
 <img alt="imshow single" height="491" src="https://github.com/user-attachments/assets/3fa4ffe6-4817-4133-9c91-b68099400377" width="599" />
-<p>
 
 
 =head3 multiple plots

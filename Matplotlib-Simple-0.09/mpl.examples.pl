@@ -905,6 +905,7 @@ plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 	'output.filename' => 'output.images/histogram.png',
+   set_figwidth => 15,
    suptitle          => 'hist Examples',
 	plots             => [
 		{ # 1st subplot
@@ -946,8 +947,6 @@ plot({
 		    },
 		    xlabel   => 'Value',
 		    ylabel   => 'Frequency',
-		    suptitle =>
-		      'Types of Plots',    # applies to all #				'log'					=> 1,
 		},
 		{ # 3rd subplot
 			add               => [ # add secondary plots/graphs/methods
@@ -984,8 +983,6 @@ plot({
 		    },
 		    xlabel       => 'Value',
 		    ylabel       => 'Frequency',
-		    set_figwidth => 15,
-		    suptitle     => 'Types of Plots',
 		},
 		{# 4th subplot
 		    data => {
@@ -1001,8 +998,6 @@ plot({
 		        A => 'Yellow',
 		    },
 		    orientation  => 'horizontal',    # assign x and y labels smartly
-		    set_figwidth => 15,
-		    suptitle     => 'Types of Plots',           # applies to all
 		    title        => 'Horizontal orientation',
 		    ylabel       => 'Value',
 		    xlabel       => 'Frequency',                #				'log'					=> 1,
@@ -1068,11 +1063,10 @@ plot({
 		    },
 		    'plot.type'   => 'scatter',
 		    title         => 'Multiple Set Scatter w/ colorbar',
-		    'set.options' =>
-		      {    # arguments to ax.scatter, for each set in data
-		        X => 'marker = "."',    # diamond
-		        Y => 'marker = "d"'     # diamond
-		      },
+		    'set.options' => {    # arguments to ax.scatter, for each set in data
+		    	X => 'marker = "."',    # diamond
+		    	Y => 'marker = "d"'     # diamond
+		    },
 		    color_key => 'Z',
 		}
 	]
