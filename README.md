@@ -25,32 +25,31 @@ where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `
 ## Multiple Plots
 
 Having a `plots` argument as an array lets the module know to create subplots:
-```
-use Matplotlib::Simple 'plot';
-plot({
-	'output.filename'	=> 'svg/pies.png',
-	plots             => [
-		{
-			data	=> {
-			 Russian => 106_000_000,  # Primarily European Russia
-			 German => 95_000_000,    # Germany, Austria, Switzerland, etc.
-			},
-			'plot.type'	=> 'pie',
-			title       => 'Top Languages in Europe',
+    use Matplotlib::Simple 'plot';
+    plot({
+    	'output.filename'	=> 'svg/pies.png',
+    	plots             => [
+    		{
+    			data	=> {
+    			 Russian => 106_000_000,  # Primarily European Russia
+	    		 German => 95_000_000,    # Germany, Austria, Switzerland, etc.
+	    		},
+	    		'plot.type'	=> 'pie',
+	    		title       => 'Top Languages in Europe',
 			suptitle    => 'Pie in subplots',
-		},
-		{
-			data	=> {
-			 Russian => 106_000_000,  # Primarily European Russia
-			 German => 95_000_000,    # Germany, Austria, Switzerland, etc.
-			},
-			'plot.type'	=> 'pie',
-			title       => 'Top Languages in Europe',
-		},
-	],
-	ncols    => 2,
-});
-```
+    		},
+	    	{
+	    		data	=> {
+	    		 Russian => 106_000_000,  # Primarily European Russia
+	    		 German => 95_000_000,    # Germany, Austria, Switzerland, etc.
+		    	},
+		    	'plot.type'	=> 'pie',
+		    	title       => 'Top Languages in Europe',
+		    },
+	    ],
+	    ncols    => 2,
+    });
+    
 which produces the following subplots image:
 
 <img width="651" height="424" alt="pies" src="https://github.com/user-attachments/assets/49d3e28b-f897-4b01-9e72-38afa12fa538" />
