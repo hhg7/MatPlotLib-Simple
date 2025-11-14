@@ -925,9 +925,83 @@ which makes
 
 
 ## scatter
+
 ### options
+
 ### single, simple plot
+
 ### multiple plots
+
+    plot({
+    	'input.file'      => $tmp_filename,
+    	'output.file' => 'output.images/scatterplots.png',
+    	execute           => 0,
+    	nrows             => 2,
+    	ncols             => 3,
+    	set_figheight     => 8,
+    	set_figwidth      => 16,
+    	suptitle          => 'Scatterplot Examples',            # applies to all
+    	plots             => [
+    		{    # single-set scatter; no label
+    			data => {
+    				X => @e,    # x-axis
+    				Y => @b,    # y-axis
+    				Z => @a     # color
+    			},
+    			title     => '"Single Set Scatterplot: Random Distributions"',
+    			color_key => 'Z',
+    			'set.options' => 'marker = "v"'
+    			, # arguments to ax.scatter: there's only 1 set, so "set.options" is a scalar
+    			text        => [ '100, 100, "text1"', '100, 100, "text2"', ],
+    			'plot.type' => 'scatter',
+    		},
+    		{     # multiple-set scatter, labels are "X" and "Y"
+    			data => {
+    				X => {    # 1st data set; label is "X"
+    					A => @a,    # x-axis
+    					B => @b,    # y-axis
+    				},
+    				W => {    # 2nd data set; label is "Y"
+    					A => generate_normal_dist( 100, 15, 210 ),    # x-axis
+    					B => generate_normal_dist( 100, 15, 210 ),    # y-axis
+    				}
+    			},
+    			'plot.type'   => 'scatter',
+    			title         => 'Multiple Set Scatterplot',
+    			'set.options' =>
+    			{    # arguments to ax.scatter, for each set in data
+    			  X => 'marker = ".", color = "red"',
+    			  W => 'marker = "d", color = "green"'
+    			},
+    		},
+    		{          # multiple-set scatter, labels are "X" and "Y"
+    			data => {    # 8th plot,
+    				X => {    # 1st data set; label is "X"
+    					A => @e,    # x-axis
+    					B => @b,    # y-axis
+    					C => @a,    # color
+    				},
+    				Y => {    # 2nd data set; label is "Y"
+    					A => generate_normal_dist( 100, 15, 210 ),    # x-axis
+    					B => generate_normal_dist( 100, 15, 210 ),    # y-axis
+    					C => generate_normal_dist( 100, 15, 210 ),    # color
+    				},
+    			},
+    			'plot.type'   => 'scatter',
+    			title         => 'Multiple Set Scatter w/ colorbar',
+    			'set.options' => {    # arguments to ax.scatter, for each set in data
+    				X => 'marker = "."',    # diamond
+    				Y => 'marker = "d"'     # diamond
+    			},
+    			color_key => 'Z',
+    		}
+    	]
+    });
+
+which makes the following figure:
+
+<img width="1610" height="461" alt="scatterplots" src="https://github.com/user-attachments/assets/b8a90f9f-acb3-4cf2-a423-6ad18686ab8c" />
+
 ## violin
 ### options
 ### single, simple plot
