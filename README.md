@@ -5,19 +5,19 @@ Requires python3 and matplotlib installations.
 
 ## Single Plots
 Simplest use case:
-```
-use Matplotlib::Simple 'plot';
-plot({
-	'output.filename' => '/tmp/gospel.word.counts.png',
-	'plot.type'       => 'bar',
-	data              => {
-		Matthew => 18345,
-		Mark    => 11304,
-		Luke    => 19482,
-		John    => 15635,
-	}
-});
-```
+
+    use Matplotlib::Simple 'plot';
+    plot({
+	   'output.filename' => '/tmp/gospel.word.counts.png',
+	   'plot.type'       => 'bar',
+	   data              => {
+		  Matthew => 18345,
+		  Mark    => 11304,
+		  Luke    => 19482,
+		  John    => 15635,
+	   }
+    });
+
 where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `plot.type`, `data`, `input.file` are all specific to `MatPlotLib::Simple`.
 
 <img width="651" height="491" alt="gospel word counts" src="https://github.com/user-attachments/assets/a008dece-2e34-47bf-af0f-8603709f7d52" />
@@ -58,51 +58,49 @@ which produces the following subplots image:
 `bar`, `barh`, `boxplot`, `hexbin`, `hist`, `hist2d`, `imshow`, `pie`, `plot`, `scatter`, and `violinplot` all match the methods in matplotlib itself.
 # Examples/Plot Types
 Consider the following helper subroutines to generate data to plot:
-<!-- start code -->
-```
-sub linspace { # mostly written by Grok
-	my ($start, $stop, $num, $endpoint) = @_; # endpoint means include $stop
-	$num = defined $num ? int($num) : 50; # Default to 50 points
-	$endpoint = defined $endpoint ? $endpoint : 1; # Default to include endpoint
-	return () if $num < 0; # Return empty array for invalid num
-	return ($start) if $num == 1; # Return single value if num is 1
-	my (@result, $step);
 
-	if ($endpoint) {
-	  $step = ($stop - $start) / ($num - 1) if $num > 1;
-	  for my $i (0 .. $num - 1) {
+    sub linspace { # mostly written by Grok
+       my ($start, $stop, $num, $endpoint) = @_; # endpoint means include $stop
+       $num = defined $num ? int($num) : 50; # Default to 50 points
+       $endpoint = defined $endpoint ? $endpoint : 1; # Default to include endpoint
+       return () if $num < 0; # Return empty array for invalid num
+       return ($start) if $num == 1; # Return single value if num is 1
+       my (@result, $step);
+    
+       if ($endpoint) {
+	       $step = ($stop - $start) / ($num - 1) if $num > 1;
+           for my $i (0 .. $num - 1) {
+             $result[$i] = $start + $i * $step;
+           }
+      } else {
+	     $step = ($stop - $start) / $num;
+	     for my $i (0 .. $num - 1) {
 		   $result[$i] = $start + $i * $step;
-	  }
-	} else {
-	  $step = ($stop - $start) / $num;
-	  for my $i (0 .. $num - 1) {
-		   $result[$i] = $start + $i * $step;
-	  }
-	}
-	return @result;
-}
+	     }
+	   }
+	   return @result;
+    }
+    
+    sub generate_normal_dist {
+    	my ($mean, $std_dev, $size) = @_;
+    	$size = defined $size ? int $size : 100; # default to 100 points
+    	my @numbers;
+    	for (1 .. int($size / 2) + 1) {# Box-Muller transform
+    		my $u1 = rand();
+    		my $u2 = rand();
+	    	my $z0 = sqrt(-2.0 * log($u1)) * cos(2.0 * 3.141592653589793 * $u2);
+		    my $z1 = sqrt(-2.0 * log($u1)) * sin(2.0 * 3.141592653589793 * $u2); # Scale and shift to match mean and std_dev
+		    push @numbers, ($z0 * $std_dev + $mean, $z1 * $std_dev + $mean);
+    	} # Trim to exact size if needed
+	    @numbers = @numbers[0 .. $size - 1] if @numbers > $size;
+    	@numbers = map {sprintf '%.1f', $_} @numbers;
+	    return \@numbers;
+    }
+    sub rand_between {
+	    my ($min, $max) = @_;
+	    return $min + rand($max - $min)
+    }
 
-sub generate_normal_dist {
-	my ($mean, $std_dev, $size) = @_;
-	$size = defined $size ? int $size : 100; # default to 100 points
-	my @numbers;
-	for (1 .. int($size / 2) + 1) {# Box-Muller transform
-		my $u1 = rand();
-		my $u2 = rand();
-		my $z0 = sqrt(-2.0 * log($u1)) * cos(2.0 * 3.141592653589793 * $u2);
-		my $z1 = sqrt(-2.0 * log($u1)) * sin(2.0 * 3.141592653589793 * $u2); # Scale and shift to match mean and std_dev
-		push @numbers, ($z0 * $std_dev + $mean, $z1 * $std_dev + $mean);
-	} # Trim to exact size if needed
-	@numbers = @numbers[0 .. $size - 1] if @numbers > $size;
-	@numbers = map {sprintf '%.1f', $_} @numbers;
-	return \@numbers;
-}
-sub rand_between {
-	my ($min, $max) = @_;
-	return $min + rand($max - $min)
-}
-```
-<!-- start code -->
 ## Barplot/bar/barh
 
 Plot a hash or a hash of arrays as a boxplot
