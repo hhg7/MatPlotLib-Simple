@@ -1197,441 +1197,437 @@ sub plot_helper {
 }
 
 sub scatter_helper {
-    my ($args) = @_;
-    my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
-      ; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-    unless ( ref $args eq 'HASH' ) {
-        die
-"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
-    }
-    my @reqd_args = (
-        'ax',
-        'fh',      # e.g. $py, $fh, which will be passed by the subroutine
-        'plot',    # args to original function
-    );
-    my @undef_args = grep { !defined $args->{$_} } @reqd_args;
-    if ( scalar @undef_args > 0 ) {
-        p @undef_args;
-        die 'the above args are necessary, but were not defined.';
-    }
-    my @opt = (
-        @ax_methods, @plt_methods, @fig_methods, @arg,
-        'color_key',    # which of data keys is the color key
-        'cmap',         # for 3-set scatterplots; default "gist_rainbow"
-        'keys'
-        , # specify the order, otherwise alphabetical #'log', # if set to > 1, the y-axis will be logarithmic # 's', # float or array-like, shape (n, ), optional. The marker size in points**2 (typographic points are 1/72 in.).
-        'set.options'    # color = 'red', marker = 'v', etc.
-    );
-    my $plot      = $args->{plot};
-    my @undef_opt = grep {
-        my $key = $_;
-        not grep { $_ eq $key } @opt
-    } keys %{$plot};
-    if ( scalar @undef_opt > 0 ) {
-        p @undef_opt;
-        die
-"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
-    }
-    my $overall_ref = ref $plot->{data};
-    unless ( $overall_ref eq 'HASH' ) {
-        die
-"scatter only takes 1) hashes of arrays (single or 2) hash of hash of arrays; but $overall_ref was entered";
-    }
-    my ( %ref_counts, $plot_type );
-    foreach my $set ( keys %{ $plot->{data} } ) {
-        $ref_counts{ ref $plot->{data}{$set} }++;
-    }
-    my $ax = $args->{ax};
-    if ( scalar %ref_counts > 1 ) {
-        p $plot->{data};
-        die
-"different kinds of data were entered to plot $ax; it should be simple hash or hash of arrays.";
-    }
-    if ( defined $ref_counts{ARRAY} ) {
-        $plot_type = 'single';
-    } elsif ( defined $ref_counts{HASH} ) {
-        $plot_type = 'multiple';
-    }
-    $plot->{cmap} = $plot->{cmap} // 'gist_rainbow';
-    my $options = '';
-    if ( $plot_type eq 'single' ) {    # only a single set of data
-        my ( $color_key, @keys );
-        if ( defined $plot->{'keys'} ) {
-        	@keys = @{ $plot->{'keys'} };
-        } else {
-            @keys = sort { lc $a cmp lc $b } keys %{ $plot->{data} };
-        }
-        my $n_keys = scalar keys %{ $plot->{data} };
-        if ( ( $n_keys != 2 ) && ( $n_keys != 3 ) ) {
-            p $plot->{data};
-            die
-"scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
-        }
-        if ( defined $plot->{color_key} ) {
-            $color_key = $plot->{color_key};
-            my $i = 0;
-            foreach my $key (@keys) {
-#            while ( my ( $i, $key ) = each @keys ) {
-                next unless $key eq $plot->{color_key};
-                splice @keys, $i, 1;    # remove the color key from @keys
-                $i++;
-            }
-        } elsif ( scalar @keys == 3 ) {
-            $color_key = pop @keys;
-        }    #			my $options = '';# these args go to the plt.hist call
-        say { $args->{fh} } 'x = ['
-          . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
-        say { $args->{fh} } 'y = ['
-          . join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']';
-        if (   ( defined $plot->{'set.options'} )
-            && ( ref $plot->{'set.options'} eq '' ) )
-        {
-            $options = ", $plot->{'set.options'}";
-        }
-        if ( defined $color_key ) {
-            say { $args->{fh} } 'z = ['
-              . join( ',', @{ $plot->{data}{$color_key} } ) . ']';
-            say { $args->{fh} }
-              "im = ax$ax.scatter(x, y, c = z, cmap = 'gist_rainbow' $options)";
-            say { $args->{fh} } "plt.colorbar(im, label = '$color_key')";
-        } else {
-            say { $args->{fh} } "ax$ax.scatter(x, y, $options)";
-        }
-        $plot->{xlabel} = $plot->{xlabel} // $keys[0];
-        $plot->{ylabel} = $plot->{ylabel} // $keys[1];
-    } elsif ( $plot_type eq 'multiple' ) {    # multiple sets
-        my @undefined_opts;
-        foreach my $set ( sort keys %{ $plot->{'set.options'} } ) {
-            next if grep { $set eq $_ } keys %{ $plot->{data} };
-            push @undefined_opts, $set;
-        }
-        if ( scalar @undefined_opts > 0 ) {
-            p $plot->{data};
-            p $plot;
-            say
-'The data and options are above, but the following sets have options without data:';
-            p @undefined_opts;
-            die 'no data was defined for the above options';
-        }
-        my $color_key;
-        foreach my $set ( sort keys %{ $plot->{data} } ) {
-            my @keys;
-            if ( defined $plot->{'keys'} ) {
-                @keys = @{ $plot->{'keys'} };
-            } else { # automatically take the key from the first; further sets should have the same labels
-                @keys = sort { lc $a cmp lc $b } keys %{ $plot->{data}{$set} };
-            }
-            my $n_keys = scalar keys %{ $plot->{data}{$set} };
-            if ( ( $n_keys != 2 ) && ( $n_keys != 3 ) ) {
-                p $plot->{data}{$set};
-                die
-"scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
-            }
-            if ( ( not defined $color_key ) && ( $n_keys == 3 ) ) {
-                $color_key = pop @keys;
-            }
-            if ( defined $plot->{'set.options'}{$set} ) {
-                $options = ", $plot->{'set.options'}{$set}";
-            }
-            say { $args->{fh} } 'x = ['
-              . join( ',', @{ $plot->{data}{$set}{ $keys[0] } } ) . ']';
-            say { $args->{fh} } 'y = ['
-              . join( ',', @{ $plot->{data}{$set}{ $keys[1] } } ) . ']';
-            if ( defined $color_key ) {
-                say { $args->{fh} } 'z = ['
-                  . join( ',', @{ $plot->{data}{$set}{$color_key} } ) . ']';
-                unless ( $options =~ m/label\s*=/ ) {
-                    $options .= ", label = '$set'";
-                }
-                say { $args->{fh} }
-"im = ax$ax.scatter(x, y, c = z, cmap = '$plot->{cmap}' $options)";
-            } else {
-                say { $args->{fh} }
-                  "ax$ax.scatter(x, y, label = '$set' $options)";
-            }
-            $plot->{xlabel} = $plot->{xlabel} // $keys[0];
-            $plot->{ylabel} = $plot->{ylabel} // $keys[1];
-        }
-        say { $args->{fh} } "plt.colorbar(im, label = '$color_key')"
-          if defined $color_key;
-    }
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	unless ( ref $args eq 'HASH' ) {
+	  die
+	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+	  'ax',
+	  'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+	  'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (
+	  @ax_methods, @plt_methods, @fig_methods, @arg,
+	  'color_key',    # which of data keys is the color key
+	  'cmap',         # for 3-set scatterplots; default "gist_rainbow"
+	  'keys'
+	  , # specify the order, otherwise alphabetical #'log', # if set to > 1, the y-axis will be logarithmic # 's', # float or array-like, shape (n, ), optional. The marker size in points**2 (typographic points are 1/72 in.).
+	  'set.options'    # color = 'red', marker = 'v', etc.
+	);
+	my $plot      = $args->{plot};
+	my @undef_opt = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_opt > 0 ) {
+	  p @undef_opt;
+	  die
+	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+	}
+	my $overall_ref = ref $plot->{data};
+	unless ( $overall_ref eq 'HASH' ) {
+	  die
+	"scatter only takes 1) hashes of arrays (single or 2) hash of hash of arrays; but $overall_ref was entered";
+	}
+	my ( %ref_counts, $plot_type );
+	foreach my $set ( keys %{ $plot->{data} } ) {
+	  $ref_counts{ ref $plot->{data}{$set} }++;
+	}
+	my $ax = $args->{ax};
+	if ( scalar %ref_counts > 1 ) {
+	  p $plot->{data};
+	  die
+	"different kinds of data were entered to plot $ax; it should be simple hash or hash of arrays.";
+	}
+	if ( defined $ref_counts{ARRAY} ) {
+	  $plot_type = 'single';
+	} elsif ( defined $ref_counts{HASH} ) {
+	  $plot_type = 'multiple';
+	}
+	$plot->{cmap} = $plot->{cmap} // 'gist_rainbow';
+	my $options = '';
+	if ( $plot_type eq 'single' ) { # only a single set of data
+		my ( $color_key, @keys );
+		if ( defined $plot->{'keys'} ) {
+		@keys = @{ $plot->{'keys'} };
+		} else {
+			@keys = sort { lc $a cmp lc $b } keys %{ $plot->{data} };
+		}
+		my $n_keys = scalar keys %{ $plot->{data} };
+		if ( ( $n_keys != 2 ) && ( $n_keys != 3 ) ) {
+			p $plot->{data};
+			die
+		"scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
+		}
+		if ( defined $plot->{color_key} ) {
+			$color_key = $plot->{color_key};
+			my $i = 0;
+			foreach my $key (@keys) {
+		#            while ( my ( $i, $key ) = each @keys ) {
+				 next unless $key eq $plot->{color_key};
+				 splice @keys, $i, 1;    # remove the color key from @keys
+				 $i++;
+			}
+		} elsif ( scalar @keys == 3 ) {
+			$color_key = pop @keys;
+		}    #			my $options = '';# these args go to the plt.hist call
+		say { $args->{fh} } 'x = ['
+		 . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
+		say { $args->{fh} } 'y = ['
+		 . join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']';
+		if (   ( defined $plot->{'set.options'} )
+			&& ( ref $plot->{'set.options'} eq '' ) )
+		{
+			$options = ", $plot->{'set.options'}";
+		}
+		if ( defined $color_key ) {
+			say { $args->{fh} } 'z = ['
+			  . join( ',', @{ $plot->{data}{$color_key} } ) . ']';
+			say { $args->{fh} }
+			  "im = ax$ax.scatter(x, y, c = z, cmap = 'gist_rainbow' $options)";
+			say { $args->{fh} } "plt.colorbar(im, label = '$color_key')";
+		} else {
+			say { $args->{fh} } "ax$ax.scatter(x, y, $options)";
+		}
+		$plot->{xlabel} = $plot->{xlabel} // $keys[0];
+		$plot->{ylabel} = $plot->{ylabel} // $keys[1];
+	} elsif ( $plot_type eq 'multiple' ) { # multiple sets
+		my @undefined_opts;
+		foreach my $set ( sort keys %{ $plot->{'set.options'} } ) {
+		next if grep { $set eq $_ } keys %{ $plot->{data} };
+		push @undefined_opts, $set;
+		}
+		if ( scalar @undefined_opts > 0 ) {
+		p $plot->{data};
+		p $plot;
+		say
+		'The data and options are above, but the following sets have options without data:';
+		p @undefined_opts;
+		die 'no data was defined for the above options';
+		}
+		my $color_key;
+		foreach my $set ( sort keys %{ $plot->{data} } ) {
+		my @keys;
+		if ( defined $plot->{'keys'} ) {
+			 @keys = @{ $plot->{'keys'} };
+		} else { # automatically take the key from the first; further sets should have the same labels
+			 @keys = sort { lc $a cmp lc $b } keys %{ $plot->{data}{$set} };
+		}
+		my $n_keys = scalar keys %{ $plot->{data}{$set} };
+		if ( ( $n_keys != 2 ) && ( $n_keys != 3 ) ) {
+			 p $plot->{data}{$set};
+			 die
+		"scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
+		}
+		if ( ( not defined $color_key ) && ( $n_keys == 3 ) ) {
+			 $color_key = pop @keys;
+		}
+		if ( defined $plot->{'set.options'}{$set} ) {
+			 $options = ", $plot->{'set.options'}{$set}";
+		}
+		say { $args->{fh} } 'x = ['
+		  . join( ',', @{ $plot->{data}{$set}{ $keys[0] } } ) . ']';
+		say { $args->{fh} } 'y = ['
+		  . join( ',', @{ $plot->{data}{$set}{ $keys[1] } } ) . ']';
+		if ( defined $color_key ) {
+			 say { $args->{fh} } 'z = ['
+				. join( ',', @{ $plot->{data}{$set}{$color_key} } ) . ']';
+			 unless ( $options =~ m/label\s*=/ ) {
+				  $options .= ", label = '$set'";
+			 }
+			 say { $args->{fh} }
+		"im = ax$ax.scatter(x, y, c = z, cmap = '$plot->{cmap}' $options)";
+		} else {
+			 say { $args->{fh} }
+				"ax$ax.scatter(x, y, label = '$set' $options)";
+		}
+		$plot->{xlabel} = $plot->{xlabel} // $keys[0];
+		$plot->{ylabel} = $plot->{ylabel} // $keys[1];
+	  }
+	  say { $args->{fh} } "plt.colorbar(im, label = '$color_key')"  if defined $color_key;
+	}
 }
 
 sub violin_helper {
-    my ($args) = @_;
-    my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
-      ; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-    unless ( ref $args eq 'HASH' ) {
-        die
-"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
-    }
-    my @reqd_args = (
-        'fh',      # e.g. $py, $fh, which will be passed by the subroutine
-        'plot',    # args to original function
-    );
-    my @undef_args = grep { !defined $args->{$_} } @reqd_args;
-    if ( scalar @undef_args > 0 ) {
-        p @undef_args;
-        die 'the above args are necessary, but were not defined.';
-    }
-    my @opt = (
-        @ax_methods, @plt_methods, @fig_methods, @arg,
-        'alpha',    # default 0.5; same for all sets
-        'ax',       # used for multiple plots
-        'bins'
-        , # nt or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open
-        'color'
-        , # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
-        'colors',
-        'key.order',
-        'log',            # if set to > 1, the y-axis will be logarithmic
-        'orientation',    # {'vertical', 'horizontal'}, default: 'vertical'
-        'whiskers',
-        'plots', 'ncols', 'nrows', 'output.file', 'input.file',
-        'execute'         # these will be ignored
-    );
-    my $plot      = $args->{plot};
-    my @undef_opt = grep {
-        my $key = $_;
-        not grep { $_ eq $key } @opt
-    } keys %{$plot};
-    if ( scalar @undef_opt > 0 ) {
-        p @undef_opt;
-        die
-"The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
-    }
-    $plot->{orientation} = $plot->{orientation} // 'vertical';
-    if ( $plot->{orientation} !~ m/^(?:horizontal|vertical)$/ ) {
-        die
-"$current_sub needs either \"horizontal\" or \"vertical\", not \"$plot->{orientation}\"";
-    }
-    $args->{whiskers} = $args->{whiskers} // 1;    # by default, make whiskers
-    my ( @xticks, @key_order );
-    if ( defined $plot->{'key.order'} ) {
-        @key_order = @{ $plot->{'key.order'} };
-    }
-    else {
-        @key_order = sort keys %{ $plot->{data} };
-    }
-    my $ax = $args->{ax} // '';
-    $plot->{medians}  = $plot->{medians}  // 1; # by default, show median values
-    $plot->{whiskers} = $plot->{whiskers} // 1;
-    $plot->{edgecolor} = $plot->{edgecolor} // 'black';
-    my $options = '';    # these args go to the plt.hist call
-    if ( ( defined $plot->{'log'} ) && ( $plot->{'log'} > 0 ) ) {
-        $options .= ', log = True';
-    }
-    say { $args->{fh} } 'd = []';
-    my $min_n_points = 'inf';
-    foreach my $key (@key_order) {
-        @{ $plot->{data}{$key} } = grep { defined } @{ $plot->{data}{$key} };
-        say { $args->{fh} } 'd.append(['
-          . join( ',', @{ $plot->{data}{$key} } ) . '])';
-        $min_n_points = min( scalar @{ $plot->{data}{$key} }, $min_n_points );
-    }
-    say { $args->{fh} }
-"vp = ax$ax.violinplot(d, showmeans=False, points = $min_n_points, orientation = '$plot->{orientation}', showmedians = $plot->{medians})";
-    if ( defined $plot->{colors} )
-    {    # every hash key should have its own color defined
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	unless ( ref $args eq 'HASH' ) {
+	  die
+	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+	  'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+	  'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (
+	  @ax_methods, @plt_methods, @fig_methods, @arg,
+	  'alpha',    # default 0.5; same for all sets
+	  'ax',       # used for multiple plots
+	  'bins'
+	  , # nt or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open
+	  'color'
+	  , # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
+	  'colors',
+	  'key.order',
+	  'log',            # if set to > 1, the y-axis will be logarithmic
+	  'orientation',    # {'vertical', 'horizontal'}, default: 'vertical'
+	  'whiskers',
+	  'plots', 'ncols', 'nrows', 'output.file', 'input.file',
+	  'execute'         # these will be ignored
+	);
+	my $plot      = $args->{plot};
+	my @undef_opt = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_opt > 0 ) {
+	  p @undef_opt;
+	  die
+	"The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
+	}
+	$plot->{orientation} = $plot->{orientation} // 'vertical';
+	if ( $plot->{orientation} !~ m/^(?:horizontal|vertical)$/ ) {
+	  die
+	"$current_sub needs either \"horizontal\" or \"vertical\", not \"$plot->{orientation}\"";
+	}
+	$args->{whiskers} = $args->{whiskers} // 1;    # by default, make whiskers
+	my ( @xticks, @key_order );
+	if ( defined $plot->{'key.order'} ) {
+	  @key_order = @{ $plot->{'key.order'} };
+	}
+	else {
+	  @key_order = sort keys %{ $plot->{data} };
+	}
+	my $ax = $args->{ax} // '';
+	$plot->{medians}  = $plot->{medians}  // 1; # by default, show median values
+	$plot->{whiskers} = $plot->{whiskers} // 1;
+	$plot->{edgecolor} = $plot->{edgecolor} // 'black';
+	my $options = '';    # these args go to the plt.hist call
+	if ( ( defined $plot->{'log'} ) && ( $plot->{'log'} > 0 ) ) {
+	  $options .= ', log = True';
+	}
+	say { $args->{fh} } 'd = []';
+	my $min_n_points = 'inf';
+	foreach my $key (@key_order) {
+	  @{ $plot->{data}{$key} } = grep { defined } @{ $plot->{data}{$key} };
+	  say { $args->{fh} } 'd.append(['
+		 . join( ',', @{ $plot->{data}{$key} } ) . '])';
+	  $min_n_points = min( scalar @{ $plot->{data}{$key} }, $min_n_points );
+	}
+	say { $args->{fh} }
+	"vp = ax$ax.violinplot(d, showmeans=False, points = $min_n_points, orientation = '$plot->{orientation}', showmedians = $plot->{medians})";
+	if ( defined $plot->{colors} )
+	{    # every hash key should have its own color defined
 
-# the below code helps to provide better error messages in case I make an error in calling the sub
-        my @wrong_keys =
-          grep { not defined $plot->{colors}{$_} } keys %{ $plot->{data} };
-        if ( scalar @wrong_keys > 0 ) {
-            p @wrong_keys;
-            die 'the above data keys have no defined color';
-        }
+	# the below code helps to provide better error messages in case I make an error in calling the sub
+	  my @wrong_keys =
+		 grep { not defined $plot->{colors}{$_} } keys %{ $plot->{data} };
+	  if ( scalar @wrong_keys > 0 ) {
+		   p @wrong_keys;
+		   die 'the above data keys have no defined color';
+	  }
 
-# list of pre-defined colors: https://matplotlib.org/stable/gallery/color/named_colors.html
-        print { $args->{fh} } 'colors = ["'
-          . join( '","', @{ $plot->{colors} }{@key_order} ) . '"]' . "\n";
+	# list of pre-defined colors: https://matplotlib.org/stable/gallery/color/named_colors.html
+	  print { $args->{fh} } 'colors = ["'
+		 . join( '","', @{ $plot->{colors} }{@key_order} ) . '"]' . "\n";
 
-       # the above color list will have the same order, via the above hash slice
-        say { $args->{fh} } 'for i, pc in enumerate(vp["bodies"], 1):';
-        say { $args->{fh} } "\tpc.set_facecolor(colors[i-1])";
-        say { $args->{fh} } "\tpc.set_edgecolor('black')";
-    }
-    else {
-        say { $args->{fh} } 'for pc in vp["bodies"]:';
-        if ( defined $plot->{color} ) {
-            print { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')\n";
-        }
-        print { $args->{fh} } "\tpc.set_edgecolor('black')\n";
+	 # the above color list will have the same order, via the above hash slice
+	  say { $args->{fh} } 'for i, pc in enumerate(vp["bodies"], 1):';
+	  say { $args->{fh} } "\tpc.set_facecolor(colors[i-1])";
+	  say { $args->{fh} } "\tpc.set_edgecolor('black')";
+	}
+	else {
+	  say { $args->{fh} } 'for pc in vp["bodies"]:';
+	  if ( defined $plot->{color} ) {
+		   print { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')\n";
+	  }
+	  print { $args->{fh} } "\tpc.set_edgecolor('black')\n";
 
-        #		say {$args->{fh}} "\tpc.set_alpha(1)";
-    }
-    if ( $plot->{whiskers} > 0 ) {
+	  #		say {$args->{fh}} "\tpc.set_alpha(1)";
+	}
+	if ( $plot->{whiskers} > 0 ) {
 
-       # https://matplotlib.org/stable/gallery/statistics/customized_violin.html
-        say { $args->{fh} } 'import numpy as np';
-        say { $args->{fh} } 'def adjacent_values(vals, q1, q3):';
-        say { $args->{fh} } '	upper_adjacent_value = q3 + (q3 - q1) * 1.5';
-        say { $args->{fh} }
-          '	upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])';
-        say { $args->{fh} } '	lower_adjacent_value = q1 - (q3 - q1) * 1.5';
-        say { $args->{fh} }
-          '	lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)';
-        say { $args->{fh} }
-          '	return lower_adjacent_value, upper_adjacent_value';
-        say { $args->{fh} } 'np_data = np.array(d, dtype = object)';
-        say { $args->{fh} } 'quartile1 = []';
-        say { $args->{fh} } 'medians   = []';
-        say { $args->{fh} } 'quartile3 = []';
-        say { $args->{fh} } 'for subset in list(range(0, len(np_data))):';
-        say { $args->{fh} }
-'	local_quartile1, local_medians, local_quartile3 = np.percentile(d[subset], [25, 50, 75])' . "\n";
-        say { $args->{fh} } '	quartile1.append(local_quartile1)';
-        say { $args->{fh} } '	medians.append(local_medians)';
-        say { $args->{fh} } '	quartile3.append(local_quartile3)';
-        say { $args->{fh} } 'whiskers = np.array([';
-        say { $args->{fh} } '    adjacent_values(sorted_array, q1, q3)';
-        say { $args->{fh} }
-          '    for sorted_array, q1, q3 in zip(d, quartile1, quartile3)])';
-        say { $args->{fh} }
-          'whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]';
-        say { $args->{fh} } 'inds = np.arange(1, len(medians) + 1)';
-        if ( $plot->{orientation} eq 'vertical' ) {
-            say { $args->{fh} } "ax$ax"
-              . '.vlines(inds, quartile1, quartile3, color="k", linestyle="-", lw=5)';
-            say { $args->{fh} } "ax$ax"
-              . '.vlines(inds, whiskers_min, whiskers_max, color="k", linestyle="-", lw=1)';
-        } else {
-            say { $args->{fh} } "ax$ax"
-              . '.hlines(inds, quartile1, quartile3, color="k", linestyle="-", lw=5)';
-            say { $args->{fh} } "ax$ax"
-              . '.hlines(inds, whiskers_min, whiskers_max, color="k", linestyle="-", lw=1)';
-        }
-    }
-    foreach my $key (@key_order) {
-        push @xticks, "$key ("
-          . format_commas( scalar @{ $plot->{data}{$key} }, '%.0u' ) . ')';
-        if ( $plot->{orientation} eq 'vertical' ) {
-            say { $args->{fh} } "ax$ax.plot("
-              . scalar @xticks . ', '
-              . ( sum( @{ $plot->{data}{$key} } ) /
-                  scalar @{ $plot->{data}{$key} } )
-              . ', "ro")';    # plot mean point, which is red
-        }
-        else {                # orientation = horizontal
-            say { $args->{fh} } "ax$ax.plot("
-              . ( sum( @{ $plot->{data}{$key} } ) /
-                  scalar @{ $plot->{data}{$key} } )
-              . ', '
-              . scalar @xticks
-              . ', "ro")';    # plot mean point, which is red
-        }
-    }
-    if ( $plot->{orientation} eq 'vertical' ) {
-        say { $args->{fh} } "ax$ax.set_xticks(["
-          . join( ',',   1 .. scalar @key_order ) . '], ["'
-          . join( '","', @xticks ) . '"])';
-    } else {
-        say { $args->{fh} } "ax$ax.set_yticks(["
-          . join( ',',   1 .. scalar @key_order ) . '], ["'
-          . join( '","', @xticks ) . '"])';
-    }
+	 # https://matplotlib.org/stable/gallery/statistics/customized_violin.html
+	  say { $args->{fh} } 'import numpy as np';
+	  say { $args->{fh} } 'def adjacent_values(vals, q1, q3):';
+	  say { $args->{fh} } '	upper_adjacent_value = q3 + (q3 - q1) * 1.5';
+	  say { $args->{fh} }
+		 '	upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])';
+	  say { $args->{fh} } '	lower_adjacent_value = q1 - (q3 - q1) * 1.5';
+	  say { $args->{fh} }
+		 '	lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)';
+	  say { $args->{fh} }
+		 '	return lower_adjacent_value, upper_adjacent_value';
+	  say { $args->{fh} } 'np_data = np.array(d, dtype = object)';
+	  say { $args->{fh} } 'quartile1 = []';
+	  say { $args->{fh} } 'medians   = []';
+	  say { $args->{fh} } 'quartile3 = []';
+	  say { $args->{fh} } 'for subset in list(range(0, len(np_data))):';
+	  say { $args->{fh} }
+	'	local_quartile1, local_medians, local_quartile3 = np.percentile(d[subset], [25, 50, 75])' . "\n";
+	  say { $args->{fh} } '	quartile1.append(local_quartile1)';
+	  say { $args->{fh} } '	medians.append(local_medians)';
+	  say { $args->{fh} } '	quartile3.append(local_quartile3)';
+	  say { $args->{fh} } 'whiskers = np.array([';
+	  say { $args->{fh} } '    adjacent_values(sorted_array, q1, q3)';
+	  say { $args->{fh} }
+		 '    for sorted_array, q1, q3 in zip(d, quartile1, quartile3)])';
+	  say { $args->{fh} }
+		 'whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]';
+	  say { $args->{fh} } 'inds = np.arange(1, len(medians) + 1)';
+	  if ( $plot->{orientation} eq 'vertical' ) {
+		   say { $args->{fh} } "ax$ax"
+		     . '.vlines(inds, quartile1, quartile3, color="k", linestyle="-", lw=5)';
+		   say { $args->{fh} } "ax$ax"
+		     . '.vlines(inds, whiskers_min, whiskers_max, color="k", linestyle="-", lw=1)';
+	  } else {
+		   say { $args->{fh} } "ax$ax"
+		     . '.hlines(inds, quartile1, quartile3, color="k", linestyle="-", lw=5)';
+		   say { $args->{fh} } "ax$ax"
+		     . '.hlines(inds, whiskers_min, whiskers_max, color="k", linestyle="-", lw=1)';
+	  }
+	}
+	foreach my $key (@key_order) {
+	  push @xticks, "$key ("
+		 . format_commas( scalar @{ $plot->{data}{$key} }, '%.0u' ) . ')';
+	  if ( $plot->{orientation} eq 'vertical' ) {
+		   say { $args->{fh} } "ax$ax.plot("
+		     . scalar @xticks . ', '
+		     . ( sum( @{ $plot->{data}{$key} } ) /
+		         scalar @{ $plot->{data}{$key} } )
+		     . ', "ro")';    # plot mean point, which is red
+	  }
+	  else {                # orientation = horizontal
+		   say { $args->{fh} } "ax$ax.plot("
+		     . ( sum( @{ $plot->{data}{$key} } ) /
+		         scalar @{ $plot->{data}{$key} } )
+		     . ', '
+		     . scalar @xticks
+		     . ', "ro")';    # plot mean point, which is red
+	  }
+	}
+	if ( $plot->{orientation} eq 'vertical' ) {
+	  say { $args->{fh} } "ax$ax.set_xticks(["
+		 . join( ',',   1 .. scalar @key_order ) . '], ["'
+		 . join( '","', @xticks ) . '"])';
+	} else {
+	  say { $args->{fh} } "ax$ax.set_yticks(["
+		 . join( ',',   1 .. scalar @key_order ) . '], ["'
+		 . join( '","', @xticks ) . '"])';
+	}
 }
 
 sub wide_helper {
-    my ($args) = @_;
-    my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
-      ; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-    unless ( ref $args eq 'HASH' ) {
-        die
-"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
-    }
-    my @reqd_args = (
-        'fh',      # e.g. $py, $fh, which will be passed by the subroutine
-        'plot',    # args to original function
-    );
-    my @undef_args = grep { !defined $args->{$_} } @reqd_args;
-    if ( scalar @undef_args > 0 ) {
-        p @undef_args;
-        die
-"the above args are necessary for $current_sub, but were not defined.";
-    }
-    my @opt = (
-        @ax_methods, @plt_methods, @fig_methods, @arg,
-        'color',		   # a hash, with each key assigned to a color "blue" or something
-        'show.legend',  # be default on; should be 0 if off
-    );
-    my $plot      = $args->{plot};
-    $plot->{'show.legend'} = $plot->{'show.legend'} // 1;
-    my @undef_opt = grep {
-        my $key = $_;
-        not grep { $_ eq $key } @opt
-    } keys %{$plot};
-    if ( scalar @undef_opt > 0 ) {
-        p @undef_opt;
-        die
-"The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
-    }
-    say { $args->{fh} } 'import numpy as np';
-    my $ax       = $args->{ax} // '';
-    my $ref_type = ref $plot->{data};
-    if ( $ref_type eq 'HASH' ) {    # multiple groups, no label
-        foreach my $group ( keys %{ $plot->{data} } ) {
-            my $color = $plot->{color}{$group} // 'b';
-            say { $args->{fh} } 'ys = []';
-            my ( $min_x, $max_x ) = ( 'inf', '-inf' );
-            foreach my $run ( 0 .. scalar @{ $plot->{data}{$group} } - 1 ) {
-                $min_x = min( $min_x, @{ $plot->{data}{$group}[$run][0] } );
-                $max_x = max( $max_x, @{ $plot->{data}{$group}[$run][0] } );
-            }
-            say { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)";
-            foreach my $run ( 0 .. scalar @{ $plot->{data}{$group} } - 1 ) {
-                say { $args->{fh} } 'x = ['
-                  . join( ',', @{ $plot->{data}{$group}[$run][0] } ) . ']';
-                say { $args->{fh} } 'y = ['
-                  . join( ',', @{ $plot->{data}{$group}[$run][1] } ) . ']';
-                say { $args->{fh} } "ax$ax.plot(x, y, '$color', alpha=0.15)";
-                say { $args->{fh} } 'y = np.interp(base_y, x, y)';
-                say { $args->{fh} } 'ys.append(y)';
-            }
-            say { $args->{fh} } 'ys = np.array(ys)';
-            say { $args->{fh} } 'mean_ys = ys.mean(axis=0)';
-            say { $args->{fh} } 'std = ys.std(axis=0)';
-            say { $args->{fh} } 'ys_upper = np.minimum(mean_ys + std, 1)';
-            say { $args->{fh} } 'ys_lower = mean_ys - std';
-            if ( $plot->{'show.legend'} > 0 ) {
-	            say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color', label = '$group')";
-	         } else {
-	         	say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color')";
-	         }
-            say { $args->{fh} }
-"ax$ax.fill_between(base_y, ys_lower, ys_upper, color='$color', alpha=0.3)";
-        }
-    }
-    elsif ( $ref_type eq 'ARRAY' ) {
-        my $color = $plot->{color} // 'b';
-        say { $args->{fh} } 'ys = []';
-        my ( $min_x, $max_x ) = ( 'inf', '-inf' );
-        foreach my $run ( 0 .. scalar @{ $plot->{data} } - 1 ) {
-            $min_x = min( $min_x, @{ $plot->{data}[$run][0] } );
-            $max_x = max( $max_x, @{ $plot->{data}[$run][0] } );
-        }
-        say { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)";
-        foreach my $run ( 0 .. scalar @{ $plot->{data} } - 1 ) {
-            say { $args->{fh} } 'x = ['
-              . join( ',', @{ $plot->{data}[$run][0] } ) . ']';
-            say { $args->{fh} } 'y = ['
-              . join( ',', @{ $plot->{data}[$run][1] } ) . ']';
-            say { $args->{fh} } "ax$ax.plot(x, y, '$color', alpha=0.15)";
-            say { $args->{fh} } 'y = np.interp(base_y, x, y)';
-            say { $args->{fh} } 'ys.append(y)';
-        }
-        say { $args->{fh} } 'ys = np.array(ys)';
-        say { $args->{fh} } 'mean_ys = ys.mean(axis=0)';
-        say { $args->{fh} } 'std = ys.std(axis=0)';
-        say { $args->{fh} } 'ys_upper = np.minimum(mean_ys + std, 1)';
-        say { $args->{fh} } 'ys_lower = mean_ys - std';
-        say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color')";
-        say { $args->{fh} }
-"ax$ax.fill_between(base_y, ys_lower, ys_upper, color='$color', alpha=0.3)";
-    }
-    else {
-        die "$current_sub cannot take ref type \"$ref_type\" for \"data\"";
-    }
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	unless ( ref $args eq 'HASH' ) {
+	  die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+	  'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+	  'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die
+	"the above args are necessary for $current_sub, but were not defined.";
+	}
+	my @opt = (
+	  @ax_methods, @plt_methods, @fig_methods, @arg,
+	  'color',		   # a hash, with each key assigned to a color "blue" or something
+	  'show.legend',  # be default on; should be 0 if off
+	);
+	my $plot      = $args->{plot};
+	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
+	my @undef_opt = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_opt > 0 ) {
+	  p @undef_opt;
+	  die
+	"The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
+	}
+	say { $args->{fh} } 'import numpy as np';
+	my $ax       = $args->{ax} // '';
+	my $ref_type = ref $plot->{data};
+	if ( $ref_type eq 'HASH' ) {    # multiple groups, no label
+		foreach my $group ( keys %{ $plot->{data} } ) {
+			my $color = $plot->{color}{$group} // 'b';
+			say { $args->{fh} } 'ys = []';
+			my ( $min_x, $max_x ) = ( 'inf', '-inf' );
+			foreach my $run ( 0 .. scalar @{ $plot->{data}{$group} } - 1 ) {
+				 $min_x = min( $min_x, @{ $plot->{data}{$group}[$run][0] } );
+				 $max_x = max( $max_x, @{ $plot->{data}{$group}[$run][0] } );
+			}
+			say { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)";
+			foreach my $run ( 0 .. scalar @{ $plot->{data}{$group} } - 1 ) {
+				 say { $args->{fh} } 'x = ['
+				   . join( ',', @{ $plot->{data}{$group}[$run][0] } ) . ']';
+				 say { $args->{fh} } 'y = ['
+				   . join( ',', @{ $plot->{data}{$group}[$run][1] } ) . ']';
+				 say { $args->{fh} } "ax$ax.plot(x, y, '$color', alpha=0.15)";
+				 say { $args->{fh} } 'y = np.interp(base_y, x, y)';
+				 say { $args->{fh} } 'ys.append(y)';
+			}
+			say { $args->{fh} } 'ys = np.array(ys)';
+			say { $args->{fh} } 'mean_ys = ys.mean(axis=0)';
+			say { $args->{fh} } 'std = ys.std(axis=0)';
+			say { $args->{fh} } 'ys_upper = np.minimum(mean_ys + std, 1)';
+			say { $args->{fh} } 'ys_lower = mean_ys - std';
+			if ( $plot->{'show.legend'} > 0 ) {
+				say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color', label = '$group')";
+			} else {
+				say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color')";
+			}
+			say { $args->{fh} }
+		"ax$ax.fill_between(base_y, ys_lower, ys_upper, color='$color', alpha=0.3)";
+		}
+	} elsif ( $ref_type eq 'ARRAY' ) {
+		my $color = $plot->{color} // 'b';
+		say { $args->{fh} } 'ys = []';
+		my ( $min_x, $max_x ) = ( 'inf', '-inf' );
+		foreach my $run ( 0 .. scalar @{ $plot->{data} } - 1 ) {
+			$min_x = min( $min_x, @{ $plot->{data}[$run][0] } );
+			$max_x = max( $max_x, @{ $plot->{data}[$run][0] } );
+		}
+		say { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)";
+		foreach my $run ( 0 .. scalar @{ $plot->{data} } - 1 ) {
+			say { $args->{fh} } 'x = ['
+			  . join( ',', @{ $plot->{data}[$run][0] } ) . ']';
+			say { $args->{fh} } 'y = ['
+			  . join( ',', @{ $plot->{data}[$run][1] } ) . ']';
+			say { $args->{fh} } "ax$ax.plot(x, y, '$color', alpha=0.15)";
+			say { $args->{fh} } 'y = np.interp(base_y, x, y)';
+			say { $args->{fh} } 'ys.append(y)';
+		}
+		say { $args->{fh} } 'ys = np.array(ys)';
+		say { $args->{fh} } 'mean_ys = ys.mean(axis=0)';
+		say { $args->{fh} } 'std = ys.std(axis=0)';
+		say { $args->{fh} } 'ys_upper = np.minimum(mean_ys + std, 1)';
+		say { $args->{fh} } 'ys_lower = mean_ys - std';
+		say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color')";
+		say { $args->{fh} }
+		"ax$ax.fill_between(base_y, ys_lower, ys_upper, color='$color', alpha=0.3)";
+	} else {
+	  die "$current_sub cannot take ref type \"$ref_type\" for \"data\"";
+	}
 }
 
 sub plot {

@@ -633,37 +633,37 @@ plot({
 	'output.file' => 'output.images/plot.png',
 	plots             => [
 		{    # plot 1
-		    data => {
-		        'sin(x)' => [
-		            [@x],                     # x
-		            [ map { sin($_) } @x ]    # y
-		        ],
-		        'cos(x)' => [
-		            [@x],                     # x
-		            [ map { cos($_) } @x ]    # y
-		        ],
-		    },
-		    'plot.type' => 'plot',
-		    title       => 'simple plot',
-		    set_xticks  =>
-	"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
-		      . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
-		    'set.options' => {    # set options overrides global settings
-		        'sin(x)' => 'color="blue", linewidth=2',
-		        'cos(x)' => 'color="red",  linewidth=2'
-		    },
-		    set_xlim => "$x[0], $x[-1]",    # set min and max as a string
+			data => {
+				'sin(x)' => [
+					[@x],                     # x
+					[ map { sin($_) } @x ]    # y
+				],
+				'cos(x)' => [
+					[@x],                     # x
+					[ map { cos($_) } @x ]    # y
+				],
+			},
+			'plot.type' => 'plot',
+			title       => 'simple plot',
+			set_xticks  =>
+			"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+			. '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+			'set.options' => {    # set options overrides global settings
+			  'sin(x)' => 'color="blue", linewidth=2',
+			  'cos(x)' => 'color="red",  linewidth=2',
+			},
+			set_xlim => "$x[0], $x[-1]",    # set min and max as a string
 		},
 		{                                   # plot 2
 		    data => {
-		        'csc(x)' => [
-		            [@x],                         # x
-		            [ map { 1 / sin($_) } @x ]    # y
-		        ],
-		        'sec(x)' => [
-		            [@x],                         # x
-		            [ map { 1 / cos($_) } @x ]    # y
-		        ],
+				'csc(x)' => [
+					[@x],                         # x
+					[ map { 1 / sin($_) } @x ]    # y
+				],
+				'sec(x)' => [
+					[@x],                         # x
+					[ map { 1 / cos($_) } @x ]    # y
+				],
 		    },
 		    'plot.type' => 'plot',
 		    title       => 'simple plot',
@@ -678,7 +678,7 @@ plot({
 		    set_ylim => '-9,9',
 		},
 	],
-	ncols        => 2,
+	ncols        => 3,
 	set_figwidth => 12,
 });
 plot({
@@ -1016,57 +1016,57 @@ plot({
 	suptitle          => 'Scatterplot Examples',            # applies to all
 	plots             => [
 		{    # single-set scatter; no label
-		    data => {
-		        X => @e,    # x-axis
-		        Y => @b,    # y-axis
-		        Z => @a     # color
-		    },
-		    title     => '"Single Set Scatterplot: Random Distributions"',
-		    color_key => 'Z',
-		    'set.options' => 'marker = "v"'
-		    , # arguments to ax.scatter: there's only 1 set, so "set.options" is a scalar
-		    text        => [ '100, 100, "text1"', '100, 100, "text2"', ],
-		    'plot.type' => 'scatter',
+			data => {
+				X => @e,    # x-axis
+				Y => @b,    # y-axis
+				Z => @a     # color
+			},
+			title     => '"Single Set Scatterplot: Random Distributions"',
+			color_key => 'Z',
+			'set.options' => 'marker = "v"'
+			, # arguments to ax.scatter: there's only 1 set, so "set.options" is a scalar
+			text        => [ '100, 100, "text1"', '100, 100, "text2"', ],
+			'plot.type' => 'scatter',
 		},
 		{     # multiple-set scatter, labels are "X" and "Y"
-		    data => {
-		        X => {    # 1st data set; label is "X"
-		            A => @a,    # x-axis
-		            B => @b,    # y-axis
-		        },
-		        W => {    # 2nd data set; label is "Y"
-		            A => generate_normal_dist( 100, 15, 210 ),    # x-axis
-		            B => generate_normal_dist( 100, 15, 210 ),    # y-axis
-		        }
-		    },
-		    'plot.type'   => 'scatter',
-		    title         => 'Multiple Set Scatterplot',
-		    'set.options' =>
-		      {    # arguments to ax.scatter, for each set in data
-		        X => 'marker = ".", color = "red"',
-		        W => 'marker = "d", color = "green"'
-		      },
+			data => {
+				X => {    # 1st data set; label is "X"
+					A => @a,    # x-axis
+					B => @b,    # y-axis
+				},
+				W => {    # 2nd data set; label is "Y"
+					A => generate_normal_dist( 100, 15, 210 ),    # x-axis
+					B => generate_normal_dist( 100, 15, 210 ),    # y-axis
+				}
+			},
+			'plot.type'   => 'scatter',
+			title         => 'Multiple Set Scatterplot',
+			'set.options' =>
+			{    # arguments to ax.scatter, for each set in data
+			  X => 'marker = ".", color = "red"',
+			  W => 'marker = "d", color = "green"'
+			},
 		},
 		{          # multiple-set scatter, labels are "X" and "Y"
-		    data => {    # 8th plot,
-		        X => {    # 1st data set; label is "X"
-		            A => @e,    # x-axis
-		            B => @b,    # y-axis
-		            C => @a,    # color
-		        },
-		        Y => {    # 2nd data set; label is "Y"
-		            A => generate_normal_dist( 100, 15, 210 ),    # x-axis
-		            B => generate_normal_dist( 100, 15, 210 ),    # y-axis
-		            C => generate_normal_dist( 100, 15, 210 ),    # color
-		        },
-		    },
-		    'plot.type'   => 'scatter',
-		    title         => 'Multiple Set Scatter w/ colorbar',
-		    'set.options' => {    # arguments to ax.scatter, for each set in data
-		    	X => 'marker = "."',    # diamond
-		    	Y => 'marker = "d"'     # diamond
-		    },
-		    color_key => 'Z',
+			data => {    # 8th plot,
+				X => {    # 1st data set; label is "X"
+					A => @e,    # x-axis
+					B => @b,    # y-axis
+					C => @a,    # color
+				},
+				Y => {    # 2nd data set; label is "Y"
+					A => generate_normal_dist( 100, 15, 210 ),    # x-axis
+					B => generate_normal_dist( 100, 15, 210 ),    # y-axis
+					C => generate_normal_dist( 100, 15, 210 ),    # color
+				},
+			},
+			'plot.type'   => 'scatter',
+			title         => 'Multiple Set Scatter w/ colorbar',
+			'set.options' => {    # arguments to ax.scatter, for each set in data
+				X => 'marker = "."',
+				Y => 'marker = "d"'     # diamond
+			},
+			color_key => 'Z',
 		}
 	]
 });
