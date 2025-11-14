@@ -329,159 +329,156 @@ Plot a hash of arrays as a series of boxplots
 |`whiskers`| show whiskers, default = 1| ` whiskers    => 0,`|
 				
 ### single, simple plot
-```
-my $x = generate_normal_dist( 100, 15, 3 * 10 );
-my $y = generate_normal_dist( 85,  15, 3 * 10 );
-my $z = generate_normal_dist( 106, 15, 3 * 10 );
 
-# single plots are simple
-plot(
-    {
-        'output.filename' => 'output.images/single.boxplot.png',
-        data              => {                                     # simple hash
-            E => [ 55,    @{$x}, 160 ],
-            B => [ @{$y}, 140 ],
+    my $x = generate_normal_dist( 100, 15, 3 * 10 );
+    my $y = generate_normal_dist( 85,  15, 3 * 10 );
+    my $z = generate_normal_dist( 106, 15, 3 * 10 );
 
-            #		A => @a
-        },
-        'plot.type'  => 'boxplot',
-        title        => 'Single Box Plot: Specified Colors',
-        colors       => { E => 'yellow', B => 'purple' },
-        'input.file' => $tmp_filename,
-        execute      => 0,
-    }
-);
-```
+single plots are simple
+
+    plot({
+    	'output.filename' => 'output.images/single.boxplot.png',
+    	data              => {                                     # simple hash
+    		E => [ 55,    @{$x}, 160 ],
+    		B => [ @{$y}, 140 ],
+
+    		#		A => @a
+    	},
+    	'plot.type'  => 'boxplot',
+    	title        => 'Single Box Plot: Specified Colors',
+    	colors       => { E => 'yellow', B => 'purple' },
+    	'input.file' => $tmp_filename,
+    	execute      => 0,
+    });
+
 which makes the following image:
 
 <img width="651" height="491" alt="single boxplot" src="https://github.com/user-attachments/assets/19870fa2-fe36-4513-8cbb-23da3a0cf686" />
 
 ### multiple plots
-```
-plot(
-    {
-        'output.filename' => 'output.images/boxplot.png',
-        execute           => 0,
-        'input.file'      => $tmp_filename,
-        plots             => [
-            {
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Simple Boxplot',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                'plot.type' => 'boxplot',
-                suptitle    => 'Boxplot examples'
-            },
-            {
-                color => 'pink',
-                data  => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Specify single color',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                'plot.type' => 'boxplot'
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Specify set-specific color; showfliers = False',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                'plot.type' => 'boxplot',
-                showmeans   => 'True',
-                showfliers  => 'False',
-                set_figwidth => 12
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Specify set-specific color; showmeans = False',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                'plot.type' => 'boxplot',
-                showmeans   => 'False',
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Set-specific color; orientation = horizontal',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                orientation => 'horizontal',
-                'plot.type' => 'boxplot',
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Notch = True',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                notch       => 'True',
-                'plot.type' => 'boxplot',
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title         => 'showcaps = False',
-                ylabel        => 'ylabel',
-                xlabel        => 'label',
-                showcaps      => 'False',
-                'plot.type'   => 'boxplot',
-                set_figheight => 12,
-            },
-        ],
-        ncols => 3,
-        nrows => 3,
-    }
-);
-```
+
+    plot({
+    	'output.filename' => 'output.images/boxplot.png',
+    	execute           => 0,
+    	'input.file'      => $tmp_filename,
+    	plots             => [
+    		{
+    		    data => {
+    		        A => [ 55, @{$z} ],
+    		        E => [ @{$y} ],
+    		        B => [ 122, @{$z} ],
+    		    },
+    		    title       => 'Simple Boxplot',
+    		    ylabel      => 'ylabel',
+    		    xlabel      => 'label',
+    		    'plot.type' => 'boxplot',
+    		    suptitle    => 'Boxplot examples'
+    		},
+    		{
+    		    color => 'pink',
+    		    data  => {
+    		        A => [ 55, @{$z} ],
+    		        E => [ @{$y} ],
+    		        B => [ 122, @{$z} ],
+    		    },
+    		    title       => 'Specify single color',
+    		    ylabel      => 'ylabel',
+    		    xlabel      => 'label',
+    		    'plot.type' => 'boxplot'
+    		},
+    		{
+    		    colors => {
+    		        A => 'orange',
+    		        E => 'yellow',
+    		        B => 'purple'
+    		    },
+    		    data => {
+    		        A => [ 55, @{$z} ],
+    		        E => [ @{$y} ],
+    		        B => [ 122, @{$z} ],
+    		    },
+    		    title       => 'Specify set-specific color; showfliers = False',
+    		    ylabel      => 'ylabel',
+    		    xlabel      => 'label',
+    		    'plot.type' => 'boxplot',
+    		    showmeans   => 'True',
+    		    showfliers  => 'False',
+    		    set_figwidth => 12
+    		},
+    		{
+    		    colors => {
+    		        A => 'orange',
+    		        E => 'yellow',
+    		        B => 'purple'
+    		    },
+    		    data => {
+    		        A => [ 55, @{$z} ],
+    		        E => [ @{$y} ],
+    		        B => [ 122, @{$z} ],
+    		    },
+    		    title       => 'Specify set-specific color; showmeans = False',
+    		    ylabel      => 'ylabel',
+    		    xlabel      => 'label',
+    		    'plot.type' => 'boxplot',
+    		    showmeans   => 'False',
+    		},
+    		{
+    		    colors => {
+    		        A => 'orange',
+    		        E => 'yellow',
+    		        B => 'purple'
+    		    },
+    		    data => {
+    		        A => [ 55, @{$z} ],
+    		        E => [ @{$y} ],
+    		        B => [ 122, @{$z} ],
+    		    },
+    		    title       => 'Set-specific color; orientation = horizontal',
+    		    ylabel      => 'ylabel',
+    		    xlabel      => 'label',
+    		    orientation => 'horizontal',
+    		    'plot.type' => 'boxplot',
+    		},
+    		{
+    		    colors => {
+    		        A => 'orange',
+    		        E => 'yellow',
+    		        B => 'purple'
+    		    },
+    		    data => {
+    		        A => [ 55, @{$z} ],
+    		        E => [ @{$y} ],
+    		        B => [ 122, @{$z} ],
+    		    },
+    		    title       => 'Notch = True',
+    		    ylabel      => 'ylabel',
+    		    xlabel      => 'label',
+    		    notch       => 'True',
+    		    'plot.type' => 'boxplot',
+    		},
+    		{
+    		    colors => {
+    		        A => 'orange',
+    		        E => 'yellow',
+    		        B => 'purple'
+    		    },
+    		    data => {
+    		        A => [ 55, @{$z} ],
+    		        E => [ @{$y} ],
+    		        B => [ 122, @{$z} ],
+    		    },
+    		    title         => 'showcaps = False',
+    		    ylabel        => 'ylabel',
+    		    xlabel        => 'label',
+    		    showcaps      => 'False',
+    		    'plot.type'   => 'boxplot',
+    		    set_figheight => 12,
+    		},
+    	],
+    	ncols => 3,
+    	nrows => 3,
+    });
+
 which makes the following plot:
 
 <img width="1230" height="1211" alt="boxplot" src="https://github.com/user-attachments/assets/7e32e394-86fc-49e7-ad97-f48fd82fc8b0" />
@@ -508,124 +505,121 @@ see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.hexbin.html
 | yscale.hexbin | 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the vertical axis | `'yscale.hexbin' => 'log'`|
 
 ### single, simple plot
-```
-plot({
-	data	=> {
-		E	=> generate_normal_dist(100, 15, 3*210),
-		B	=> generate_normal_dist(85, 15, 3*210)
-	},
-	'output.filename'	=> 'output.images/single.hexbin.png',
-	'plot.type'	=> 'hexbin',
-	set_figwidth => 12,
-	title			=> 'Simple Hexbin',
-});
-```
+
+    plot({
+    	data	=> {
+    		E	=> generate_normal_dist(100, 15, 3*210),
+    		B	=> generate_normal_dist(85, 15, 3*210)
+    	},
+    	'output.filename'	=> 'output.images/single.hexbin.png',
+    	'plot.type'	=> 'hexbin',
+    	set_figwidth => 12,
+    	title			=> 'Simple Hexbin',
+    });
+
 which makes the following plot:
 <img width="1208" height="491" alt="single hexbin" src="https://github.com/user-attachments/assets/129c41cd-2d7d-43de-978a-2b9c441b8939" />
 ### multiple plots
 
-```
-plot(
-    {
-        'input.file'      => $tmp_filename,
-        execute           => 0,
-        'output.filename' => 'output.images/hexbin.png',
-        plots             => [
-            {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'plot.type'  => 'hexbin',
-                title        => 'Simple Hexbin',
-            },
-            {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'plot.type' => 'hexbin',
-                title       => 'colorbar logscale',
-                cb_logscale => 1
-            },
-            {
-                cmap => 'jet',
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'plot.type'  => 'hexbin',
-                title        => 'cmap is jet',
-                xlabel       => 'xlabel',
-            },
-             {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'key.order'  => ['E', 'B'],
-                'plot.type'  => 'hexbin',
-                title        => 'Switch axes with key.order',
-            },
-             {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'plot.type'  => 'hexbin',
-                title        => 'vmax set to 25',
-                vmax         => 25
-            },
-             {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'plot.type'  => 'hexbin',
-                title        => 'vmin set to -4',
-                vmin         => -4
-            },
-            {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'plot.type'  => 'hexbin',
-                title        => 'mincnt set to 7',
-                mincnt       => 7
-            },
-            {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'plot.type'  => 'hexbin',
-                title        => 'xbins set to 9',
-                xbins        => 9
-            },
-            {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'plot.type'  => 'hexbin',
-                title        => 'ybins set to 9',
-                ybins        => 9
-            },
-            {
-                data => {
-                    E => @e,
-                    B => @b
-                },
-                'plot.type'  => 'hexbin',
-                title        => 'marginals = 1',
-                marginals    => 1
-            },
-        ],
-        ncols => 2
-    }
-);
-```
+    plot({
+    	'input.file'      => $tmp_filename,
+    	execute           => 0,
+    	'output.filename' => 'output.images/hexbin.png',
+    	plots             => [
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type'  => 'hexbin',
+    		    title        => 'Simple Hexbin',
+    		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type' => 'hexbin',
+    		    title       => 'colorbar logscale',
+    		    cb_logscale => 1
+    		},
+    		{
+    		    cmap => 'jet',
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type'  => 'hexbin',
+    		    title        => 'cmap is jet',
+    		    xlabel       => 'xlabel',
+    		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'key.order'  => ['E', 'B'],
+    		    'plot.type'  => 'hexbin',
+    		    title        => 'Switch axes with key.order',
+    		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type'  => 'hexbin',
+    		    title        => 'vmax set to 25',
+    		    vmax         => 25
+    		},
+    		 {
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type'  => 'hexbin',
+    		    title        => 'vmin set to -4',
+    		    vmin         => -4
+    		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type'  => 'hexbin',
+    		    title        => 'mincnt set to 7',
+    		    mincnt       => 7
+    		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type'  => 'hexbin',
+    		    title        => 'xbins set to 9',
+    		    xbins        => 9
+    		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type'  => 'hexbin',
+    		    title        => 'ybins set to 9',
+    		    ybins        => 9
+    		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type'  => 'hexbin',
+    		    title        => 'marginals = 1',
+    		    marginals    => 1
+    		},
+    	],
+    	ncols => 2
+    });
+
 which produces the following image:
 <img width="2010" height="1511" alt="hexbin" src="https://github.com/user-attachments/assets/71412ab1-e869-4913-a8cf-e39df15c9590" />
 ## hist
@@ -645,140 +639,144 @@ Plot a hash of arrays as a series of histograms
 
 ### single, simple plot
 
-```
-my @e = generate_normal_dist( 100, 15, 3 * 200 );
-my @b = generate_normal_dist( 85,  15, 3 * 200 );
-my @a = generate_normal_dist( 105, 15, 3 * 200 );
+    my @e = generate_normal_dist( 100, 15, 3 * 200 );
+    my @b = generate_normal_dist( 85,  15, 3 * 200 );
+    my @a = generate_normal_dist( 105, 15, 3 * 200 );
 
-plot({
-	'input.file'      => $tmp_filename,
-	execute           => 0,
-	'output.filename' => 'output.images/single.hist.png',
-	data              => {
-		E => @e,
-		B => @b,
-		A => @a,
-	},
-	'plot.type'       => 'hist'
-});
-```
+    plot({
+    	'input.file'      => $tmp_filename,
+    	execute           => 0,
+    	'output.filename' => 'output.images/single.hist.png',
+    	data              => {
+	    	E => @e,
+	    	B => @b,
+	    	A => @a,
+    	},
+    	'plot.type'       => 'hist'
+    });
+
+which makes the following simple plot:
+
 <img width="651" height="491" alt="single hist" src="https://github.com/user-attachments/assets/fafcf787-6c4f-4998-88c4-77a15d878fa6" />
 
 ### multiple plots
 
-```
-plot({
-	'input.file'      => $tmp_filename,
-	execute           => 0,
-	'output.filename' => 'output.images/histogram.png',
-   set_figwidth => 15,
-   suptitle          => 'hist Examples',
-	plots             => [
-		{ # 1st subplot
-		    data => {
-		        E => @e,
-		        B => @b,
-		        A => @a,
-		    },
-		    'plot.type' => 'hist',
-		    alpha       => 0.25,
-		    bins        => 50,
-		    title       => 'alpha = 0.25',
-		    color       => {
-		        B => 'Black',
-		        E => 'Orange',
-		        A => 'Yellow',
-		    },
-		    scatter => '['
-		      . join( ',', 22 .. 44 ) . '],['  # x coords
-		      . join( ',', 22 .. 44 )          # y coords
-		      . '], label = "scatter"',
-		    xlabel   => 'Value',
-		    ylabel   => 'Frequency',
-		},
-		{ # 2nd subplot
-		    data => {
-				E => @e,
-				B => @b,
-				A => @a,
-		    },
-		    'plot.type' => 'hist',
-		    alpha       => 0.75,
-		    bins        => 50,
-		    title       => 'alpha = 0.75',
-		    color       => {
-		        B => 'Black',
-		        E => 'Orange',
-		        A => 'Yellow',
-		    },
-		    xlabel   => 'Value',
-		    ylabel   => 'Frequency',
-		},
-		{ # 3rd subplot
-			add               => [ # add secondary plots/graphs/methods
-			{ # 1st additional plot/graph
-				data              => {
-					'Gaussian'       => [
-						[40..150],
-						[map {150 * exp(-0.5*($_-100)**2)} 40..150]
-					]
-				},
-				'plot.type' => 'plot',
-				'set.options' => {
-					'Gaussian' =>  'color = "red", linestyle = "dashed"'
-				}
-			}
-			],
-		   data => {
-		        E => @e,
-		        B => @b,
-		        A => @a,
-		    },
-		    'plot.type' => 'hist',
-		    alpha       => 0.75,
-		    bins        => {
-		        A => 10,
-		        B => 25,
-		        E => 50
-		    },
-		    title => 'Varying # of bins',
-		    color => {
-		        B => 'Black',
-		        E => 'Orange',
-		        A => 'Yellow',
-		    },
-		    xlabel       => 'Value',
-		    ylabel       => 'Frequency',
-		},
-		{# 4th subplot
-		    data => {
-		        E => @e,
-		        B => @b,
-		        A => @a,
-		    },
-		    'plot.type' => 'hist',
-		    alpha       => 0.75,
-		    color       => {
-		        B => 'Black',
-		        E => 'Orange',
-		        A => 'Yellow',
-		    },
-		    orientation  => 'horizontal',    # assign x and y labels smartly
-		    title        => 'Horizontal orientation',
-		    ylabel       => 'Value',
-		    xlabel       => 'Frequency',                #				'log'					=> 1,
-		},
-	],
-	ncols => 3,
-	nrows => 2,
-});
-```
+    plot({
+    	'input.file'      => $tmp_filename,
+    	execute           => 0,
+    	'output.file' => 'output.images/histogram.png',
+       set_figwidth => 15,
+       suptitle          => 'hist Examples',
+    	plots             => [
+    		{ # 1st subplot
+    		    data => {
+    		        E => @e,
+    		        B => @b,
+    		        A => @a,
+    		    },
+    		    'plot.type' => 'hist',
+    		    alpha       => 0.25,
+    		    bins        => 50,
+    		    title       => 'alpha = 0.25',
+    		    color       => {
+    		        B => 'Black',
+    		        E => 'Orange',
+    		        A => 'Yellow',
+    		    },
+    		    scatter => '['
+    		      . join( ',', 22 .. 44 ) . '],['  # x coords
+    		      . join( ',', 22 .. 44 )          # y coords
+    		      . '], label = "scatter"',
+    		    xlabel   => 'Value',
+    		    ylabel   => 'Frequency',
+    		},
+    		{ # 2nd subplot
+    		    data => {
+    				E => @e,
+    				B => @b,
+    				A => @a,
+    		    },
+    		    'plot.type' => 'hist',
+    		    alpha       => 0.75,
+    		    bins        => 50,
+    		    title       => 'alpha = 0.75',
+    		    color       => {
+    		        B => 'Black',
+    		        E => 'Orange',
+    		        A => 'Yellow',
+    		    },
+    		    xlabel   => 'Value',
+    		    ylabel   => 'Frequency',
+    		},
+    		{ # 3rd subplot
+    			add               => [ # add secondary plots/graphs/methods
+    			{ # 1st additional plot/graph
+    				data              => {
+    					'Gaussian'       => [
+    						[40..150],
+    						[map {150 * exp(-0.5*($_-100)**2)} 40..150]
+    					]
+    				},
+    				'plot.type' => 'plot',
+    				'set.options' => {
+    					'Gaussian' =>  'color = "red", linestyle = "dashed"'
+    				}
+    			}
+    			],
+    		   data => {
+    		        E => @e,
+    		        B => @b,
+    		        A => @a,
+    		    },
+    		    'plot.type' => 'hist',
+    		    alpha       => 0.75,
+    		    bins        => {
+    		        A => 10,
+    		        B => 25,
+    		        E => 50
+    		    },
+    		    title => 'Varying # of bins',
+    		    color => {
+    		        B => 'Black',
+    		        E => 'Orange',
+    		        A => 'Yellow',
+    		    },
+    		    xlabel       => 'Value',
+    		    ylabel       => 'Frequency',
+    		},
+    		{# 4th subplot
+    		    data => {
+    		        E => @e,
+    		        B => @b,
+    		        A => @a,
+    		    },
+    		    'plot.type' => 'hist',
+    		    alpha       => 0.75,
+    		    color       => {
+    		        B => 'Black',
+    		        E => 'Orange',
+    		        A => 'Yellow',
+    		    },
+    		    orientation  => 'horizontal',    # assign x and y labels smartly
+    		    title        => 'Horizontal orientation',
+    		    ylabel       => 'Value',
+    		    xlabel       => 'Frequency',                #				'log'					=> 1,
+    		},
+    	],
+    	ncols => 3,
+    	nrows => 2,
+    });
+
 <img width="1511" height="491" alt="histogram" src="https://github.com/user-attachments/assets/b13b4cc8-6e64-40b0-913d-6a5886cee0db" />
 
 ## hist2d
+
 ### options
+
 ### single, simple plot
+
 ### multiple plots
+
 ## imshow
 
 Plot 2D array of numbers as an image
@@ -796,23 +794,24 @@ Plot 2D array of numbers as an image
 
 ### single, simple plot
 
-```
-my @imshow_data;
-foreach my $i (0..360) {
-	foreach my $j (0..360) {
-		push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
-	}
-}
-plot({
-	data              => \@imshow_data,
-	execute           => 0,
-   'input.file'      => $tmp_filename,
-	'output.filename' => 'output.images/imshow.single.png',
-	'plot.type'       => 'imshow',
-	set_xlim          => '0, ' . scalar @imshow_data,
-	set_ylim          => '0, ' . scalar @imshow_data,
-});
-```
+    my @imshow_data;
+    foreach my $i (0..360) {
+    	foreach my $j (0..360) {
+    		push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
+    	}
+    }
+    plot({
+    	data              => \@imshow_data,
+    	execute           => 0,
+       'input.file'      => $tmp_filename,
+    	'output.filename' => 'output.images/imshow.single.png',
+    	'plot.type'       => 'imshow',
+    	set_xlim          => '0, ' . scalar @imshow_data,
+    	set_ylim          => '0, ' . scalar @imshow_data,
+    });
+
+which makes the following image:
+
 <img width="599" height="491" alt="imshow single" src="https://github.com/user-attachments/assets/3fa4ffe6-4817-4133-9c91-b68099400377" />
 
 ### multiple plots
@@ -829,100 +828,102 @@ plot({
 
 ### single, simple
 
-```
-plot(
-    {
-        'input.file'      => $tmp_filename,
-        execute           => 0,
-        'output.filename' => 'output.images/plot.single.png',
-        data              => {
-            'sin(x)' => [
-                [@x],                     # x
-                [ map { sin($_) } @x ]    # y
-            ],
-            'cos(x)' => [
-                [@x],                     # x
-                [ map { cos($_) } @x ]    # y
-            ],
-        },
-        'plot.type' => 'plot',
-        title       => 'simple plot',
-        set_xticks  =>
-"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
-          . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
-        'set.options' => {    # set options overrides global settings
-            'sin(x)' => 'color="blue", linewidth=2',
-            'cos(x)' => 'color="red",  linewidth=2'
-        }
-    }
-);
-```
 
-which makes the following "plot" plot: <img width="651" height="491" alt="plot single" src="https://github.com/user-attachments/assets/6cbd6aad-c464-4703-b962-b420ec08bb66" />
+    plot({
+    	'input.file'      => $tmp_filename,
+    	execute           => 0,
+    	'output.filename' => 'output.images/plot.single.png',
+    	data              => {
+    		'sin(x)' => [
+    		    [@x],                     # x
+    		    [ map { sin($_) } @x ]    # y
+    		],
+    		'cos(x)' => [
+    		    [@x],                     # x
+    		    [ map { cos($_) } @x ]    # y
+    		],
+    	},
+    	'plot.type' => 'plot',
+    	title       => 'simple plot',
+    	set_xticks  =>
+    	"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+    	 . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+    	'set.options' => {    # set options overrides global settings
+    		'sin(x)' => 'color="blue", linewidth=2',
+    		'cos(x)' => 'color="red",  linewidth=2'
+    	}
+    });
+
+
+which makes the following "plot" plot:
+
+<img width="651" height="491" alt="plot single" src="https://github.com/user-attachments/assets/6cbd6aad-c464-4703-b962-b420ec08bb66" />
 
 ### multiple sub-plots
 
-```
-my $pi = atan2( 0, -1 );
-my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
-plot(
-    {
-        'input.file'      => $tmp_filename,
-        execute           => 0,
-        'output.filename' => 'output.images/plot.png',
-        plots             => [
-            {    # plot 1
-                data => {
-                    'sin(x)' => [
-                        [@x],                     # x
-                        [ map { sin($_) } @x ]    # y
-                    ],
-                    'cos(x)' => [
-                        [@x],                     # x
-                        [ map { cos($_) } @x ]    # y
-                    ],
-                },
-                'plot.type' => 'plot',
-                title       => 'simple plot',
-                set_xticks  =>
-"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
-                  . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
-                'set.options' => {    # set options overrides global settings
-                    'sin(x)' => 'color="blue", linewidth=2',
-                    'cos(x)' => 'color="red",  linewidth=2'
-                },
-                set_xlim => "$x[0], $x[-1]",    # set min and max as a string
-            },
-            {                                   # plot 2
-                data => {
-                    'csc(x)' => [
-                        [@x],                         # x
-                        [ map { 1 / sin($_) } @x ]    # y
-                    ],
-                    'sec(x)' => [
-                        [@x],                         # x
-                        [ map { 1 / cos($_) } @x ]    # y
-                    ],
-                },
-                'plot.type' => 'plot',
-                title       => 'simple plot',
-                set_xticks  =>
-"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
-                  . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
-                'set.options' => {    # set options overrides global settings
-                    'csc(x)' => 'color="purple", linewidth=2',
-                    'sec(x)' => 'color="green",  linewidth=2'
-                },
-                set_xlim => "$x[0], $x[-1]",    # set min and max as a string
-                set_ylim => '-9,9',
-            },
-        ],
-        ncols        => 2,
-        set_figwidth => 12,
-    }
-);
-```
-which makes <img width="1211" height="491" alt="plot" src="https://github.com/user-attachments/assets/a8312147-e13d-4aa9-9997-49430bb5c74a" />
+
+    my $pi = atan2( 0, -1 );
+    my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
+    plot({
+    	'input.file'      => $tmp_filename,
+    	execute           => 0,
+    	'output.filename' => 'output.images/plot.png',
+    	plots             => [
+    		{    # plot 1
+    		    data => {
+    		        'sin(x)' => [
+    		            [@x],                     # x
+    		            [ map { sin($_) } @x ]    # y
+    		        ],
+    		        'cos(x)' => [
+    		            [@x],                     # x
+    		            [ map { cos($_) } @x ]    # y
+    		        ],
+    		    },
+    		    'plot.type' => 'plot',
+    		    title       => 'simple plot',
+    		    set_xticks  =>
+    	"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+    		      . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+    		    'set.options' => {    # set options overrides global settings
+    		        'sin(x)' => 'color="blue", linewidth=2',
+    		        'cos(x)' => 'color="red",  linewidth=2'
+    		    },
+    		    set_xlim => "$x[0], $x[-1]",    # set min and max as a string
+    		},
+    		{                                   # plot 2
+    		    data => {
+    		        'csc(x)' => [
+    		            [@x],                         # x
+    		            [ map { 1 / sin($_) } @x ]    # y
+    		        ],
+    		        'sec(x)' => [
+    		            [@x],                         # x
+    		            [ map { 1 / cos($_) } @x ]    # y
+    		        ],
+    		    },
+    		    'plot.type' => 'plot',
+    		    title       => 'simple plot',
+    		    set_xticks  =>
+    	"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+    		      . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+    		    'set.options' => {    # set options overrides global settings
+    		        'csc(x)' => 'color="purple", linewidth=2',
+    		        'sec(x)' => 'color="green",  linewidth=2'
+    		    },
+    		    set_xlim => "$x[0], $x[-1]",    # set min and max as a string
+    		    set_ylim => '-9,9',
+    		},
+    	],
+    	ncols        => 2,
+    	set_figwidth => 12,
+    });
+
+which makes
+
+<img width="1211" height="491" alt="plot" src="https://github.com/user-attachments/assets/a8312147-e13d-4aa9-9997-49430bb5c74a" />
+
+
 ## scatter
 ### options
 ### single, simple plot
