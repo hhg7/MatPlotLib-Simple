@@ -203,8 +203,8 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 	);
 	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
 	if ( scalar @undef_args > 0 ) {
-	  p @undef_args;
-	  die 'the above args are necessary, but were not defined.';
+		p @undef_args;
+		die 'the above args are necessary, but were not defined.';
 	}
 	my @defined_args = ( @reqd_args, @ax_methods, @fig_methods, @plt_methods, @arg, @cb_arg );
 	my @bad_args = grep {
@@ -219,35 +219,35 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 	}
 	$args->{ax} = $args->{ax} // 'ax';
 	foreach my $item (
-	  grep { defined $args->{args}{$_} } (
-		   'set_title', 'set_xlabel', 'set_ylabel', 'suptitle',
-		   'xlabel',    'ylabel',     'title'
-	  )
-	)
-	{
-	  if ( $args->{args}{$item} =~ m/^([^\"\',]+)$/ ) {
-		   $args->{args}{$item} = "'$args->{args}{$item}'";
-	  }
+		grep { defined $args->{args}{$_} } (
+			'set_title', 'set_xlabel', 'set_ylabel', 'suptitle',
+			'xlabel',    'ylabel',     'title'
+		)
+		)
+		{
+		if ( $args->{args}{$item} =~ m/^([^\"\',]+)$/ ) {
+			$args->{args}{$item} = "'$args->{args}{$item}'";
+		}
 	}
 	my @obj  = ( $args->{ax}, 'fig', 'plt' );
 	my @args = ( \@ax_methods, \@fig_methods, \@plt_methods );
 	foreach my $i ( 0 .. $#args ) {
-	  foreach my $method ( grep { defined $args->{args}{$_} } @{ $args[$i] } ) {
-		   my $ref = ref $args->{args}{$method};
-		   if ( ( $ref ne 'ARRAY' ) && ( $ref ne '' ) ) {
-		       die
-	"$current_sub only accepts scalar or array types, but $ref was entered.";
-		   }
-		   if ( $ref eq '' ) {
-		       say { $args->{fh} }
-		         "$obj[$i].$method($args->{args}{$method}) #" . __LINE__;
-		       next;
-		   }
-		   # can only be ARRAY
-		   foreach my $j ( @{ $args->{args}{$method} } ) {
-		       say { $args->{fh} } "$obj[$i].$method($j) # " . __LINE__;
-		   }
-	  }
+		foreach my $method ( grep { defined $args->{args}{$_} } @{ $args[$i] } ) {
+			my $ref = ref $args->{args}{$method};
+			if ( ( $ref ne 'ARRAY' ) && ( $ref ne '' ) ) {
+				die
+		"$current_sub only accepts scalar or array types, but $ref was entered.";
+			}
+			if ( $ref eq '' ) {
+				say { $args->{fh} }
+				  "$obj[$i].$method($args->{args}{$method}) #" . __LINE__;
+				next;
+			}
+			# can only be ARRAY
+			foreach my $j ( @{ $args->{args}{$method} } ) {
+				say { $args->{fh} } "$obj[$i].$method($j) # " . __LINE__;
+			}
+		}
 	}
 	return unless defined $args->{ax};
 	my $legend   = $args->{args}{legend} // '';
@@ -270,8 +270,7 @@ sub graphics {
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
 	unless ( ref $args eq 'HASH' ) {
-	  die
-	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
 		'ax',
@@ -345,9 +344,9 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 	  $ref_counts{ ref $plot->{data}{$set} }++;
 	}
 	if ( scalar %ref_counts > 1 ) {
-	  p $plot->{data};
-	  p %ref_counts;
-	  die
+		p $plot->{data};
+		p %ref_counts;
+		die
 	"different kinds of data were entered to plot $ax which should be simple hash or hash of arrays.";
 	}
 	if ( defined $ref_counts{''} ) {
@@ -955,7 +954,7 @@ sub hist2d_helper {
 	say {$args->{fh}} 'import numpy as np';
 	say {$args->{fh}} 'max_hist2d_box = np.max(hist2d_n)';
 	say {$args->{fh}} 'min_hist2d_box = np.min(hist2d_n)';
-	say {$args->{fh}} 'print(f"hist2d density range = [{min_hist2d_box}, {max_hist2d_box}]")';
+	say {$args->{fh}} "print(f'plot $ax hist2d density range = [{min_hist2d_box}, {max_hist2d_box}]')";
 	return 0 if $plot->{'show.colorbar'} == 0;
 	if ( defined $plot->{cblabel} ) {
 	  say { $args->{fh} } "plt.colorbar(im$ax, label = '$plot->{cblabel}')";
@@ -1134,9 +1133,9 @@ sub plot_helper {
 	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
 	my @key_order;
 	if ( defined $plot->{'key.order'} ) {
-	  @key_order = @{ $plot->{'key.order'} };
+		@key_order = @{ $plot->{'key.order'} };
 	} else {
-	  @key_order = sort keys %{ $plot->{data} };
+		@key_order = sort keys %{ $plot->{data} };
 	}
 	if ((defined $plot->{'set.options'}) && (ref $plot->{'set.options'} eq 'HASH')) {
 		my @undef_set_opt = sort grep {!defined $plot->{data}{$_}} keys %{ $plot->{'set.options'} };
@@ -2177,12 +2176,12 @@ sub plot {
 	  say $fh 'plt.close()';
 	}
 	if ( $args->{execute} > 0 ) {
-	  my $r = execute( "python3 $temp_py", 'all' );
-	  say 'wrote '
+		my $r = execute( "python3 $temp_py", 'all' );
+		say 'wrote '
 		 . colored( ['cyan on_bright_yellow'], "$args->{'output.file'}" );
-	  p $r;
+		p $r;
 	} else {    # not running yet
-	  say 'will write '
+		say 'will write '
 		 . colored( ['cyan on_bright_yellow'], "$args->{'output.file'}" );
 	}
 }
