@@ -2155,9 +2155,9 @@ sub plot {
 	  }
 	}
 	if (defined $args->{scale}) {
-		my $n = 6.4 * $args->{scale};
+		my $n = 4.8 * $args->{scale};
 		say $fh "fig.set_figheight($n) #" . __LINE__;
-		$n = 4.8 * $args->{scale};
+		$n = 6.4 * $args->{scale};
 		say $fh "fig.set_figwidth($n) #"  . __LINE__;
 	}
 	say $fh
