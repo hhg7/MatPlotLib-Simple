@@ -236,7 +236,6 @@ plot({
 		    },
 		    title         => 'Chem. Nobels: swap text positions',
 		    'plot.type'   => 'pie',
-		    set_figwidth  => 12,
 		    autopct       => '%1.1f%%',
 		    pctdistance   => 1.25,
 		    labeldistance => 0.6,
@@ -244,6 +243,7 @@ plot({
 	],
 	'input.file' => $tmp_filename,
 	execute      => 0,
+   set_figwidth  => 12,
 	ncols        => 3,
 });
 
@@ -263,125 +263,125 @@ plot({
         execute      => 0,
 });
 plot({
-        'output.file' => 'output.images/boxplot.png',
-        execute           => 0,
-        'input.file'      => $tmp_filename,
-        plots             => [
-            {
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Simple Boxplot',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                'plot.type' => 'boxplot',
-                suptitle    => 'Boxplot examples'
-            },
-            {
-                color => 'pink',
-                data  => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Specify single color',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                'plot.type' => 'boxplot'
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Specify set-specific color; showfliers = False',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                'plot.type' => 'boxplot',
-                showmeans   => 'True',
-                showfliers  => 'False',
-                set_figwidth => 12
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Specify set-specific color; showmeans = False',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                'plot.type' => 'boxplot',
-                showmeans   => 'False',
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Set-specific color; orientation = horizontal',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                orientation => 'horizontal',
-                'plot.type' => 'boxplot',
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Notch = True',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                notch       => 'True',
-                'plot.type' => 'boxplot',
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title         => 'showcaps = False',
-                ylabel        => 'ylabel',
-                xlabel        => 'label',
-                showcaps      => 'False',
-                'plot.type'   => 'boxplot',
-                set_figheight => 12,
-            },
-        ],
-        ncols => 3,
-        nrows => 3,
+	'output.file' => 'output.images/boxplot.png',
+	execute           => 0,
+	'input.file'      => $tmp_filename,
+	plots             => [
+		{
+			data => {
+			  A => [ 55, @{$z} ],
+			  E => [ @{$y} ],
+			  B => [ 122, @{$z} ],
+			},
+			title       => 'Simple Boxplot',
+			ylabel      => 'ylabel',
+			xlabel      => 'label',
+			'plot.type' => 'boxplot',
+			suptitle    => 'Boxplot examples'
+		},
+		{
+			color => 'pink',
+			data  => {
+			  A => [ 55, @{$z} ],
+			  E => [ @{$y} ],
+			  B => [ 122, @{$z} ],
+			},
+			title       => 'Specify single color',
+			ylabel      => 'ylabel',
+			xlabel      => 'label',
+			'plot.type' => 'boxplot'
+		},
+		{
+		    colors => {
+		        A => 'orange',
+		        E => 'yellow',
+		        B => 'purple'
+		    },
+		    data => {
+		        A => [ 55, @{$z} ],
+		        E => [ @{$y} ],
+		        B => [ 122, @{$z} ],
+		    },
+		    title       => 'Specify set-specific color; showfliers = False',
+		    ylabel      => 'ylabel',
+		    xlabel      => 'label',
+		    'plot.type' => 'boxplot',
+		    showmeans   => 'True',
+		    showfliers  => 'False',
+		},
+		{
+		    colors => {
+		        A => 'orange',
+		        E => 'yellow',
+		        B => 'purple'
+		    },
+		    data => {
+		        A => [ 55, @{$z} ],
+		        E => [ @{$y} ],
+		        B => [ 122, @{$z} ],
+		    },
+		    title       => 'Specify set-specific color; showmeans = False',
+		    ylabel      => 'ylabel',
+		    xlabel      => 'label',
+		    'plot.type' => 'boxplot',
+		    showmeans   => 'False',
+		},
+		{
+		    colors => {
+		        A => 'orange',
+		        E => 'yellow',
+		        B => 'purple'
+		    },
+		    data => {
+		        A => [ 55, @{$z} ],
+		        E => [ @{$y} ],
+		        B => [ 122, @{$z} ],
+		    },
+		    title       => 'Set-specific color; orientation = horizontal',
+		    ylabel      => 'ylabel',
+		    xlabel      => 'label',
+		    orientation => 'horizontal',
+		    'plot.type' => 'boxplot',
+		},
+		{
+			colors => {
+				A => 'orange',
+				E => 'yellow',
+				B => 'purple'
+			},
+			data => {
+				A => [ 55, @{$z} ],
+				E => [ @{$y} ],
+				B => [ 122, @{$z} ],
+			},
+			title       => 'Notch = True',
+			ylabel      => 'ylabel',
+			xlabel      => 'label',
+			notch       => 'True',
+			'plot.type' => 'boxplot',
+		},
+		{
+			colors => {
+				A => 'orange',
+				E => 'yellow',
+				B => 'purple'
+			},
+			data => {
+				A => [ 55, @{$z} ],
+				E => [ @{$y} ],
+				B => [ 122, @{$z} ],
+			},
+			title         => 'showcaps = False',
+			ylabel        => 'ylabel',
+			xlabel        => 'label',
+			showcaps      => 'False',
+			'plot.type'   => 'boxplot',
+		},
+	],
+	ncols => 3,
+	nrows => 3,
+   set_figheight => 12,
+   set_figwidth => 12
 });
 plot({
 	'output.file' => 'output.images/single.violinplot.png',
@@ -485,27 +485,27 @@ plot({
 	'input.file' => $tmp_filename,
 });
 plot({
-        data => {
-            E => @e,
-            B => @b,
-        },
-        execute           => 0,
-        'input.file'      => $tmp_filename,
-        'output.file' => 'output.images/single.hexbin.png',
-        'plot.type'       => 'hexbin',
-        set_figwidth      => 12,
-        title             => 'Simple Hexbin',
+	data => {
+		E => @e,
+		B => @b,
+	},
+	execute           => 0,
+	'input.file'      => $tmp_filename,
+	'output.file' => 'output.images/single.hexbin.png',
+	'plot.type'       => 'hexbin',
+	set_figwidth      => 12,
+	title             => 'Simple Hexbin',
 });
 plot({
-        'output.file' => 'output.images/single.hist2d.png',
-        data              => {
-            E => @e,
-            B => @b
-        },
-        'plot.type'  => 'hist2d',
-        title        => 'title',
-        execute      => 0,
-        'input.file' => $tmp_filename,
+	'output.file' => 'output.images/single.hist2d.png',
+	data              => {
+		E => @e,
+		B => @b
+	},
+	'plot.type'  => 'hist2d',
+	title        => 'title',
+	execute      => 0,
+	'input.file' => $tmp_filename,
 });
 plot({
 	'input.file'      => $tmp_filename,
@@ -513,12 +513,12 @@ plot({
 	'output.file' => 'output.images/hexbin.png',
 	plots             => [
 		{
-		    data => {
-		        E => @e,
-		        B => @b
-		    },
-		    'plot.type'  => 'hexbin',
-		    title        => 'Simple Hexbin',
+			data => {
+			E => @e,
+			B => @b
+			},
+			'plot.type'  => 'hexbin',
+			title        => 'Simple Hexbin',
 		},
 		{
 		    data => {
@@ -623,8 +623,7 @@ plot({
 	],
 	ncols        => 4,
 	nrows        => 3,
-	set_figheight=> 3*5,
-	set_figwidth => 4*5,
+	scale        => 5,
 	suptitle     => 'Various Changes to Standard Hexbin: All data is the same'
 });
 plot({
@@ -1120,11 +1119,16 @@ plot({
 					'sin(x)'       => [
 						[0..360],
 						[map {180 + 180*sin($_ * $pi/180)} 0..360]
-					]
+					],
+					'cos(x)'       => [
+						[0..360],
+						[map {180 + 180*cos($_ * $pi/180)} 0..360]
+					],
 				},
 				'plot.type' => 'plot',
 				'set.options' => {
-					'sin(x)'	=>  'color = "red", linestyle = "dashed"'
+					'sin(x)'	=>  'color = "red", linestyle = "dashed"',
+					'cos(x)'	=>  'color = "blue", linestyle = "dashed"',
 				}
 			}
 			],
@@ -1139,8 +1143,8 @@ plot({
 	'output.file'   => 'output.images/imshow.multiple.png',
 	ncols           => 2,
 	nrows           => 2,
-	set_figheight   => 6*3,
-	set_figwidth    => 6*4
+	set_figheight   => 6*3,# 4.8
+	set_figwidth    => 6*4 # 6.4
 });
 plot({
 	'input.file'      => $tmp_filename,

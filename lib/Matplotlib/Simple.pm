@@ -1126,8 +1126,8 @@ sub plot_helper {
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @undef_opt > 0 ) {
-	  p @undef_opt;
 	  p $args;
+	  p @undef_opt;
 	  die	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
 	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
@@ -1361,8 +1361,7 @@ sub violin_helper {
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
 	unless ( ref $args eq 'HASH' ) {
-	  die
-	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
 	  'fh',      # e.g. $py, $fh, which will be passed by the subroutine
@@ -1395,9 +1394,8 @@ sub violin_helper {
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @undef_opt > 0 ) {
-	  p @undef_opt;
-	  die
-	"The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
+		p @undef_opt;
+		die "The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
 	}
 	$plot->{orientation} = $plot->{orientation} // 'vertical';
 	if ( $plot->{orientation} !~ m/^(?:horizontal|vertical)$/ ) {
@@ -1408,8 +1406,7 @@ sub violin_helper {
 	my ( @xticks, @key_order );
 	if ( defined $plot->{'key.order'} ) {
 	  @key_order = @{ $plot->{'key.order'} };
-	}
-	else {
+	} else {
 	  @key_order = sort keys %{ $plot->{data} };
 	}
 	my $ax = $args->{ax} // '';
@@ -1430,37 +1427,32 @@ sub violin_helper {
 	}
 	say { $args->{fh} }
 	"vp = ax$ax.violinplot(d, showmeans=False, points = $min_n_points, orientation = '$plot->{orientation}', showmedians = $plot->{medians})";
-	if ( defined $plot->{colors} )
-	{    # every hash key should have its own color defined
-
-	# the below code helps to provide better error messages in case I make an error in calling the sub
-	  my @wrong_keys =
-		 grep { not defined $plot->{colors}{$_} } keys %{ $plot->{data} };
-	  if ( scalar @wrong_keys > 0 ) {
-		   p @wrong_keys;
-		   die 'the above data keys have no defined color';
-	  }
-
-	# list of pre-defined colors: https://matplotlib.org/stable/gallery/color/named_colors.html
-	  print { $args->{fh} } 'colors = ["'
+	if ( defined $plot->{colors} ) { # every hash key should have its own color defined
+		# the below code helps to provide better error messages in case I make an error in calling the sub
+		my @wrong_keys = grep { not defined $plot->{colors}{$_} } keys %{ $plot->{data} };
+		if ( scalar @wrong_keys > 0 ) {
+			p $plot;
+			p @wrong_keys;
+			die 'the above data keys have no defined color';
+		}
+		# list of pre-defined colors: https://matplotlib.org/stable/gallery/color/named_colors.html
+		print { $args->{fh} } 'colors = ["'
 		 . join( '","', @{ $plot->{colors} }{@key_order} ) . '"]' . "\n";
 
-	 # the above color list will have the same order, via the above hash slice
-	  say { $args->{fh} } 'for i, pc in enumerate(vp["bodies"], 1):';
-	  say { $args->{fh} } "\tpc.set_facecolor(colors[i-1])";
-	  say { $args->{fh} } "\tpc.set_edgecolor('black')";
-	}
-	else {
-	  say { $args->{fh} } 'for pc in vp["bodies"]:';
-	  if ( defined $plot->{color} ) {
-		   print { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')\n";
-	  }
-	  print { $args->{fh} } "\tpc.set_edgecolor('black')\n";
+		# the above color list will have the same order, via the above hash slice
+		say { $args->{fh} } 'for i, pc in enumerate(vp["bodies"], 1):';
+		say { $args->{fh} } "\tpc.set_facecolor(colors[i-1])";
+		say { $args->{fh} } "\tpc.set_edgecolor('black')";
+	} else {
+		say { $args->{fh} } 'for pc in vp["bodies"]:';
+		if ( defined $plot->{color} ) {
+			print { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')\n";
+		}
+		print { $args->{fh} } "\tpc.set_edgecolor('black')\n";
 
-	  #		say {$args->{fh}} "\tpc.set_alpha(1)";
+		#		say {$args->{fh}} "\tpc.set_alpha(1)";
 	}
 	if ( $plot->{whiskers} > 0 ) {
-
 	 # https://matplotlib.org/stable/gallery/statistics/customized_violin.html
 	  say { $args->{fh} } 'import numpy as np';
 	  say { $args->{fh} } 'def adjacent_values(vals, q1, q3):';
@@ -1686,7 +1678,7 @@ sub plot {
 	}
 	my @defined_args = (
 	@reqd_args, @ax_methods, @fig_methods,  @plt_methods, @cb_arg,
-	@arg,       'add', 'key.order', 'set.options', 'color',
+	@arg,       'add', 'key.order', 'set.options', 'color', 'scale',
 	'colors',   'show.legend'
 	);
 	my @bad_args = grep {
@@ -1762,29 +1754,28 @@ sub plot {
 	say "temp file is $temp_py" if $unlink == 0;
 	say $fh 'import matplotlib.pyplot as plt';
 	if ( $single_plot == 0 ) {
-	  $args->{sharex} = $args->{sharex} // 'False';
-	  say $fh 'fig, ('
+		$args->{sharex} = $args->{sharex} // 'False';
+		say $fh 'fig, ('
 		 . join( ',', @py )
-		 . ") = plt.subplots($args->{nrows}, $args->{ncols}, sharex = $args->{sharex}, layout = 'constrained') #"
-		 . __LINE__;
+		 . ") = plt.subplots($args->{nrows}, $args->{ncols}, sharex = $args->{sharex}, layout = 'constrained') #" . __LINE__;
 	} elsif ( $single_plot == 1 ) {
-	  say $fh 'fig, ax0 = plt.subplots(1,1, layout = "constrained")';
+		say $fh 'fig, ax0 = plt.subplots(1,1, layout = "constrained")';
 	} else {
-	  die "\$single_plot = $single_plot breaks pigeonholes";
+		die "\$single_plot = $single_plot breaks pigeonholes";
 	}
 	if ( defined $args->{plots} ) {
-	  my @undef_plot_types;
-	  my $i = 0;
-	  foreach my $plot (@{ $args->{plots} }) {
-		   next if defined $plot->{'plot.type'};
-		   push @undef_plot_types, $i;
-		   $i++;
-	  }
-	  if ( scalar @undef_plot_types > 0 ) {
-		   p $args;
-		   p @undef_plot_types;
-		   die 'The above subplot indices are missing "plot.type"';
-	  }
+		my @undef_plot_types;
+		my $i = 0;
+		foreach my $plot (@{ $args->{plots} }) {
+			next if defined $plot->{'plot.type'};
+			push @undef_plot_types, $i;
+			$i++;
+		}
+		if ( scalar @undef_plot_types > 0 ) {
+			p $args;
+			p @undef_plot_types;
+			die 'The above subplot indices are missing "plot.type"';
+		}
 	}
 	my $find_global_min_max = scalar grep { $_->{'plot.type'} eq 'hist2d' } @{ $args->{plots} };
 	if ( $find_global_min_max > 0 ) {
@@ -1997,33 +1988,33 @@ sub plot {
 				});
 			} elsif ( $graph->{'plot.type'} eq 'pie' ) {
 				pie_helper({
-				  fh   => $fh,
-				  ax   => $ax,
-				  plot => $graph
-			  });
+					fh   => $fh,
+					ax   => $ax,
+					plot => $graph
+				});
 			} elsif ( $graph->{'plot.type'} eq 'plot' ) {
 				plot_helper({
-				  fh   => $fh,
-				  ax   => $ax,
-				  plot => $graph
+					fh   => $fh,
+					ax   => $ax,
+					plot => $graph
 				});
 			} elsif ( $graph->{'plot.type'} eq 'scatter' ) {    # scatterplot
 				scatter_helper({
-				  fh   => $fh,
-				  ax   => $ax,
-				  plot => $graph
+					fh   => $fh,
+					ax   => $ax,
+					plot => $graph
 				});
 			} elsif ( $graph->{'plot.type'} eq 'violinplot' ) {
 				violin_helper({
-				  fh   => $fh,
-				  ax   => $ax,
-				  plot => $graph
+					fh   => $fh,
+					ax   => $ax,
+					plot => $graph
 				});
 			} elsif ( $graph->{'plot.type'} eq 'wide' ) {
 				wide_helper({
-				  fh   => $fh,
-				  ax   => $ax,
-				  plot => $graph
+					fh   => $fh,
+					ax   => $ax,
+					plot => $graph
 				});
 			} else {
 				die "\"$plot->{'plot.type'}\" doesn't fit pigeonholes with \$single_plot = $single_plot";
@@ -2163,6 +2154,12 @@ sub plot {
 		   die "$fig_method = \"$ref\" only accepts scalar or array types";
 	  }
 	}
+	if (defined $args->{scale}) {
+		my $n = 6.4 * $args->{scale};
+		say $fh "fig.set_figheight($n) #" . __LINE__;
+		$n = 4.8 * $args->{scale};
+		say $fh "fig.set_figwidth($n) #"  . __LINE__;
+	}
 	say $fh
 	"plt.savefig('$args->{'output.file'}', bbox_inches = 'tight', metadata={'Creator': 'made/written by "
 	. getcwd()
@@ -2173,7 +2170,7 @@ sub plot {
 	}
 	if ( $args->{execute} > 0 ) {
 		my $r = execute( "python3 $temp_py", 'all' );
-		say 'wrote '
+		say 'wrote '		
 		 . colored( ['cyan on_bright_yellow'], "$args->{'output.file'}" );
 		p $r;
 	} else {    # not running yet
@@ -2745,8 +2742,7 @@ which makes the following plot:
 =head3 multiple plots
 
  
- plot(
-     {
+ plot({
          'input.file'      => $tmp_filename,
          execute           => 0,
          'output.file' => 'output.images/hexbin.png',
@@ -2843,8 +2839,7 @@ which makes the following plot:
              },
          ],
          ncols => 2
-     }
- );
+     });
 
 which produces the following image:
 <img alt="hexbin" height="1511" src="https://github.com/user-attachments/assets/71412ab1-e869-4913-a8cf-e39df15c9590" width="2010" />

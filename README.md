@@ -524,15 +524,15 @@ which makes the following plot:
     plot({
     	'input.file'      => $tmp_filename,
     	execute           => 0,
-    	'output.filename' => 'output.images/hexbin.png',
+    	'output.file' => 'output.images/hexbin.png',
     	plots             => [
     		{
-    		    data => {
-    		        E => @e,
-    		        B => @b
-    		    },
-    		    'plot.type'  => 'hexbin',
-    		    title        => 'Simple Hexbin',
+    			data => {
+    			E => @e,
+    			B => @b
+    			},
+    			'plot.type'  => 'hexbin',
+    			title        => 'Simple Hexbin',
     		},
     		{
     		    data => {
@@ -553,7 +553,7 @@ which makes the following plot:
     		    title        => 'cmap is jet',
     		    xlabel       => 'xlabel',
     		},
-    		{
+    		 {
     		    data => {
     		        E => @e,
     		        B => @b
@@ -562,7 +562,7 @@ which makes the following plot:
     		    'plot.type'  => 'hexbin',
     		    title        => 'Switch axes with key.order',
     		},
-    		{
+    		 {
     		    data => {
     		        E => @e,
     		        B => @b
@@ -616,8 +616,29 @@ which makes the following plot:
     		    title        => 'marginals = 1',
     		    marginals    => 1
     		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type'  => 'hexbin',
+    		    title        => 'xscale.hexbin = 1',
+    		    'xscale.hexbin' => 'log'
+    		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type'  => 'hexbin',
+    		    title        => 'yscale.hexbin = 1',
+    		    'yscale.hexbin' => 'log'
+    		},
     	],
-    	ncols => 2
+    	ncols        => 4,
+    	nrows        => 3,
+    	scale        => 5,
+    	suptitle     => 'Various Changes to Standard Hexbin: All data is the same'
     });
 
 which produces the following image:
