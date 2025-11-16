@@ -642,7 +642,8 @@ which makes the following plot:
     });
 
 which produces the following image:
-<img width="2010" height="1511" alt="hexbin" src="https://github.com/user-attachments/assets/71412ab1-e869-4913-a8cf-e39df15c9590" />
+<img width="2409" height="3211" alt="hexbin" src="https://github.com/user-attachments/assets/0b23a0cb-8f9a-43fb-8da1-0debee13d540" />
+
 ## hist
 
 Plot a hash of arrays as a series of histograms
