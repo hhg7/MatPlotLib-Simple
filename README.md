@@ -838,18 +838,168 @@ which makes the following image:
 
 ### multiple plots
 
+    plot({
+    	plots  => [
+    		{
+    			data => \@imshow_data,
+    			'plot.type'       => 'imshow',
+    			set_xlim          => '0, ' . scalar @imshow_data,
+    			set_ylim          => '0, ' . scalar @imshow_data,
+    			title             => 'basic',
+    		},
+    		{
+    			cblabel           => 'sin(x) * cos(x)',
+    			data => \@imshow_data,
+    			'plot.type'       => 'imshow',
+    			set_xlim          => '0, ' . scalar @imshow_data,
+    			set_ylim          => '0, ' . scalar @imshow_data,
+    			title             => 'cblabel',
+    		},
+    		{
+    			cblabel           => 'sin(x) * cos(x)',
+    			cblocation        => 'left',
+    			data              => \@imshow_data,
+    			'plot.type'       => 'imshow',
+    			set_xlim          => '0, ' . scalar @imshow_data,
+    			set_ylim          => '0, ' . scalar @imshow_data,
+    			title             => 'cblocation = left',
+    		},
+    		{
+    			cblabel           => 'sin(x) * cos(x)',
+    			data              => \@imshow_data,
+    			add               => [ # add secondary plots
+    			{ # 1st additional plot
+    				data              => {
+    					'sin(x)'       => [
+    						[0..360],
+    						[map {180 + 180*sin($_ * $pi/180)} 0..360]
+    					],
+    					'cos(x)'       => [
+    						[0..360],
+    						[map {180 + 180*cos($_ * $pi/180)} 0..360]
+    					],
+    				},
+    				'plot.type' => 'plot',
+    				'set.options' => {
+    					'sin(x)'	=>  'color = "red", linestyle = "dashed"',
+    					'cos(x)'	=>  'color = "blue", linestyle = "dashed"',
+    				}
+    			}
+    			],
+    			'plot.type'       => 'imshow',
+    			set_xlim          => '0, ' . scalar @imshow_data,
+    			set_ylim          => '0, ' . scalar @imshow_data,
+    			title             => 'auxiliary plots',
+    		},
+    	],
+    	execute         => 0,
+       'input.file'    => $tmp_filename,
+    	'output.file'   => 'output.images/imshow.multiple.png',
+    	ncols           => 2,
+    	nrows           => 2,
+    	set_figheight   => 6*3,# 4.8
+    	set_figwidth    => 6*4 # 6.4
+    });
+
+which makes the following image:
+
+<img width="2416" height="1811" alt="imshow multiple" src="https://github.com/user-attachments/assets/091acccb-151c-47ca-82cc-99c19d2bff91" />
+
 ## pie
 
 ### options
 
 ### single, simple plot
 
+    plot({
+    	'output.file' => 'output.images/single.pie.png',
+    	data              => {                                 # simple hash
+    		Fri => 76,
+    		Mon => 73,
+    		Sat => 26,
+    		Sun => 11,
+    		Thu => 94,
+    		Tue => 93,
+    		Wed => 77
+    	},
+    	'plot.type'  => 'pie',
+    	title        => 'Single Simple Pie',
+    	'input.file' => $tmp_filename,
+    	execute      => 0,
+    });
+
+which makes the image:
+
+<img width="469" height="491" alt="single pie" src="https://github.com/user-attachments/assets/a0bc3212-d013-463a-9be6-f96829ac7dba" />
+
 ### multiple plots
+
+    plot({
+    	'output.file' => 'output.images/pie.png',
+    	plots             => [
+    		{
+    		    data => {
+    		        'Russian' => 106_000_000,    # Primarily European Russia
+    		        'German'  =>
+    		          95_000_000,    # Germany, Austria, Switzerland, etc.
+    		        'English' => 70_000_000,      # UK, Ireland, etc.
+    		        'French' => 66_000_000, # France, Belgium, Switzerland, etc.
+    		        'Italian'   => 59_000_000,    # Italy, Switzerland, etc.
+    		        'Spanish'   => 45_000_000,    # Spain
+    		        'Polish'    => 38_000_000,    # Poland
+    		        'Ukrainian' => 32_000_000,    # Ukraine
+    		        'Romanian'  => 24_000_000,    # Romania, Moldova
+    		        'Dutch'     => 22_000_000     # Netherlands, Belgium
+    		    },
+    		    'plot.type' => 'pie',
+    		    title       => 'Top Languages in Europe',
+    		    suptitle    => 'Pie in subplots',
+    		},
+    		{
+    		    data => {
+    		        'Russian' => 106_000_000,     # Primarily European Russia
+    		        'German'  =>
+    		          95_000_000,    # Germany, Austria, Switzerland, etc.
+    		        'English' => 70_000_000,      # UK, Ireland, etc.
+    		        'French' => 66_000_000, # France, Belgium, Switzerland, etc.
+    		        'Italian'   => 59_000_000,    # Italy, Switzerland, etc.
+    		        'Spanish'   => 45_000_000,    # Spain
+    		        'Polish'    => 38_000_000,    # Poland
+    		        'Ukrainian' => 32_000_000,    # Ukraine
+    		        'Romanian'  => 24_000_000,    # Romania, Moldova
+    		        'Dutch'     => 22_000_000     # Netherlands, Belgium
+    		    },
+    		    'plot.type' => 'pie',
+    		    title       => 'Top Languages in Europe',
+    		    autopct     => '%1.1f%%',
+    		},
+    		{
+    		    data => {
+    		        'United States'  => 86,
+    		        'United Kingdom' => 33,
+    		        'Germany'        => 29,
+    		        'France'         => 10,
+    		        'Japan'          => 7,
+    		        'Israel'         => 6,
+    		    },
+    		    title         => 'Chem. Nobels: swap text positions',
+    		    'plot.type'   => 'pie',
+    		    autopct       => '%1.1f%%',
+    		    pctdistance   => 1.25,
+    		    labeldistance => 0.6,
+    		}
+    	],
+    	'input.file' => $tmp_filename,
+    	execute      => 0,
+       set_figwidth  => 12,
+    	ncols        => 3,
+    });
+
+<img width="1210" height="444" alt="pie" src="https://github.com/user-attachments/assets/4c44d300-fd84-49bc-9a32-b73af54286cf" />
 
 ## plot
 
 ### single, simple
-
 
     plot({
     	'input.file'      => $tmp_filename,
@@ -882,7 +1032,6 @@ which makes the following "plot" plot:
 <img width="651" height="491" alt="plot single" src="https://github.com/user-attachments/assets/6cbd6aad-c464-4703-b962-b420ec08bb66" />
 
 ### multiple sub-plots
-
 
     my $pi = atan2( 0, -1 );
     my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
@@ -944,7 +1093,6 @@ which makes the following "plot" plot:
 which makes
 
 <img width="1211" height="491" alt="plot" src="https://github.com/user-attachments/assets/a8312147-e13d-4aa9-9997-49430bb5c74a" />
-
 
 ## scatter
 
@@ -1025,9 +1173,102 @@ which makes the following figure:
 <img width="1610" height="461" alt="scatterplots" src="https://github.com/user-attachments/assets/b8a90f9f-acb3-4cf2-a423-6ad18686ab8c" />
 
 ## violin
+
 ### options
+
+
 ### single, simple plot
+
+    plot({
+    	'output.file' => 'output.images/single.violinplot.png',
+    	data              => {                                     # simple hash
+    		A => [ 55, @{$z} ],
+    		E => [ @{$y} ],
+    		B => [ 122, @{$z} ],
+    	},
+    	'plot.type'  => 'violinplot',
+    	title        => 'Single Violin Plot: Specified Colors',
+    	colors       => { E => 'yellow', B => 'purple', A => 'green' },
+    	'input.file' => $tmp_filename,
+    	execute      => 0,
+    });
+
+which makes:
+
+<img width="651" height="491" alt="single violinplot" src="https://github.com/user-attachments/assets/989650fd-c947-45b0-91c8-c7f71c075cf3" />
+
 ### multiple plots
+
+    plot({
+    	'input.file'      => $tmp_filename,
+    	execute           => 0,
+    	'output.file' => 'output.images/violin.png',
+    	plots             => [
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type'  => 'violinplot',
+    		    title        => 'Basic',
+    		    xlabel       => 'xlabel',
+    		    set_figwidth => 12,
+    		    suptitle     => 'Violinplot'
+    		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type' => 'violinplot',
+    		    color       => 'red',
+    		    title       => 'Set Same Color for All',
+    		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    'plot.type' => 'violinplot',
+    		    colors      => {
+    		        E => 'yellow',
+    		        B => 'black'
+    		    },
+    		    title => 'Color by Key',
+    		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    orientation => 'horizontal',
+    		    'plot.type' => 'violinplot',
+    		    colors      => {
+    		        E => 'yellow',
+    		        B => 'black'
+    		    },
+    		    title => 'Horizontal orientation',
+    		},
+    		{
+    		    data => {
+    		        E => @e,
+    		        B => @b
+    		    },
+    		    whiskers    => 0,
+    		    'plot.type' => 'violinplot',
+    		    colors      => {
+    		        E => 'yellow',
+    		        B => 'black'
+    		    },
+    		    title => 'Whiskers off',
+    		},
+    	],
+    	ncols => 3,
+    	nrows => 2,
+    });
+
+<img width="1211" height="491" alt="violin" src="https://github.com/user-attachments/assets/248df5e4-fd57-45d6-96da-956af0a7dbfb" />
+
 ## wide
 ### options
 ### single, simple plot
