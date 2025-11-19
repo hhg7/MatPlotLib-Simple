@@ -9,7 +9,7 @@ use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.09;
+our $VERSION = 0.10;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
