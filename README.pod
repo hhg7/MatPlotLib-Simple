@@ -119,17 +119,22 @@ Plot a hash or a hash of arrays as a boxplot
 
 =head3 Options
 
-| Option | Description | Example |
-| -------- | ------- | ------- 
-|color| :mpltype:C<color> or list of :mpltype:C<color>, optional; The colors of the bar faces. This is an alias for I<facecolor>. If both are given, I<facecolor> takes precedence # if entering multiple colors, quoting isn't needed|C<< color =E<gt> ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'], >> or a single color for all bars C<< color =E<gt> 'red' >>
-|edgecolor| :mpltype:C<color> or list of :mpltype:C<color>, optional; The colors of the bar edges|C<< edgecolor      =E<gt> 'black' >>
-|key.order|  define the keys in an order (an array reference)|C<< 'key.order'      =E<gt> ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], >>
-|linewidth| float or array, optional; Width of the bar edge(s). If 0, don't draw edges. Only does anything with defined C<edgecolor>|C<< linewidth =E<gt> 2, >>
-|log| bool, default: False; If I<True>, set the y-axis to be log scale.|C<log = 'True',>
-|stacked| stack the groups on top of one another; default 0 = off|C<< stacked  =E<gt> 1, >>
-|width| float only, default: 0.8; The width(s) of the bars.  C<width> will be deactivated with grouped, non-stacked bar plots |C<< width =E<gt> 0.4, >>
-|xerr| float or array-like of shape(N,) or shape(2, N), optional. If not I<None>, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - I<None>: No errorbar. (Default)|C<< yerr                      =E<gt> {'USA'               =E<gt> [15,29], 'Russia'            =E<gt> [199,1000],} >>
-|yerr|same as xerr, but better with bar|
+=for html
+<table>
+<tbody>
+<tr><td>Option</td><td>Description</td><td>Example</td></tr>
+<tr><td>--------</td><td>-------</td><td>------- </td></tr>
+<tr><td>color</td><td>:mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed</td><td>`color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],` or a single color for all bars `color => 'red'`</td></tr>
+<tr><td>edgecolor</td><td>:mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar edges</td><td>`edgecolor        => 'black'`</td></tr>
+<tr><td>key.order</td><td>define the keys in an order (an array reference)</td><td>`'key.order'     => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],`</td></tr>
+<tr><td>linewidth</td><td>float or array, optional; Width of the bar edge(s). If 0, don't draw edges. Only does anything with defined `edgecolor`</td><td>`linewidth => 2,`</td></tr>
+<tr><td>log</td><td>bool, default: False; If *True*, set the y-axis to be log scale.</td><td>`log = 'True',`</td></tr>
+<tr><td>stacked</td><td>stack the groups on top of one another; default 0 = off</td><td>`stacked    => 1,`</td></tr>
+<tr><td>width</td><td>float only, default: 0.8; The width(s) of the bars.  `width` will be deactivated with grouped, non-stacked bar plots</td><td>`width => 0.4,`</td></tr>
+<tr><td>xerr</td><td>float or array-like of shape(N,) or shape(2, N), optional. If not *None*, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - *None*: No errorbar. (Default)</td><td>`yerr                        => {'USA'               => [15,29], 'Russia'            => [199,1000],}`</td></tr>
+<tr><td>yerr</td><td>same as xerr, but better with bar</td><td></td></tr>
+</tbody>
+</table>
 
 an example of multiple plots, showing many options:
 
@@ -339,16 +344,21 @@ Plot a hash of arrays as a series of boxplots
 
 =head3 options
 
-| Option | Description | Example |
-| -------- | ------- | ------- |
-|C<color> | a single color for all plots | C<< color =E<gt> 'pink' >>|
-|C<colors>| a hash, where each data point and color is a hash pair |C<< colors =E<gt> { A =E<gt> 'orange', E =E<gt> 'yellow', B =E<gt> 'purple' }, >>|
-| C<key.order>| order that the keys in the entry hash will be plotted | C<key.order = ['A', 'E', 'B']> |
-| C<orientation>| orientation of the plot, by default C<vertical>| C<orientation = 'horizontal'> |
-|C<showcaps>| Show the caps on the ends of whiskers; default C<True> | C<< showcaps =E<gt> 'False', >> |
-| C<showfliers> |Show the outliers beyond the caps; default C<True> | C<< showfliers  =E<gt> 'False' >> |
-|C<showmeans> | show means; default = C<True> | C<< showmeans   =E<gt> 'False' >> |
-|C<whiskers>| show whiskers, default = 1| C<< whiskers    =E<gt> 0, >>|
+=for html
+<table>
+<tbody>
+<tr><td>Option</td><td>Description</td><td>Example</td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td></tr>
+<tr><td>`color`</td><td>a single color for all plots</td><td>`color => 'pink'`</td></tr>
+<tr><td>`colors`</td><td>a hash, where each data point and color is a hash pair</td><td>`colors => { A => 'orange', E => 'yellow', B => 'purple' },`</td></tr>
+<tr><td>`key.order`</td><td>order that the keys in the entry hash will be plotted</td><td>`key.order = ['A', 'E', 'B']`</td></tr>
+<tr><td>`orientation`</td><td>orientation of the plot, by default `vertical`</td><td>`orientation = 'horizontal'`</td></tr>
+<tr><td>`showcaps`</td><td>Show the caps on the ends of whiskers; default `True`</td><td>`showcaps => 'False',`</td></tr>
+<tr><td>`showfliers`</td><td>Show the outliers beyond the caps; default `True`</td><td>`showfliers  => 'False'`</td></tr>
+<tr><td>`showmeans`</td><td>show means; default = `True`</td><td>`showmeans   => 'False'`</td></tr>
+<tr><td>`whiskers`</td><td>show whiskers, default = 1</td><td>` whiskers    => 0,`</td></tr>
+</tbody>
+</table>
 
 =head3 single, simple plot
 
@@ -522,19 +532,24 @@ see https://matplotlib.org/stable/api/I<as>gen/matplotlib.pyplot.hexbin.html
 
 =head3 options
 
-| Option | Description | Example |
-| -------- | ------- | ------- 
-| cb_logscale | colorbar log scale C<from matplotlib.colors import LogNorm> | default 0, any value > 0 enables |
-|cmap| The Colormap instance or registered colormap name used to map scalar data to colors | default C<gist_rainbow> |
-|key.order|  define the keys in an order (an array reference)|C<< 'key.order' =E<gt> ['X-rays', 'Yak Butter'], >>
-| marginals | integer, by default off = 0 | C<< marginals =E<gt> 1 >> |
-| mincnt | int >= 0, default: None; If not None, only display cells with at least mincnt number of points in the cell. |  C<< mincnt =E<gt> 2 >>|
-| vmax  | The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap | C<'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'> default C<linear> |
-| vmin  | The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap | C<'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'> default C<linear> |
-| xbins | integer that accesses horizontal gridsize | default is 15 |
-| xscale.hexbin | 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the horizontal axis | C<< 'xscale.hexbin' =E<gt> 'log' >>|
-| ybins | integer that accesses vertical gridsize | default is 15 |
-| yscale.hexbin | 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the vertical axis | C<< 'yscale.hexbin' =E<gt> 'log' >>|
+=for html
+<table>
+<tbody>
+<tr><td>Option</td><td>Description</td><td>Example</td></tr>
+<tr><td>--------</td><td>-------</td><td>------- </td></tr>
+<tr><td>cb_logscale</td><td>colorbar log scale `from matplotlib.colors import LogNorm`</td><td>default 0, any value > 0 enables</td></tr>
+<tr><td>cmap</td><td>The Colormap instance or registered colormap name used to map scalar data to colors</td><td>default `gist_rainbow`</td></tr>
+<tr><td>key.order</td><td>define the keys in an order (an array reference)</td><td>`'key.order' => ['X-rays', 'Yak Butter'],`</td></tr>
+<tr><td>marginals</td><td>integer, by default off = 0</td><td>`marginals => 1`</td></tr>
+<tr><td>mincnt</td><td>int >= 0, default: None; If not None, only display cells with at least mincnt number of points in the cell.</td><td>`mincnt => 2`</td></tr>
+<tr><td>vmax</td><td>The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap</td><td>`'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'` default `linear`</td></tr>
+<tr><td>vmin</td><td>The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap</td><td>`'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'` default `linear`</td></tr>
+<tr><td>xbins</td><td>integer that accesses horizontal gridsize</td><td>default is 15</td></tr>
+<tr><td>xscale.hexbin</td><td>'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the horizontal axis</td><td>`'xscale.hexbin' => 'log'`</td></tr>
+<tr><td>ybins</td><td>integer that accesses vertical gridsize</td><td>default is 15</td></tr>
+<tr><td>yscale.hexbin</td><td>'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the vertical axis</td><td>`'yscale.hexbin' => 'log'`</td></tr>
+</tbody>
+</table>
 
 =head3 single, simple plot
 
@@ -561,12 +576,12 @@ which makes the following plot:
  plot({
      'input.file'      => $tmp_filename,
      execute           => 0,
-     'output.filename' => 'output.images/hexbin.png',
+     'output.file' => 'output.images/hexbin.png',
      plots             => [
          {
              data => {
-                 E => @e,
-                 B => @b
+             E => @e,
+             B => @b
              },
              'plot.type'  => 'hexbin',
              title        => 'Simple Hexbin',
@@ -590,7 +605,7 @@ which makes the following plot:
              title        => 'cmap is jet',
              xlabel       => 'xlabel',
          },
-         {
+          {
              data => {
                  E => @e,
                  B => @b
@@ -599,7 +614,7 @@ which makes the following plot:
              'plot.type'  => 'hexbin',
              title        => 'Switch axes with key.order',
          },
-         {
+          {
              data => {
                  E => @e,
                  B => @b
@@ -653,16 +668,38 @@ which makes the following plot:
              title        => 'marginals = 1',
              marginals    => 1
          },
+         {
+             data => {
+                 E => @e,
+                 B => @b
+             },
+             'plot.type'  => 'hexbin',
+             title        => 'xscale.hexbin = 1',
+             'xscale.hexbin' => 'log'
+         },
+         {
+             data => {
+                 E => @e,
+                 B => @b
+             },
+             'plot.type'  => 'hexbin',
+             title        => 'yscale.hexbin = 1',
+             'yscale.hexbin' => 'log'
+         },
      ],
-     ncols => 2
+     ncols        => 4,
+     nrows        => 3,
+     scale        => 5,
+     suptitle     => 'Various Changes to Standard Hexbin: All data is the same'
  });
 
 which produces the following image:
 
 =for html
 <p>
-<img width="2010" height="1511" alt="hexbin" src="https://github.com/user-attachments/assets/71412ab1-e869-4913-a8cf-e39df15c9590" />
+<img width="2409" height="3211" alt="hexbin" src="https://github.com/user-attachments/assets/0b23a0cb-8f9a-43fb-8da1-0debee13d540" />
 <p>
+
 
 =head2 hist
 
@@ -670,13 +707,18 @@ Plot a hash of arrays as a series of histograms
 
 =head3 options
 
-| Option | Description | Example |
-| -------- | ------- | ------- |
-|C<alpha> | default 0.5; same for all sets| |
-|C<bins> | # nt or sequence or str, default: :rc:C<hist.bins>If I<bins> is an integer, it defines the number of equal-width bins in the range. If I<bins> is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open|
-|C<color> | a hash, where keys are the keys in data, and values are colors | C<< X =E<gt> 'blue' >>|
-|C<log>| if set to > 1, the y-axis will be logarithmic | 
-|C<orientation>| {'vertical', 'horizontal'}, default: 'vertical'|
+=for html
+<table>
+<tbody>
+<tr><td>Option</td><td>Description</td><td>Example</td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td></tr>
+<tr><td>`alpha`</td><td>default 0.5; same for all sets</td><td></td></tr>
+<tr><td>`bins`</td><td># nt or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open</td><td></td></tr>
+<tr><td>`color`</td><td>a hash, where keys are the keys in data, and values are colors</td><td>`X => 'blue'`</td></tr>
+<tr><td>`log`</td><td>if set to > 1, the y-axis will be logarithmic</td><td></td></tr>
+<tr><td>`orientation`</td><td>{'vertical', 'horizontal'}, default: 'vertical'</td><td></td></tr>
+</tbody>
+</table>
 
 =head3 single, simple plot
 
@@ -834,15 +876,20 @@ Plot 2D array of numbers as an image
 
 =head3 options
 
-| Option | Description | Example |
-| -------- | ------- | ------- 
-|C<cblabel>| colorbar label | C<< cblabel =E<gt> 'sin(x) * cos(x)', >>
-|C<cbdrawedges> |draw edges for colorbar | |
-|C<cblocation> | 'left', 'right', 'top', 'bottom'| C<< cblocation =E<gt> 'left', >>|
-|C<cborientation>|  None, or 'vertical', 'horizontal' | 
-|C<cmap>| # The Colormap instance or registered colormap name used to map scalar data to colors.|
-|C<vmax>| float |
-|C<vmin>| float | 
+=for html
+<table>
+<tbody>
+<tr><td>Option</td><td>Description</td><td>Example</td></tr>
+<tr><td>--------</td><td>-------</td><td>------- </td></tr>
+<tr><td>`cblabel`</td><td>colorbar label</td><td>`cblabel => 'sin(x) * cos(x)',`</td></tr>
+<tr><td>`cbdrawedges`</td><td>draw edges for colorbar</td><td></td></tr>
+<tr><td>`cblocation`</td><td>'left', 'right', 'top', 'bottom'</td><td>`cblocation => 'left',`</td></tr>
+<tr><td>`cborientation`</td><td>None, or 'vertical', 'horizontal'</td><td></td></tr>
+<tr><td>`cmap`</td><td># The Colormap instance or registered colormap name used to map scalar data to colors.</td><td></td></tr>
+<tr><td>`vmax`</td><td>float</td><td></td></tr>
+<tr><td>`vmin`</td><td>float</td><td></td></tr>
+</tbody>
+</table>
 
 =head3 single, simple plot
 
@@ -873,13 +920,179 @@ which makes the following image:
 
 =head3 multiple plots
 
+ plot({
+     plots  => [
+         {
+             data => \@imshow_data,
+             'plot.type'       => 'imshow',
+             set_xlim          => '0, ' . scalar @imshow_data,
+             set_ylim          => '0, ' . scalar @imshow_data,
+             title             => 'basic',
+         },
+         {
+             cblabel           => 'sin(x) * cos(x)',
+             data => \@imshow_data,
+             'plot.type'       => 'imshow',
+             set_xlim          => '0, ' . scalar @imshow_data,
+             set_ylim          => '0, ' . scalar @imshow_data,
+             title             => 'cblabel',
+         },
+         {
+             cblabel           => 'sin(x) * cos(x)',
+             cblocation        => 'left',
+             data              => \@imshow_data,
+             'plot.type'       => 'imshow',
+             set_xlim          => '0, ' . scalar @imshow_data,
+             set_ylim          => '0, ' . scalar @imshow_data,
+             title             => 'cblocation = left',
+         },
+         {
+             cblabel           => 'sin(x) * cos(x)',
+             data              => \@imshow_data,
+             add               => [ # add secondary plots
+             { # 1st additional plot
+                 data              => {
+                     'sin(x)'       => [
+                         [0..360],
+                         [map {180 + 180*sin($_ * $pi/180)} 0..360]
+                     ],
+                     'cos(x)'       => [
+                         [0..360],
+                         [map {180 + 180*cos($_ * $pi/180)} 0..360]
+                     ],
+                 },
+                 'plot.type' => 'plot',
+                 'set.options' => {
+                     'sin(x)'    =>  'color = "red", linestyle = "dashed"',
+                     'cos(x)'    =>  'color = "blue", linestyle = "dashed"',
+                 }
+             }
+             ],
+             'plot.type'       => 'imshow',
+             set_xlim          => '0, ' . scalar @imshow_data,
+             set_ylim          => '0, ' . scalar @imshow_data,
+             title             => 'auxiliary plots',
+         },
+     ],
+     execute         => 0,
+    'input.file'    => $tmp_filename,
+     'output.file'   => 'output.images/imshow.multiple.png',
+     ncols           => 2,
+     nrows           => 2,
+     set_figheight   => 6*3,# 4.8
+     set_figwidth    => 6*4 # 6.4
+ });
+
+which makes the following image:
+
+
+=for html
+<p>
+<img width="2416" height="1811" alt="imshow multiple" src="https://github.com/user-attachments/assets/091acccb-151c-47ca-82cc-99c19d2bff91" />
+<p>
+
+
 =head2 pie
 
 =head3 options
 
 =head3 single, simple plot
 
+ plot({
+     'output.file' => 'output.images/single.pie.png',
+     data              => {                                 # simple hash
+         Fri => 76,
+         Mon => 73,
+         Sat => 26,
+         Sun => 11,
+         Thu => 94,
+         Tue => 93,
+         Wed => 77
+     },
+     'plot.type'  => 'pie',
+     title        => 'Single Simple Pie',
+     'input.file' => $tmp_filename,
+     execute      => 0,
+ });
+
+which makes the image:
+
+
+=for html
+<p>
+<img width="469" height="491" alt="single pie" src="https://github.com/user-attachments/assets/a0bc3212-d013-463a-9be6-f96829ac7dba" />
+<p>
+
+
 =head3 multiple plots
+
+ plot({
+     'output.file' => 'output.images/pie.png',
+     plots             => [
+         {
+             data => {
+                 'Russian' => 106_000_000,    # Primarily European Russia
+                 'German'  =>
+                   95_000_000,    # Germany, Austria, Switzerland, etc.
+                 'English' => 70_000_000,      # UK, Ireland, etc.
+                 'French' => 66_000_000, # France, Belgium, Switzerland, etc.
+                 'Italian'   => 59_000_000,    # Italy, Switzerland, etc.
+                 'Spanish'   => 45_000_000,    # Spain
+                 'Polish'    => 38_000_000,    # Poland
+                 'Ukrainian' => 32_000_000,    # Ukraine
+                 'Romanian'  => 24_000_000,    # Romania, Moldova
+                 'Dutch'     => 22_000_000     # Netherlands, Belgium
+             },
+             'plot.type' => 'pie',
+             title       => 'Top Languages in Europe',
+             suptitle    => 'Pie in subplots',
+         },
+         {
+             data => {
+                 'Russian' => 106_000_000,     # Primarily European Russia
+                 'German'  =>
+                   95_000_000,    # Germany, Austria, Switzerland, etc.
+                 'English' => 70_000_000,      # UK, Ireland, etc.
+                 'French' => 66_000_000, # France, Belgium, Switzerland, etc.
+                 'Italian'   => 59_000_000,    # Italy, Switzerland, etc.
+                 'Spanish'   => 45_000_000,    # Spain
+                 'Polish'    => 38_000_000,    # Poland
+                 'Ukrainian' => 32_000_000,    # Ukraine
+                 'Romanian'  => 24_000_000,    # Romania, Moldova
+                 'Dutch'     => 22_000_000     # Netherlands, Belgium
+             },
+             'plot.type' => 'pie',
+             title       => 'Top Languages in Europe',
+             autopct     => '%1.1f%%',
+         },
+         {
+             data => {
+                 'United States'  => 86,
+                 'United Kingdom' => 33,
+                 'Germany'        => 29,
+                 'France'         => 10,
+                 'Japan'          => 7,
+                 'Israel'         => 6,
+             },
+             title         => 'Chem. Nobels: swap text positions',
+             'plot.type'   => 'pie',
+             autopct       => '%1.1f%%',
+             pctdistance   => 1.25,
+             labeldistance => 0.6,
+         }
+     ],
+     'input.file' => $tmp_filename,
+     execute      => 0,
+    set_figwidth  => 12,
+     ncols        => 3,
+ });
+
+
+=for html
+<p>
+<img width="1210" height="444" alt="pie" src="https://github.com/user-attachments/assets/4c44d300-fd84-49bc-9a32-b73af54286cf" />
+<p>
+
 
 =head2 plot
 
@@ -995,13 +1208,186 @@ which makes
 
 =head3 multiple plots
 
+ plot({
+     'input.file'      => $tmp_filename,
+     'output.file' => 'output.images/scatterplots.png',
+     execute           => 0,
+     nrows             => 2,
+     ncols             => 3,
+     set_figheight     => 8,
+     set_figwidth      => 16,
+     suptitle          => 'Scatterplot Examples',            # applies to all
+     plots             => [
+         {    # single-set scatter; no label
+             data => {
+                 X => @e,    # x-axis
+                 Y => @b,    # y-axis
+                 Z => @a     # color
+             },
+             title     => '"Single Set Scatterplot: Random Distributions"',
+             color_key => 'Z',
+             'set.options' => 'marker = "v"'
+             , # arguments to ax.scatter: there's only 1 set, so "set.options" is a scalar
+             text        => [ '100, 100, "text1"', '100, 100, "text2"', ],
+             'plot.type' => 'scatter',
+         },
+         {     # multiple-set scatter, labels are "X" and "Y"
+             data => {
+                 X => {    # 1st data set; label is "X"
+                     A => @a,    # x-axis
+                     B => @b,    # y-axis
+                 },
+                 W => {    # 2nd data set; label is "Y"
+                     A => generate_normal_dist( 100, 15, 210 ),    # x-axis
+                     B => generate_normal_dist( 100, 15, 210 ),    # y-axis
+                 }
+             },
+             'plot.type'   => 'scatter',
+             title         => 'Multiple Set Scatterplot',
+             'set.options' =>
+             {    # arguments to ax.scatter, for each set in data
+               X => 'marker = ".", color = "red"',
+               W => 'marker = "d", color = "green"'
+             },
+         },
+         {          # multiple-set scatter, labels are "X" and "Y"
+             data => {    # 8th plot,
+                 X => {    # 1st data set; label is "X"
+                     A => @e,    # x-axis
+                     B => @b,    # y-axis
+                     C => @a,    # color
+                 },
+                 Y => {    # 2nd data set; label is "Y"
+                     A => generate_normal_dist( 100, 15, 210 ),    # x-axis
+                     B => generate_normal_dist( 100, 15, 210 ),    # y-axis
+                     C => generate_normal_dist( 100, 15, 210 ),    # color
+                 },
+             },
+             'plot.type'   => 'scatter',
+             title         => 'Multiple Set Scatter w/ colorbar',
+             'set.options' => {    # arguments to ax.scatter, for each set in data
+                 X => 'marker = "."',    # diamond
+                 Y => 'marker = "d"'     # diamond
+             },
+             color_key => 'Z',
+         }
+     ]
+ });
+
+which makes the following figure:
+
+
+=for html
+<p>
+<img width="1610" height="461" alt="scatterplots" src="https://github.com/user-attachments/assets/b8a90f9f-acb3-4cf2-a423-6ad18686ab8c" />
+<p>
+
+
 =head2 violin
 
 =head3 options
 
 =head3 single, simple plot
 
+ plot({
+     'output.file' => 'output.images/single.violinplot.png',
+     data              => {                                     # simple hash
+         A => [ 55, @{$z} ],
+         E => [ @{$y} ],
+         B => [ 122, @{$z} ],
+     },
+     'plot.type'  => 'violinplot',
+     title        => 'Single Violin Plot: Specified Colors',
+     colors       => { E => 'yellow', B => 'purple', A => 'green' },
+     'input.file' => $tmp_filename,
+     execute      => 0,
+ });
+
+which makes:
+
+
+=for html
+<p>
+<img width="651" height="491" alt="single violinplot" src="https://github.com/user-attachments/assets/989650fd-c947-45b0-91c8-c7f71c075cf3" />
+<p>
+
+
 =head3 multiple plots
+
+ plot({
+     'input.file'      => $tmp_filename,
+     execute           => 0,
+     'output.file' => 'output.images/violin.png',
+     plots             => [
+         {
+             data => {
+                 E => @e,
+                 B => @b
+             },
+             'plot.type'  => 'violinplot',
+             title        => 'Basic',
+             xlabel       => 'xlabel',
+             set_figwidth => 12,
+             suptitle     => 'Violinplot'
+         },
+         {
+             data => {
+                 E => @e,
+                 B => @b
+             },
+             'plot.type' => 'violinplot',
+             color       => 'red',
+             title       => 'Set Same Color for All',
+         },
+         {
+             data => {
+                 E => @e,
+                 B => @b
+             },
+             'plot.type' => 'violinplot',
+             colors      => {
+                 E => 'yellow',
+                 B => 'black'
+             },
+             title => 'Color by Key',
+         },
+         {
+             data => {
+                 E => @e,
+                 B => @b
+             },
+             orientation => 'horizontal',
+             'plot.type' => 'violinplot',
+             colors      => {
+                 E => 'yellow',
+                 B => 'black'
+             },
+             title => 'Horizontal orientation',
+         },
+         {
+             data => {
+                 E => @e,
+                 B => @b
+             },
+             whiskers    => 0,
+             'plot.type' => 'violinplot',
+             colors      => {
+                 E => 'yellow',
+                 B => 'black'
+             },
+             title => 'Whiskers off',
+         },
+     ],
+     ncols => 3,
+     nrows => 2,
+ });
+
+
+=for html
+<p>
+<img width="1211" height="491" alt="violin" src="https://github.com/user-attachments/assets/248df5e4-fd57-45d6-96da-956af0a7dbfb" />
+<p>
+
 
 =head2 wide
 
