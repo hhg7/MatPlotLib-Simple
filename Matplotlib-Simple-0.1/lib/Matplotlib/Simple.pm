@@ -9,7 +9,7 @@ use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.11;
+our $VERSION = 0.10;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
@@ -84,7 +84,7 @@ my @ax_methods = (
 	'set_ylabel',  'set_ylim',   'set_ymargin', 'set_yscale', 'set_yticklabels',
 	'set_yticks',  'sharex',     'sharey',      'spines', 'start_pan', 'tables',
 	'text',        'titleOffsetTrans', 'transAxes', 'transData', 'transLimits',
-	'transScale', 'update_datalim', 'use_sticky_edges', 'viewLim', 'vlines', 'violin',
+	'transScale', 'update_datalim', 'use_sticky_edges', 'viewLim', 'violin',
 	'xaxis',      'xaxis_date',     'xaxis_inverted',   'yaxis',   'yaxis_date',
 	'yaxis_inverted'
 );
@@ -170,7 +170,7 @@ my @plt_methods = (
 	'thetagrids',   'threading', 'tick_params', 'ticklabel_format',
 	'tight_layout', 'time', 'title', 'tricontour', 'tricontourf', 'tripcolor',
 	'triplot', 'twinx',     'twiny', 'uninstall_repl_displayhook', 'violinplot',
-	'viridis', 'waitforbuttonpress', 'winter', 'xcorr', 'xkcd',# 'vlines'
+	'viridis', 'vlines',    'waitforbuttonpress', 'winter', 'xcorr', 'xkcd',
 	'xlabel',
 	#	'xlim',
 	'xscale',
@@ -190,7 +190,8 @@ my @cb_arg = (
 my $cb_regex = join ('|', @cb_arg);
 sub plot_args {    # this is a helper function to other matplotlib subroutines
 	my ($args) = @_;
-	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
 	unless ( ref $args eq 'HASH' ) {
 	  die
 	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
@@ -218,7 +219,7 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 	}
 	$args->{ax} = $args->{ax} // 'ax';
 	foreach my $item (
-		grep { defined $args->{args}{$_} } ( # no quotes!
+		grep { defined $args->{args}{$_} } (
 			'set_title', 'set_xlabel', 'set_ylabel', 'suptitle',
 			'xlabel',    'ylabel',     'title'
 		)
@@ -234,10 +235,12 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 		foreach my $method ( grep { defined $args->{args}{$_} } @{ $args[$i] } ) {
 			my $ref = ref $args->{args}{$method};
 			if ( ( $ref ne 'ARRAY' ) && ( $ref ne '' ) ) {
-				die "$current_sub only accepts scalar or array types, but $ref was entered.";
+				die
+		"$current_sub only accepts scalar or array types, but $ref was entered.";
 			}
 			if ( $ref eq '' ) {
-				say {$args->{fh}} "$obj[$i].$method($args->{args}{$method}) #" . __LINE__;
+				say { $args->{fh} }
+				  "$obj[$i].$method($args->{args}{$method}) #" . __LINE__;
 				next;
 			}
 			# can only be ARRAY
@@ -1619,17 +1622,6 @@ sub wide_helper {
 	}
 }
 
-sub print_type {
-	my $str = shift;
-	my $type = 'no quotes';
-   if ($str =~ m/^\w+$/) {
-   	$type = 'single quotes';
-   } elsif ($str =~ m/[!@#\$\%^&*\(\)\{\}\[\]\<\>,\/\-\h:;\+=\w]+$/) {
-   	$type = 'single quotes';
-   }
-   return $type;
-}
-
 sub plot {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
@@ -2035,40 +2027,39 @@ sub plot {
 		);
 		my @undef_keys = grep { !defined $plot->{$_} } @reqd_keys;
 		if ( scalar @undef_keys > 0 ) {
-			p $plot;
 			p @undef_keys;
 			die "Above args are necessary, but were not defined for plot $ax.";
 		}
 		if ( $plot->{'plot.type'} =~ m/^barh?$/) {  # barplot: "bar" and "barh"
 			barplot_helper({
-				fh   => $fh,
-				ax   => $ax,
-				plot => $plot
+			  fh   => $fh,
+			  ax   => $ax,
+			  plot => $plot
 			});
 		} elsif ( $plot->{'plot.type'} eq 'boxplot') {
 			boxplot_helper({
-				fh   => $fh,
-				ax   => $ax,
-				plot => $plot
+			  fh   => $fh,
+			  ax   => $ax,
+			  plot => $plot
 			});
 		}
 		elsif ( $plot->{'plot.type'} eq 'hexbin' ) {
 			hexbin_helper({
-				fh   => $fh,
-				ax   => $ax,
-				plot => $plot
+			  fh   => $fh,
+			  ax   => $ax,
+			  plot => $plot
 			});
 		}  elsif ( $plot->{'plot.type'} eq 'hist' ) {    # histogram
 			hist_helper({
-				fh   => $fh,
-				ax   => $ax,
-				plot => $plot
+			  fh   => $fh,
+			  ax   => $ax,
+			  plot => $plot
 			});
 		} elsif ( $plot->{'plot.type'} eq 'hist2d' ) {
 			hist2d_helper({
-				fh   => $fh,
-				ax   => $ax,
-				plot => $plot
+			  fh   => $fh,
+			  ax   => $ax,
+			  plot => $plot
 			});
 		} elsif ( $plot->{'plot.type'} eq 'imshow' ) {
 			imshow_helper({
@@ -2120,9 +2111,9 @@ sub plot {
 			$plot->{ $rename{$opt} } = delete $plot->{$opt};
 		}
 		plot_args({
-			fh   => $fh,
-			args => $plot,
-			ax   => "ax$ax"
+		 fh   => $fh,
+		 args => $plot,
+		 ax   => "ax$ax"
 		});
 		$ax++;
 	}
@@ -2132,27 +2123,22 @@ sub plot {
 	}
 	my %methods = map { $_ => 1 } @plt_methods;
 	foreach my $plt_method ( grep { defined $methods{$_} } keys %{$args} ) {
-		my $ref = ref $args->{$plt_method};
-		if ( $ref eq '' ) {
-			my $type = print_type($args->{$plt_method});
-			if ($type eq 'single quotes') {
-				say $fh "plt.$plt_method('$args->{$plt_method}')#" . __LINE__;
-			} elsif ($type eq 'no quotes') {
-				say $fh "plt.$plt_method($args->{$plt_method})#" . __LINE__;
-			}
-		} elsif ( $ref eq 'ARRAY' ) {
-			foreach my $j ( @{ $args->{$plt_method} } ) {
-				my $type = print_type($j);
-				if ($type eq 'single quotes') {
-					say $fh "plt.$plt_method('$j')#" . __LINE__;
-				} elsif ($type eq 'no quotes') {
-					say $fh "plt.$plt_method($j)#" . __LINE__;
-				}
-			}
-		} else {
-			p $args;
-			die "$plt_method = \"$ref\" only accepts scalar or array types";
-		}
+	  my $ref = ref $args->{$plt_method};
+	  if ( $ref eq '' ) {
+		   #			if ($args->{$plt_method} =~ m/^([^\"\',]+)$/) {
+		   #				$args->{$plt_method} = "'$args->{$plt_method}'";
+		   #			}
+		   $args->{$plt_method} =~ s/^\'+//;
+		   $args->{$plt_method} =~ s/\'+$//;
+		   say $fh "plt.$plt_method('$args->{$plt_method}')#" . __LINE__;
+	  } elsif ( $ref eq 'ARRAY' ) {
+		   foreach my $j ( @{ $args->{$plt_method} } ) {    # say $fh "plt.$method($plt)";
+		       say $fh "plt.$plt_method($j)#" . __LINE__;
+		   }
+	  } else {
+		   p $args;
+		   die "$plt_method = \"$ref\" only accepts scalar or array types";
+	  }
 	}
 	%methods = map { $_ => 1 } @fig_methods;
 	foreach my $fig_method ( grep { defined $methods{$_} } keys %{$args} ) {
@@ -3056,173 +3042,13 @@ which makes the following simple plot:
 <p>
 
 
-Make a 2-D histogram from a hash of arrays
-
 =head2 hist2d
-
-=head3 single, simple plot
-
- plot({
-     'output.file' => 'output.images/single.hist2d.png',
-     data              => {
-         E => @e,
-         B => @b
-     },
-     'plot.type'  => 'hist2d',
-     title        => 'title',
-     execute      => 0,
-     'input.file' => $tmp_filename,
- });
-
-makes the following image:
-
-
-=for html
-<p>
-<img width="650" height="491" alt="single hist2d" src="https://github.com/user-attachments/assets/86480c77-7b8f-4bfa-b5d8-71f82830260f" />
-<p>
-
-
-the range for the density min and max is reported to stdout
 
 =head3 options
 
-=for html
-<table>
-<tbody>
-<tr><td>Option</td><td>Description</td><td>Example</td></tr>
-<tr><td>--------</td><td>-------</td><td>-------</td></tr>
-<tr><td>`cb_logscale`</td><td>make the colorbar log-scale</td><td>`cb_logscale => 1`</td></tr>
-<tr><td>`cmap`</td><td>color map for coloring # "gist_rainbow" by default</td><td></td></tr>
-<tr><td>'cmax', `cmin`</td><td>All bins that has count < *cmin* or > *cmax* will not be displayed</td><td></td></tr>
-</tbody>
-</table>
-
-|  'density',      # density : bool, default: False
-
-=for html
-<table>
-<tbody>
-<tr><td>'key.order'</td><td># define the keys in an order (an array reference)</td><td></td></tr>
-<tr><td>'logscale'</td><td># logscale, an array of axes that will get log scale</td><td></td></tr>
-<tr><td>'show.colorbar'</td><td>self-evident, 0 or 1</td><td>`show.colorbar` => 1</td></tr>
-<tr><td>'vmax'</td><td>When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover</td><td></td></tr>
-<tr><td>'vmin'</td><td># When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover</td><td></td></tr>
-<tr><td>'xbins'</td><td># default 15</td><td></td></tr>
-<tr><td>'xmin', 'xmax',</td><td></td><td></td></tr>
-<tr><td>'ymin', 'ymax',</td><td></td><td></td></tr>
-<tr><td>'ybins'</td><td>default 15</td><td></td></tr>
-</tbody>
-</table>
+=head3 single, simple plot
 
 =head3 multiple plots
-
- plot({
-     'input.file'      => $tmp_filename,
-     execute           => 1,
-     ncols             => 3,
-     nrows             => 3,
-     suptitle          => 'Types of hist2d plots: all of the data is identical',
-     plots => [
-         {
-             data => {
-             X => $x,    # x-axis
-             Y => $y,    # y-axis
-             },
-             'plot.type' => 'hist2d',
-             title       => 'Simple hist2d',
-         },
-         {
-             data => {
-                 X => $x,    # x-axis
-                 Y => $y,    # y-axis
-             },
-             'plot.type' => 'hist2d',
-             title       => 'cmap = terrain',
-             cmap        => 'terrain'
-         },
-         {
-             cmap => 'ocean',
-             data => {
-                 X => $x,    # x-axis
-                 Y => $y,    # y-axis
-             },
-             'plot.type' => 'hist2d',
-             title => 'cmap = ocean and set colorbar range with vmin/vmax',
-             set_figwidth => 15,
-             vmin         => -2,
-             vmax         => 14
-         },
-         {
-             data => {
-                 X => $x,    # x-axis
-                 Y => $y,    # y-axis
-             },
-             'plot.type' => 'hist2d',
-             title       => 'density = True',
-             cmap        => 'terrain',
-             density     => 'True'
-         },
-         {
-             data => {
-                 X => $x,    # x-axis
-                 Y => $y,    # y-axis
-             },
-             'plot.type' => 'hist2d',
-             title       => 'key.order flips axes',
-             cmap        => 'terrain',
-             'key.order' => [ 'Y', 'X' ]
-         },
-         {
-             cb_logscale => 1,
-             data => {
-                 X => $x,    # x-axis
-                 Y => $y,    # y-axis
-             },
-             'plot.type' => 'hist2d',
-             title       => 'cb_logscale = 1',
-         },
-         {
-             cb_logscale => 1,
-             data => {
-                 X => $x,    # x-axis
-                 Y => $y,    # y-axis
-             },
-             'plot.type' => 'hist2d',
-             title       => 'cb_logscale = 1 with vmax set',
-             vmax        => 2.1,
-             vmin        => 1
-         },
-         {
-             data => {
-                 X => $x,    # x-axis
-                 Y => $y,    # y-axis
-             },
-             'plot.type'     => 'hist2d',
-             'show.colorbar' => 0,
-             title           => 'no colorbar',
-         },
-         {
-             data => {
-                 X => $x,    # x-axis
-                 Y => $y,    # y-axis
-             },
-             'plot.type'     => 'hist2d',
-             title           => 'xbins = 9',
-             xbins           => 9
-         },
-     ],
-     'output.file' => 'output.images/hist2d.png',
- });
-
-makes the following image:
-
-
-=for html
-<p>
-<img width="1510" height="491" alt="hist2d" src="https://github.com/user-attachments/assets/3d6becd3-44f3-4511-8b0f-eae39bc325fa" />
-<p>
-
 
 =head2 imshow
 
@@ -3488,177 +3314,69 @@ which makes the following "plot" plot:
 
 =head3 multiple sub-plots
 
-which makes
-
- my $epsilon = 10**-7;
- my (%set_opt, %d);
- my $i = 0;
- foreach my $interval (
-     [-2*$pi, -$pi],
-     [-$pi, 0],
-     [0, $pi],
-     [$pi, 2*$pi]
- ) {
-     my @th = linspace($interval->[0] + $epsilon, $interval->[1] - $epsilon, 99, 0);
-     @{ $d{csc}{$i}[0] } = @th;
-     @{ $d{csc}{$i}[1] } = map { 1/sin($_) } @th;
-     @{ $d{cot}{$i}[0] } = @th;
-     @{ $d{cot}{$i}[1] } = map { cos($_)/sin($_) } @th;
-     if ($i == 0) {
-         $set_opt{csc}{$i} = 'color = "red", label = "csc(θ)"';
-         $set_opt{cot}{$i} = 'color = "violet", label = "cot(θ)"';
-     } else {
-         $set_opt{csc}{$i} = 'color = "red"';
-         $set_opt{cot}{$i} = 'color = "violet"';
-     }
-     $i++;
- }
- $i = 0;
- foreach my $interval (
-     [-2 * $pi, -1.5 * $pi],
-     [-1.5*$pi, -0.5*$pi],
-     [-0.5*$pi, 0.5 * $pi],
-     [0.5 * $pi, 1.5 * $pi],
-     [1.5 * $pi, 2 * $pi]
- ) {
-     my @th = linspace($interval->[0] + $epsilon, $interval->[1] - $epsilon, 99, 0);
-     @{ $d{sec}{$i}[0] } = @th;
-     @{ $d{sec}{$i}[1] } = map { 1/cos($_) } @th;
-     if ($i == 0) {
-         $set_opt{sec}{$i} = 'color = "blue", label = "sec(θ)"';
-         $set_opt{tan}{$i} = 'color = "green", label = "tan(θ)"';
-     } else {
-         $set_opt{sec}{$i} = 'color = "blue"';
-         $set_opt{tan}{$i} = 'color = "green"';
-     }
-     @{ $d{tan}{$i}[0] } = @th;
-     @{ $d{tan}{$i}[1] } = map { sin($_)/cos($_) } @th;
-     $i++;
- }
- mkdir 'svg' unless -d 'svg';
- my $xticks = "[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
-         . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']';
- my ($min, $max) = (-9,9);
+ my $pi = atan2( 0, -1 );
+ my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
  plot({
      'input.file'      => $tmp_filename,
      execute           => 0,
-     'output.file' => 'output.images/plots.png',
-     plots         => [
-     { # sin
-         data          => {
-             'sin(θ)' => [
-                 [@x],
-                 [map {sin($_)} @x]
-             ]
+     'output.filename' => 'output.images/plot.png',
+     plots             => [
+         {    # plot 1
+             data => {
+                 'sin(x)' => [
+                     [@x],                     # x
+                     [ map { sin($_) } @x ]    # y
+                 ],
+                 'cos(x)' => [
+                     [@x],                     # x
+                     [ map { cos($_) } @x ]    # y
+                 ],
+             },
+             'plot.type' => 'plot',
+             title       => 'simple plot',
+             set_xticks  =>
+     "[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+               . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+             'set.options' => {    # set options overrides global settings
+                 'sin(x)' => 'color="blue", linewidth=2',
+                 'cos(x)' => 'color="red",  linewidth=2'
+             },
+             set_xlim => "$x[0], $x[-1]",    # set min and max as a string
          },
-         'plot.type'   => 'plot',
-         'set.options' => {
-             'sin(θ)' => 'color = "orange"'
+         {                                   # plot 2
+             data => {
+                 'csc(x)' => [
+                     [@x],                         # x
+                     [ map { 1 / sin($_) } @x ]    # y
+                 ],
+                 'sec(x)' => [
+                     [@x],                         # x
+                     [ map { 1 / cos($_) } @x ]    # y
+                 ],
+             },
+             'plot.type' => 'plot',
+             title       => 'simple plot',
+             set_xticks  =>
+     "[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+               . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+             'set.options' => {    # set options overrides global settings
+                 'csc(x)' => 'color="purple", linewidth=2',
+                 'sec(x)' => 'color="green",  linewidth=2'
+             },
+             set_xlim => "$x[0], $x[-1]",    # set min and max as a string
+             set_ylim => '-9,9',
          },
-         set_xticks    => $xticks,
-         set_xlim      => "-2*$pi, 2*$pi",
-         xlabel        => 'θ',
-         ylabel        => 'sin(θ)',
-     },
-     { # sin
-         data          => {
-             'cos(θ)' => [
-                 [@x],
-                 [map {cos($_)} @x]
-             ]
-         },
-         'plot.type'   => 'plot',
-         'set.options' => {
-             'cos(θ)' => 'color = "black"'
-         },
-         set_xticks    => $xticks,
-         set_xlim      => "-2*$pi, 2*$pi",
-         xlabel        => 'θ',
-         ylabel        => 'cos(θ)',
-     },
-     { # csc
-         data          => $d{csc},
-         'plot.type'   => 'plot',
-         'set.options' => $set_opt{csc},
-         set_xticks    => $xticks,
-         set_xlim      => "-2*$pi, 2*$pi",
-         set_ylim      => "$min,$max",
-         'show.legend' => 0,
-         vlines        => [ # asymptotes
-             "-2*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-             "-$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-             "0, $min, $max, color = 'gray', linestyle = 'dashed'",
-             "$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-             "2*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-         ],
-         xlabel        => 'θ',
-         ylabel        => 'csc(θ)',
-     },
-     { # sec
-         data          => $d{sec},
-         'plot.type'   => 'plot',
-         'set.options' => $set_opt{sec},
-         set_xticks    => $xticks,
-         set_xlim      => "-2*$pi, 2*$pi",
-         set_ylim      => "$min,$max",
-         'show.legend' => 0,
-         vlines        => [ # asymptotes
-             "-1.5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-             "-.5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-             ".5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-             "1.5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
- #           "2*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-         ],
-         xlabel        => 'θ',
-         ylabel        => 'sec(θ)',
-     },
-         { # csc
-         data          => $d{cot},
-         'plot.type'   => 'plot',
-         'set.options' => $set_opt{cot},
-         set_xticks    => $xticks,
-         set_xlim      => "-2*$pi, 2*$pi",
-         set_ylim      => "$min,$max",
-         'show.legend' => 0,
-         vlines        => [ # asymptotes
-             "-2*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-             "-$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-             "0, $min, $max, color = 'gray', linestyle = 'dashed'",
-             "$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-             "2*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-         ],
-         xlabel        => 'θ',
-         ylabel        => 'cot(θ)',
-     },
-     { # sec
-         data          => $d{tan},
-         'plot.type'   => 'plot',
-         'set.options' => $set_opt{tan},
-         set_xticks    => $xticks,
-         set_xlim      => "-2*$pi, 2*$pi",
-         set_ylim      => "$min,$max",
-         'show.legend' => 0,
-         vlines        => [ # asymptotes
-             "-1.5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-             "-.5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-             ".5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-             "1.5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
- #           "2*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
-         ],
-         xlabel        => 'θ',
-         ylabel        => 'tan(θ)',
-     },
-     ], # end
+     ],
      ncols        => 2,
-     nrows        => 3,
-     set_figwidth => 8,
-     suptitle     => 'Basic Trigonometric Functions'
+     set_figwidth => 12,
  });
+
+which makes
 
 
 =for html
 <p>
-<img width="811" height="491" alt="plots" src="https://github.com/user-attachments/assets/0bdd0744-c1bb-4c4a-9482-b3de3f2d4fc2" />
+<img width="1211" height="491" alt="plot" src="https://github.com/user-attachments/assets/a8312147-e13d-4aa9-9997-49430bb5c74a" />
 <p>
 
 

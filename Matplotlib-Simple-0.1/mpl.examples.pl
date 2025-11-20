@@ -2,7 +2,6 @@
 
 use strict;
 use warnings FATAL => 'all';
-use warnings::unused;
 use autodie ':all';
 use feature 'say';
 use File::Temp 'tempfile';
@@ -57,11 +56,14 @@ sub rand_between {
 my @xw = linspace( 0.1, 1, 100 );
 my @y  = map { 2 - 1 / $_ } @xw;
 my $pi = atan2( 0, -1 );
+my $x = generate_normal_dist( 100, 15, 3 * 10 );
+my $y = generate_normal_dist( 85,  15, 3 * 10 );
+my $z = generate_normal_dist( 106, 15, 3 * 10 );
 my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
 my ( $fh, $tmp_filename ) = tempfile( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
 close $fh;
 plot({
-	'output.filename' => 'output.images/add.single.png',
+	'output.file' => 'output.images/add.single.png',
 	'plot.type'       => 'plot',
 	data              => {
 		'sin(2x)'       => [
@@ -121,7 +123,7 @@ plot({
 		    [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
 		]
 	},
-	'output.filename' => 'output.images/single.wide.png',
+	'output.file' => 'output.images/single.wide.png',
 	'plot.type'       => 'wide',
 	color             => {
 		Clinical => 'blue',
@@ -140,7 +142,7 @@ plot({
 		[ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
 		[ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
 	],
-	'output.filename' => 'output.images/single.array.png',
+	'output.file' => 'output.images/single.array.png',
 	'plot.type'       => 'wide',
 	color             => 'red',
 	title             => 'Visualization of similar lines plotted together',
@@ -163,13 +165,13 @@ plot({
 			title       => 'Visualization of similar lines plotted together'
 		}
 	],
-	'output.filename' => 'output.images/wide.subplots.png',
+	'output.file' => 'output.images/wide.subplots.png',
 	suptitle          => 'SubPlots',
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 });
 plot({
-	'output.filename' => 'output.images/single.pie.png',
+	'output.file' => 'output.images/single.pie.png',
 	data              => {                                 # simple hash
 		Fri => 76,
 		Mon => 73,
@@ -185,7 +187,7 @@ plot({
 	execute      => 0,
 });
 plot({
-	'output.filename' => 'output.images/pie.png',
+	'output.file' => 'output.images/pie.png',
 	plots             => [
 		{
 		    data => {
@@ -234,7 +236,6 @@ plot({
 		    },
 		    title         => 'Chem. Nobels: swap text positions',
 		    'plot.type'   => 'pie',
-		    set_figwidth  => 12,
 		    autopct       => '%1.1f%%',
 		    pctdistance   => 1.25,
 		    labeldistance => 0.6,
@@ -242,15 +243,13 @@ plot({
 	],
 	'input.file' => $tmp_filename,
 	execute      => 0,
+   set_figwidth  => 12,
 	ncols        => 3,
 });
-my $x = generate_normal_dist( 100, 15, 3 * 10 );
-my $y = generate_normal_dist( 85,  15, 3 * 10 );
-my $z = generate_normal_dist( 106, 15, 3 * 10 );
 
 # single plots are simple
 plot({
-        'output.filename' => 'output.images/single.boxplot.png',
+        'output.file' => 'output.images/single.boxplot.png',
         data              => {                                     # simple hash
             E => [ 55,    @{$x}, 160 ],
             B => [ @{$y}, 140 ],
@@ -264,128 +263,128 @@ plot({
         execute      => 0,
 });
 plot({
-        'output.filename' => 'output.images/boxplot.png',
-        execute           => 0,
-        'input.file'      => $tmp_filename,
-        plots             => [
-            {
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Simple Boxplot',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                'plot.type' => 'boxplot',
-                suptitle    => 'Boxplot examples'
-            },
-            {
-                color => 'pink',
-                data  => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Specify single color',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                'plot.type' => 'boxplot'
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Specify set-specific color; showfliers = False',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                'plot.type' => 'boxplot',
-                showmeans   => 'True',
-                showfliers  => 'False',
-                set_figwidth => 12
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Specify set-specific color; showmeans = False',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                'plot.type' => 'boxplot',
-                showmeans   => 'False',
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Set-specific color; orientation = horizontal',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                orientation => 'horizontal',
-                'plot.type' => 'boxplot',
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title       => 'Notch = True',
-                ylabel      => 'ylabel',
-                xlabel      => 'label',
-                notch       => 'True',
-                'plot.type' => 'boxplot',
-            },
-            {
-                colors => {
-                    A => 'orange',
-                    E => 'yellow',
-                    B => 'purple'
-                },
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                title         => 'showcaps = False',
-                ylabel        => 'ylabel',
-                xlabel        => 'label',
-                showcaps      => 'False',
-                'plot.type'   => 'boxplot',
-                set_figheight => 12,
-            },
-        ],
-        ncols => 3,
-        nrows => 3,
+	'output.file' => 'output.images/boxplot.png',
+	execute           => 0,
+	'input.file'      => $tmp_filename,
+	plots             => [
+		{
+			data => {
+			  A => [ 55, @{$z} ],
+			  E => [ @{$y} ],
+			  B => [ 122, @{$z} ],
+			},
+			title       => 'Simple Boxplot',
+			ylabel      => 'ylabel',
+			xlabel      => 'label',
+			'plot.type' => 'boxplot',
+			suptitle    => 'Boxplot examples'
+		},
+		{
+			color => 'pink',
+			data  => {
+			  A => [ 55, @{$z} ],
+			  E => [ @{$y} ],
+			  B => [ 122, @{$z} ],
+			},
+			title       => 'Specify single color',
+			ylabel      => 'ylabel',
+			xlabel      => 'label',
+			'plot.type' => 'boxplot'
+		},
+		{
+		    colors => {
+		        A => 'orange',
+		        E => 'yellow',
+		        B => 'purple'
+		    },
+		    data => {
+		        A => [ 55, @{$z} ],
+		        E => [ @{$y} ],
+		        B => [ 122, @{$z} ],
+		    },
+		    title       => 'Specify set-specific color; showfliers = False',
+		    ylabel      => 'ylabel',
+		    xlabel      => 'label',
+		    'plot.type' => 'boxplot',
+		    showmeans   => 'True',
+		    showfliers  => 'False',
+		},
+		{
+		    colors => {
+		        A => 'orange',
+		        E => 'yellow',
+		        B => 'purple'
+		    },
+		    data => {
+		        A => [ 55, @{$z} ],
+		        E => [ @{$y} ],
+		        B => [ 122, @{$z} ],
+		    },
+		    title       => 'Specify set-specific color; showmeans = False',
+		    ylabel      => 'ylabel',
+		    xlabel      => 'label',
+		    'plot.type' => 'boxplot',
+		    showmeans   => 'False',
+		},
+		{
+		    colors => {
+		        A => 'orange',
+		        E => 'yellow',
+		        B => 'purple'
+		    },
+		    data => {
+		        A => [ 55, @{$z} ],
+		        E => [ @{$y} ],
+		        B => [ 122, @{$z} ],
+		    },
+		    title       => 'Set-specific color; orientation = horizontal',
+		    ylabel      => 'ylabel',
+		    xlabel      => 'label',
+		    orientation => 'horizontal',
+		    'plot.type' => 'boxplot',
+		},
+		{
+			colors => {
+				A => 'orange',
+				E => 'yellow',
+				B => 'purple'
+			},
+			data => {
+				A => [ 55, @{$z} ],
+				E => [ @{$y} ],
+				B => [ 122, @{$z} ],
+			},
+			title       => 'Notch = True',
+			ylabel      => 'ylabel',
+			xlabel      => 'label',
+			notch       => 'True',
+			'plot.type' => 'boxplot',
+		},
+		{
+			colors => {
+				A => 'orange',
+				E => 'yellow',
+				B => 'purple'
+			},
+			data => {
+				A => [ 55, @{$z} ],
+				E => [ @{$y} ],
+				B => [ 122, @{$z} ],
+			},
+			title         => 'showcaps = False',
+			ylabel        => 'ylabel',
+			xlabel        => 'label',
+			showcaps      => 'False',
+			'plot.type'   => 'boxplot',
+		},
+	],
+	ncols => 3,
+	nrows => 3,
+   set_figheight => 12,
+   set_figwidth => 12
 });
 plot({
-	'output.filename' => 'output.images/single.violinplot.png',
+	'output.file' => 'output.images/single.violinplot.png',
 	data              => {                                     # simple hash
 		A => [ 55, @{$z} ],
 		E => [ @{$y} ],
@@ -403,7 +402,7 @@ my @a = generate_normal_dist( 105, 15, 3 * 200 );
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/violin.png',
+	'output.file' => 'output.images/violin.png',
 	plots             => [
 		{
 		    data => {
@@ -468,7 +467,7 @@ plot({
 	nrows => 2,
 });
 plot({
-	'output.filename' => 'output.images/single.barplot.png',
+	'output.file' => 'output.images/single.barplot.png',
 	data              => { # simple hash
 		Fri => 76,
 		Mon => 73,
@@ -486,40 +485,40 @@ plot({
 	'input.file' => $tmp_filename,
 });
 plot({
-        data => {
-            E => @e,
-            B => @b,
-        },
-        execute           => 0,
-        'input.file'      => $tmp_filename,
-        'output.filename' => 'output.images/single.hexbin.png',
-        'plot.type'       => 'hexbin',
-        set_figwidth      => 12,
-        title             => 'Simple Hexbin',
+	data => {
+		E => @e,
+		B => @b,
+	},
+	execute           => 0,
+	'input.file'      => $tmp_filename,
+	'output.file' => 'output.images/single.hexbin.png',
+	'plot.type'       => 'hexbin',
+	set_figwidth      => 12,
+	title             => 'Simple Hexbin',
 });
 plot({
-        'output.filename' => 'output.images/single.hist2d.png',
-        data              => {
-            E => @e,
-            B => @b
-        },
-        'plot.type'  => 'hist2d',
-        title        => 'title',
-        execute      => 0,
-        'input.file' => $tmp_filename,
+	'output.file' => 'output.images/single.hist2d.png',
+	data              => {
+		E => @e,
+		B => @b
+	},
+	'plot.type'  => 'hist2d',
+	title        => 'title',
+	execute      => 0,
+	'input.file' => $tmp_filename,
 });
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/hexbin.png',
+	'output.file' => 'output.images/hexbin.png',
 	plots             => [
 		{
-		    data => {
-		        E => @e,
-		        B => @b
-		    },
-		    'plot.type'  => 'hexbin',
-		    title        => 'Simple Hexbin',
+			data => {
+			E => @e,
+			B => @b
+			},
+			'plot.type'  => 'hexbin',
+			title        => 'Simple Hexbin',
 		},
 		{
 		    data => {
@@ -624,47 +623,46 @@ plot({
 	],
 	ncols        => 4,
 	nrows        => 3,
-	set_figheight=> 3*5,
-	set_figwidth => 4*5,
+	scale        => 5,
 	suptitle     => 'Various Changes to Standard Hexbin: All data is the same'
 });
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/plot.png',
+	'output.file' => 'output.images/plot.png',
 	plots             => [
 		{    # plot 1
-		    data => {
-		        'sin(x)' => [
-		            [@x],                     # x
-		            [ map { sin($_) } @x ]    # y
-		        ],
-		        'cos(x)' => [
-		            [@x],                     # x
-		            [ map { cos($_) } @x ]    # y
-		        ],
-		    },
-		    'plot.type' => 'plot',
-		    title       => 'simple plot',
-		    set_xticks  =>
-	"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
-		      . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
-		    'set.options' => {    # set options overrides global settings
-		        'sin(x)' => 'color="blue", linewidth=2',
-		        'cos(x)' => 'color="red",  linewidth=2'
-		    },
-		    set_xlim => "$x[0], $x[-1]",    # set min and max as a string
+			data => {
+				'sin(x)' => [
+					[@x],                     # x
+					[ map { sin($_) } @x ]    # y
+				],
+				'cos(x)' => [
+					[@x],                     # x
+					[ map { cos($_) } @x ]    # y
+				],
+			},
+			'plot.type' => 'plot',
+			title       => 'simple plot',
+			set_xticks  =>
+			"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+			. '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+			'set.options' => {    # set options overrides global settings
+			  'sin(x)' => 'color="blue", linewidth=2',
+			  'cos(x)' => 'color="red",  linewidth=2',
+			},
+			set_xlim => "$x[0], $x[-1]",    # set min and max as a string
 		},
 		{                                   # plot 2
 		    data => {
-		        'csc(x)' => [
-		            [@x],                         # x
-		            [ map { 1 / sin($_) } @x ]    # y
-		        ],
-		        'sec(x)' => [
-		            [@x],                         # x
-		            [ map { 1 / cos($_) } @x ]    # y
-		        ],
+				'csc(x)' => [
+					[@x],                         # x
+					[ map { 1 / sin($_) } @x ]    # y
+				],
+				'sec(x)' => [
+					[@x],                         # x
+					[ map { 1 / cos($_) } @x ]    # y
+				],
 		    },
 		    'plot.type' => 'plot',
 		    title       => 'simple plot',
@@ -679,13 +677,13 @@ plot({
 		    set_ylim => '-9,9',
 		},
 	],
-	ncols        => 2,
+	ncols        => 3,
 	set_figwidth => 12,
 });
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/plot.single.png',
+	'output.file' => 'output.images/plot.single.png',
 	data              => {
 		'sin(x)' => [
 			[@x],                     # x
@@ -709,7 +707,7 @@ plot({
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/barplots.png',
+	'output.file' => 'output.images/barplots.png',
 	plots             => [
 		{    # simple plot
 			data => {    # simple hash
@@ -893,7 +891,7 @@ plot({
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/single.hist.png',
+	'output.file' => 'output.images/single.hist.png',
 	data              => {
 		E => @e,
 		B => @b,
@@ -904,7 +902,7 @@ plot({
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.filename' => 'output.images/histogram.png',
+	'output.file' => 'output.images/histogram.png',
    set_figwidth => 15,
    suptitle          => 'hist Examples',
 	plots             => [
@@ -1008,7 +1006,7 @@ plot({
 });
 plot({
 	'input.file'      => $tmp_filename,
-	'output.filename' => 'output.images/scatterplots.png',
+	'output.file' => 'output.images/scatterplots.png',
 	execute           => 0,
 	nrows             => 2,
 	ncols             => 3,
@@ -1017,57 +1015,57 @@ plot({
 	suptitle          => 'Scatterplot Examples',            # applies to all
 	plots             => [
 		{    # single-set scatter; no label
-		    data => {
-		        X => @e,    # x-axis
-		        Y => @b,    # y-axis
-		        Z => @a     # color
-		    },
-		    title     => '"Single Set Scatterplot: Random Distributions"',
-		    color_key => 'Z',
-		    'set.options' => 'marker = "v"'
-		    , # arguments to ax.scatter: there's only 1 set, so "set.options" is a scalar
-		    text        => [ '100, 100, "text1"', '100, 100, "text2"', ],
-		    'plot.type' => 'scatter',
+			data => {
+				X => @e,    # x-axis
+				Y => @b,    # y-axis
+				Z => @a     # color
+			},
+			title     => '"Single Set Scatterplot: Random Distributions"',
+			color_key => 'Z',
+			'set.options' => 'marker = "v"'
+			, # arguments to ax.scatter: there's only 1 set, so "set.options" is a scalar
+			text        => [ '100, 100, "text1"', '100, 100, "text2"', ],
+			'plot.type' => 'scatter',
 		},
 		{     # multiple-set scatter, labels are "X" and "Y"
-		    data => {
-		        X => {    # 1st data set; label is "X"
-		            A => @a,    # x-axis
-		            B => @b,    # y-axis
-		        },
-		        W => {    # 2nd data set; label is "Y"
-		            A => generate_normal_dist( 100, 15, 210 ),    # x-axis
-		            B => generate_normal_dist( 100, 15, 210 ),    # y-axis
-		        }
-		    },
-		    'plot.type'   => 'scatter',
-		    title         => 'Multiple Set Scatterplot',
-		    'set.options' =>
-		      {    # arguments to ax.scatter, for each set in data
-		        X => 'marker = ".", color = "red"',
-		        W => 'marker = "d", color = "green"'
-		      },
+			data => {
+				X => {    # 1st data set; label is "X"
+					A => @a,    # x-axis
+					B => @b,    # y-axis
+				},
+				W => {    # 2nd data set; label is "Y"
+					A => generate_normal_dist( 100, 15, 210 ),    # x-axis
+					B => generate_normal_dist( 100, 15, 210 ),    # y-axis
+				}
+			},
+			'plot.type'   => 'scatter',
+			title         => 'Multiple Set Scatterplot',
+			'set.options' =>
+			{    # arguments to ax.scatter, for each set in data
+			  X => 'marker = ".", color = "red"',
+			  W => 'marker = "d", color = "green"'
+			},
 		},
 		{          # multiple-set scatter, labels are "X" and "Y"
-		    data => {    # 8th plot,
-		        X => {    # 1st data set; label is "X"
-		            A => @e,    # x-axis
-		            B => @b,    # y-axis
-		            C => @a,    # color
-		        },
-		        Y => {    # 2nd data set; label is "Y"
-		            A => generate_normal_dist( 100, 15, 210 ),    # x-axis
-		            B => generate_normal_dist( 100, 15, 210 ),    # y-axis
-		            C => generate_normal_dist( 100, 15, 210 ),    # color
-		        },
-		    },
-		    'plot.type'   => 'scatter',
-		    title         => 'Multiple Set Scatter w/ colorbar',
-		    'set.options' => {    # arguments to ax.scatter, for each set in data
-		    	X => 'marker = "."',    # diamond
-		    	Y => 'marker = "d"'     # diamond
-		    },
-		    color_key => 'Z',
+			data => {    # 8th plot,
+				X => {    # 1st data set; label is "X"
+					A => @e,    # x-axis
+					B => @b,    # y-axis
+					C => @a,    # color
+				},
+				Y => {    # 2nd data set; label is "Y"
+					A => generate_normal_dist( 100, 15, 210 ),    # x-axis
+					B => generate_normal_dist( 100, 15, 210 ),    # y-axis
+					C => generate_normal_dist( 100, 15, 210 ),    # color
+				},
+			},
+			'plot.type'   => 'scatter',
+			title         => 'Multiple Set Scatter w/ colorbar',
+			'set.options' => {    # arguments to ax.scatter, for each set in data
+				X => 'marker = "."',
+				Y => 'marker = "d"'     # diamond
+			},
+			color_key => 'Z',
 		}
 	]
 });
@@ -1081,7 +1079,7 @@ plot({
 	data              => \@imshow_data,
 	execute           => 0,
    'input.file'      => $tmp_filename,
-	'output.filename' => 'output.images/imshow.single.png',
+	'output.file' => 'output.images/imshow.single.png',
 	'plot.type'       => 'imshow',
 	set_xlim          => '0, ' . scalar @imshow_data,
 	set_ylim          => '0, ' . scalar @imshow_data,
@@ -1121,11 +1119,16 @@ plot({
 					'sin(x)'       => [
 						[0..360],
 						[map {180 + 180*sin($_ * $pi/180)} 0..360]
-					]
+					],
+					'cos(x)'       => [
+						[0..360],
+						[map {180 + 180*cos($_ * $pi/180)} 0..360]
+					],
 				},
 				'plot.type' => 'plot',
 				'set.options' => {
-					'sin(x)'	=>  'color = "red", linestyle = "dashed"'
+					'sin(x)'	=>  'color = "red", linestyle = "dashed"',
+					'cos(x)'	=>  'color = "blue", linestyle = "dashed"',
 				}
 			}
 			],
@@ -1135,70 +1138,90 @@ plot({
 			title             => 'auxiliary plots',
 		},
 	],
-	execute           => 0,
-   'input.file'      => $tmp_filename,
-	'output.filename' => 'output.images/imshow.multiple.png',
-	ncols             => 2,
-	nrows             => 2,
-	set_figheight     => 6*3,
-	set_figwidth      => 6*4
+	execute         => 0,
+   'input.file'    => $tmp_filename,
+	'output.file'   => 'output.images/imshow.multiple.png',
+	ncols           => 2,
+	nrows           => 2,
+	set_figheight   => 6*3,# 4.8
+	set_figwidth    => 6*4 # 6.4
 });
 plot({
+	'input.file'      => $tmp_filename,
+	execute           => 1,
+	ncols             => 3,
+	nrows             => 3,
+	suptitle    => 'Types of hist2d plots: all of the data is identical',
 	plots => [
 		{
-		    data => {
-				X => $x,    # x-axis
-				Y => $y,    # y-axis
-		    },
-		    'plot.type' => 'hist2d',
-		    title       => 'Simple hist2d',
-		    suptitle    => 'Types of hist2d plots: all of the data is identical'
+			data => {
+			X => $x,    # x-axis
+			Y => $y,    # y-axis
+			},
+			'plot.type' => 'hist2d',
+			title       => 'Simple hist2d',
 		},
 		{
-		    data => {
-		        X => $x,    # x-axis
-		        Y => $y,    # y-axis
-		    },
-		    'plot.type' => 'hist2d',
-		    title       => 'different cmap',
-		    cmap        => 'terrain'
+			data => {
+			  X => $x,    # x-axis
+			  Y => $y,    # y-axis
+			},
+			'plot.type' => 'hist2d',
+			title       => 'cmap = terrain',
+			cmap        => 'terrain'
 		},
 		{
 			cmap => 'ocean',
 			data => {
 				X => $x,    # x-axis
 				Y => $y,    # y-axis
-		    },
-		    'plot.type' => 'hist2d',
-		    title => 'cmap = ocean and set colorbar range with vmin/vmax',
-		    set_figwidth => 15,
-		    vmin         => -2,
-		    vmax         => 14
+			 },
+			 'plot.type' => 'hist2d',
+			 title => 'cmap = ocean and set colorbar range with vmin/vmax',
+			 set_figwidth => 15,
+			 vmin         => -2,
+			 vmax         => 14
 		},
 		{
-		    data => {
-		        X => $x,    # x-axis
-		        Y => $y,    # y-axis
-		    },
-		    'plot.type' => 'hist2d',
-		    title       => 'density = True',
-		    cmap        => 'terrain',
-		    density     => 'True'
+			data => {
+			  X => $x,    # x-axis
+			  Y => $y,    # y-axis
+			},
+			'plot.type' => 'hist2d',
+			title       => 'density = True',
+			cmap        => 'terrain',
+			density     => 'True'
 		},
 		{
-		    data => {
-		        X => $x,    # x-axis
-		        Y => $y,    # y-axis
-		    },
-		    'plot.type' => 'hist2d',
-		    title       => 'key.order flips axes',
-		    cmap        => 'terrain',
-		    'key.order' => [ 'Y', 'X' ]
+			data => {
+			  X => $x,    # x-axis
+			  Y => $y,    # y-axis
+			},
+			'plot.type' => 'hist2d',
+			title       => 'key.order flips axes',
+			cmap        => 'terrain',
+			'key.order' => [ 'Y', 'X' ]
+		},
+		{
+			cb_logscale => 1,
+			data => {
+			  X => $x,    # x-axis
+			  Y => $y,    # y-axis
+			},
+			'plot.type' => 'hist2d',
+			title       => 'cb_logscale = 1',
+		},
+		{
+			cb_logscale => 1,
+			data => {
+			  X => $x,    # x-axis
+			  Y => $y,    # y-axis
+			},
+			'plot.type' => 'hist2d',
+			title       => 'cb_logscale = 1 with vmax set',
+			vmax        => 2.1,
+			vmin        => 1
 		},
 	],
-	'input.file'      => $tmp_filename,
-	'output.filename' => 'output.images/hist2d.png',
-	execute           => 1,
-	nrows             => 2,
-	ncols             => 3,
+	'output.file' => 'output.images/hist2d.png',
 });

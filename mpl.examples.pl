@@ -626,59 +626,169 @@ plot({
 	scale        => 5,
 	suptitle     => 'Various Changes to Standard Hexbin: All data is the same'
 });
+my $epsilon = 10**-7;
+my (%set_opt, %d);
+my $i = 0;
+foreach my $interval (
+	[-2*$pi, -$pi],
+	[-$pi, 0],
+	[0, $pi],
+	[$pi, 2*$pi]
+) {
+	my @th = linspace($interval->[0] + $epsilon, $interval->[1] - $epsilon, 99, 0);
+	@{ $d{csc}{$i}[0] } = @th;
+	@{ $d{csc}{$i}[1] } = map { 1/sin($_) } @th;
+	@{ $d{cot}{$i}[0] } = @th;
+	@{ $d{cot}{$i}[1] } = map { cos($_)/sin($_) } @th;
+	if ($i == 0) {
+		$set_opt{csc}{$i} = 'color = "red", label = "csc(θ)"';
+		$set_opt{cot}{$i} = 'color = "violet", label = "cot(θ)"';
+	} else {
+		$set_opt{csc}{$i} = 'color = "red"';
+		$set_opt{cot}{$i} = 'color = "violet"';
+	}
+	$i++;
+}
+$i = 0;
+foreach my $interval (
+	[-2 * $pi, -1.5 * $pi],
+	[-1.5*$pi, -0.5*$pi],
+	[-0.5*$pi, 0.5 * $pi],
+	[0.5 * $pi, 1.5 * $pi],
+	[1.5 * $pi, 2 * $pi]
+) {
+	my @th = linspace($interval->[0] + $epsilon, $interval->[1] - $epsilon, 99, 0);
+	@{ $d{sec}{$i}[0] } = @th;
+	@{ $d{sec}{$i}[1] } = map { 1/cos($_) } @th;
+	if ($i == 0) {
+		$set_opt{sec}{$i} = 'color = "blue", label = "sec(θ)"';
+		$set_opt{tan}{$i} = 'color = "green", label = "tan(θ)"';
+	} else {
+		$set_opt{sec}{$i} = 'color = "blue"';
+		$set_opt{tan}{$i} = 'color = "green"';
+	}
+	@{ $d{tan}{$i}[0] } = @th;
+	@{ $d{tan}{$i}[1] } = map { sin($_)/cos($_) } @th;
+	$i++;
+}
+mkdir 'svg' unless -d 'svg';
+my $xticks = "[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+		. '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']';
+my ($min, $max) = (-9,9);
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
-	'output.file' => 'output.images/plot.png',
-	plots             => [
-		{    # plot 1
-			data => {
-				'sin(x)' => [
-					[@x],                     # x
-					[ map { sin($_) } @x ]    # y
-				],
-				'cos(x)' => [
-					[@x],                     # x
-					[ map { cos($_) } @x ]    # y
-				],
-			},
-			'plot.type' => 'plot',
-			title       => 'simple plot',
-			set_xticks  =>
-			"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
-			. '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
-			'set.options' => {    # set options overrides global settings
-			  'sin(x)' => 'color="blue", linewidth=2',
-			  'cos(x)' => 'color="red",  linewidth=2',
-			},
-			set_xlim => "$x[0], $x[-1]",    # set min and max as a string
+	'output.file' => 'output.images/plots.png',
+	plots         => [
+	{ # sin
+		data          => {
+			'sin(θ)' => [
+				[@x],
+				[map {sin($_)} @x]
+			]
 		},
-		{                                   # plot 2
-		    data => {
-				'csc(x)' => [
-					[@x],                         # x
-					[ map { 1 / sin($_) } @x ]    # y
-				],
-				'sec(x)' => [
-					[@x],                         # x
-					[ map { 1 / cos($_) } @x ]    # y
-				],
-		    },
-		    'plot.type' => 'plot',
-		    title       => 'simple plot',
-		    set_xticks  =>
-	"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
-		      . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
-		    'set.options' => {    # set options overrides global settings
-		        'csc(x)' => 'color="purple", linewidth=2',
-		        'sec(x)' => 'color="green",  linewidth=2'
-		    },
-		    set_xlim => "$x[0], $x[-1]",    # set min and max as a string
-		    set_ylim => '-9,9',
+		'plot.type'   => 'plot',
+		'set.options' => {
+			'sin(θ)' => 'color = "orange"'
 		},
-	],
-	ncols        => 3,
-	set_figwidth => 12,
+		set_xticks    => $xticks,
+		set_xlim      => "-2*$pi, 2*$pi",
+		xlabel        => 'θ',
+		ylabel        => 'sin(θ)',
+	},
+	{ # sin
+		data          => {
+			'cos(θ)' => [
+				[@x],
+				[map {cos($_)} @x]
+			]
+		},
+		'plot.type'   => 'plot',
+		'set.options' => {
+			'cos(θ)' => 'color = "black"'
+		},
+		set_xticks    => $xticks,
+		set_xlim      => "-2*$pi, 2*$pi",
+		xlabel        => 'θ',
+		ylabel        => 'cos(θ)',
+	},
+	{ # csc
+		data          => $d{csc},
+		'plot.type'   => 'plot',
+		'set.options' => $set_opt{csc},
+		set_xticks    => $xticks,
+		set_xlim      => "-2*$pi, 2*$pi",
+		set_ylim      => "$min,$max",
+		'show.legend' => 0,
+		vlines        => [ # asymptotes
+			"-2*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+			"-$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+			"0, $min, $max, color = 'gray', linestyle = 'dashed'",
+			"$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+			"2*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+		],
+		xlabel        => 'θ',
+		ylabel        => 'csc(θ)',
+	},
+	{ # sec
+		data          => $d{sec},
+		'plot.type'   => 'plot',
+		'set.options' => $set_opt{sec},
+		set_xticks    => $xticks,
+		set_xlim      => "-2*$pi, 2*$pi",
+		set_ylim      => "$min,$max",
+		'show.legend' => 0,
+		vlines        => [ # asymptotes
+			"-1.5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+			"-.5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+			".5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+			"1.5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+#			"2*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+		],
+		xlabel        => 'θ',
+		ylabel        => 'sec(θ)',
+	},
+		{ # csc
+		data          => $d{cot},
+		'plot.type'   => 'plot',
+		'set.options' => $set_opt{cot},
+		set_xticks    => $xticks,
+		set_xlim      => "-2*$pi, 2*$pi",
+		set_ylim      => "$min,$max",
+		'show.legend' => 0,
+		vlines        => [ # asymptotes
+			"-2*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+			"-$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+			"0, $min, $max, color = 'gray', linestyle = 'dashed'",
+			"$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+			"2*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+		],
+		xlabel        => 'θ',
+		ylabel        => 'cot(θ)',
+	},
+	{ # sec
+		data          => $d{tan},
+		'plot.type'   => 'plot',
+		'set.options' => $set_opt{tan},
+		set_xticks    => $xticks,
+		set_xlim      => "-2*$pi, 2*$pi",
+		set_ylim      => "$min,$max",
+		'show.legend' => 0,
+		vlines        => [ # asymptotes
+			"-1.5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+			"-.5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+			".5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+			"1.5*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+#			"2*$pi, $min, $max, color = 'gray', linestyle = 'dashed'",
+		],
+		xlabel        => 'θ',
+		ylabel        => 'tan(θ)',
+	},
+	], # end
+	ncols        => 2,
+	nrows        => 3,
+	set_figwidth => 8,
+	suptitle     => 'Basic Trigonometric Functions'
 });
 plot({
 	'input.file'      => $tmp_filename,
@@ -1151,7 +1261,7 @@ plot({
 	execute           => 1,
 	ncols             => 3,
 	nrows             => 3,
-	suptitle    => 'Types of hist2d plots: all of the data is identical',
+	suptitle          => 'Types of hist2d plots: all of the data is identical',
 	plots => [
 		{
 			data => {
@@ -1163,8 +1273,8 @@ plot({
 		},
 		{
 			data => {
-			  X => $x,    # x-axis
-			  Y => $y,    # y-axis
+				X => $x,    # x-axis
+				Y => $y,    # y-axis
 			},
 			'plot.type' => 'hist2d',
 			title       => 'cmap = terrain',
@@ -1175,17 +1285,17 @@ plot({
 			data => {
 				X => $x,    # x-axis
 				Y => $y,    # y-axis
-			 },
-			 'plot.type' => 'hist2d',
-			 title => 'cmap = ocean and set colorbar range with vmin/vmax',
-			 set_figwidth => 15,
-			 vmin         => -2,
-			 vmax         => 14
+			},
+			'plot.type' => 'hist2d',
+			title => 'cmap = ocean and set colorbar range with vmin/vmax',
+			set_figwidth => 15,
+			vmin         => -2,
+			vmax         => 14
 		},
 		{
 			data => {
-			  X => $x,    # x-axis
-			  Y => $y,    # y-axis
+				X => $x,    # x-axis
+				Y => $y,    # y-axis
 			},
 			'plot.type' => 'hist2d',
 			title       => 'density = True',
@@ -1194,8 +1304,8 @@ plot({
 		},
 		{
 			data => {
-			  X => $x,    # x-axis
-			  Y => $y,    # y-axis
+				X => $x,    # x-axis
+				Y => $y,    # y-axis
 			},
 			'plot.type' => 'hist2d',
 			title       => 'key.order flips axes',
@@ -1205,8 +1315,8 @@ plot({
 		{
 			cb_logscale => 1,
 			data => {
-			  X => $x,    # x-axis
-			  Y => $y,    # y-axis
+				X => $x,    # x-axis
+				Y => $y,    # y-axis
 			},
 			'plot.type' => 'hist2d',
 			title       => 'cb_logscale = 1',
@@ -1214,13 +1324,31 @@ plot({
 		{
 			cb_logscale => 1,
 			data => {
-			  X => $x,    # x-axis
-			  Y => $y,    # y-axis
+				X => $x,    # x-axis
+				Y => $y,    # y-axis
 			},
 			'plot.type' => 'hist2d',
 			title       => 'cb_logscale = 1 with vmax set',
 			vmax        => 2.1,
 			vmin        => 1
+		},
+		{
+			data => {
+				X => $x,    # x-axis
+				Y => $y,    # y-axis
+			},
+			'plot.type'     => 'hist2d',
+			'show.colorbar' => 0,
+			title           => 'no colorbar',
+		},
+		{
+			data => {
+				X => $x,    # x-axis
+				Y => $y,    # y-axis
+			},
+			'plot.type'     => 'hist2d',
+			title           => 'xbins = 9',
+			xbins           => 9
 		},
 	],
 	'output.file' => 'output.images/hist2d.png',

@@ -24,7 +24,7 @@ my %WriteMakefileArgs = (
     "Term::ANSIColor" => 0,
     "Test::More" => 0
   },
-  "VERSION" => "0.09",
+  "VERSION" => "0.1",
   "test" => {
     "TESTS" => "t/*.t"
   }
