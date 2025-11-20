@@ -817,6 +817,30 @@ plot({
 plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
+	'output.file' => 'output.images/plot.single.arr.png',
+	data              => [
+		[
+			[@x],                     # x
+			[ map { sin($_) } @x ]    # y
+		],
+		[
+		 	[@x],                     # x
+		 	[ map { cos($_) } @x ]    # y
+		],
+	],
+	'plot.type' => 'plot',
+	title       => 'simple plot',
+	set_xticks  =>
+	"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+	 . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+	'set.options' => [    # set options overrides global settings; indices match data array
+		'color="blue", linewidth=2, label = "sin(x)"', # labels aren't added automatically when using array here
+		'color="red",  linewidth=2, label = "cos(x)"'
+	],
+});
+plot({
+	'input.file'      => $tmp_filename,
+	execute           => 0,
 	'output.file' => 'output.images/barplots.png',
 	plots             => [
 		{    # simple plot

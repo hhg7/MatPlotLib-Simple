@@ -1128,6 +1128,38 @@ sub plot_helper {
 	  die	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
 	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
+	if (ref $plot->{data} eq 'ARRAY') {
+		if (defined $plot->{'set.options'}) {
+			my $ref_type = ref $plot->{'set.options'};
+			unless ($ref_type eq 'ARRAY') {
+				p $args;
+				die "\"set.options\" must also be an array when the data is an array, but \"$ref_type\" was given." ;
+			}
+			my $n_set_opt = scalar @{ $plot->{'set.options'} };
+			my $n_data = scalar @{ $plot->{data} };
+			if ($n_set_opt > $n_data) {
+				p $args;
+				die "there are $n_set_opt sets for options, but only $n_data data points.";
+			}
+		}
+		my $arr_i = 0;
+		foreach my $arr (@{ $plot->{data} }) {
+			my $options = '';
+			say { $args->{fh} } 'x = [' . join( ',', @{ $arr->[0] } ) . ']';
+			say { $args->{fh} } 'y = [' . join( ',', @{ $arr->[1] } ) . ']';
+			if (   ( defined $plot->{'set.options'} )
+				&& ( ref $plot->{'set.options'} eq '' ) )
+			{
+				$options = ", $plot->{'set.options'}";
+			}
+			if ( defined $plot->{'set.options'}[$arr_i] ) {
+				$options = ", $plot->{'set.options'}[$arr_i]";
+			}
+			say { $args->{fh} } "ax$args->{ax}.plot(x, y $options) # " . __LINE__;
+			$arr_i++;
+		}
+		return 0; # the rest only applies if $plot->{data} is a hash
+	}
 	my @key_order;
 	if ( defined $plot->{'key.order'} ) {
 		@key_order = @{ $plot->{'key.order'} };
@@ -1145,52 +1177,51 @@ sub plot_helper {
 		my $set_ref = ref $plot->{data}{$set};
 		if ( $set_ref ne 'ARRAY' ) {
 			p $plot->{data}{$set};
-			die
-		"$set must have two arrays, x and y coordinates, but instead has a $set_ref";
-	  }
-	  my $n_arrays = scalar @{ $plot->{data}{$set} };
-	  if ( $n_arrays != 2 ) {
-		   p $plot->{data}{$set};
-		   die "$n_arrays were entered for $set, but there must be exactly 2";
-	  }
-	  my ( $nx, $ny ) = (
-		   scalar @{ $plot->{data}{$set}[0] },
-		   scalar @{ $plot->{data}{$set}[1] }
-	  );
-	  if ( $nx != $ny ) {
-		   p $plot->{data}{$set};
-		   die
-	"$set has $nx x data points, but y has $ny y data points, and they must be equal";
-	  }
-	  foreach my $ax (0,1) {
-	  	  my $n = scalar @{ $plot->{data}{$set}[$ax] };
-	  	  my @undef_i = grep {not defined $plot->{data}{$set}[$ax][$_]} 0..$n-1;
-	  	  if (scalar @undef_i > 0) {
-	  	  	p $plot->{data}{$set}[$ax];
-	  	  	p @undef_i;
-	  	  	my $n_undef = scalar @undef_i;
-	  	  	die "set $set axis $ax has $n_undef undefined values, of $n total values";
-	  	  }
-	  }
-	  my $options = '';
-	  say { $args->{fh} } 'x = ['
+			die "$set must have two arrays, x and y coordinates, but instead has a $set_ref";
+		}
+		my $n_arrays = scalar @{ $plot->{data}{$set} };
+		if ( $n_arrays != 2 ) {
+			p $plot->{data}{$set};
+			die "$n_arrays were entered for $set, but there must be exactly 2";
+		}
+		my ( $nx, $ny ) = (
+			scalar @{ $plot->{data}{$set}[0] },
+			scalar @{ $plot->{data}{$set}[1] }
+		);
+		if ( $nx != $ny ) {
+			p $plot->{data}{$set};
+			die "$set has length = $nx for x; length = $ny for y: x & y must be of equal length";
+		}
+		foreach my $ax (0,1) {
+			my $n = scalar @{ $plot->{data}{$set}[$ax] };
+			my @undef_i = grep {not defined $plot->{data}{$set}[$ax][$_]} 0..$n-1;
+			if (scalar @undef_i > 0) {
+				p $plot->{data}{$set}[$ax];
+				p @undef_i;
+				my $n_undef = scalar @undef_i;
+				die "set $set axis $ax has $n_undef undefined values, of $n total values";
+			}
+		}
+		my $options = '';
+		say { $args->{fh} } 'x = ['
 		 . join( ',', @{ $plot->{data}{$set}[0] } ) . ']';
-	  say { $args->{fh} } 'y = ['
+		say { $args->{fh} } 'y = ['
 		 . join( ',', @{ $plot->{data}{$set}[1] } ) . ']';
-	  if (   ( defined $plot->{'set.options'} )
-		   && ( ref $plot->{'set.options'} eq '' ) )
-	  {
-		   $options = ", $plot->{'set.options'}";
-	  }
-	  if ( defined $plot->{'set.options'}{$set} ) {
-		   $options = ", $plot->{'set.options'}{$set}";
-	  }
-	  my $label = '';
-	  if ( $plot->{'show.legend'} > 0 ) {
-		   $label = ",label = '$set'";
-	  }
-	  say { $args->{fh} } "ax$args->{ax}.plot(x, y $label $options) # " . __LINE__;
+		if (   ( defined $plot->{'set.options'} )
+			&& ( ref $plot->{'set.options'} eq '' ) )
+		{
+			$options = ", $plot->{'set.options'}";
+		}
+		if ( defined $plot->{'set.options'}{$set} ) {
+			$options = ", $plot->{'set.options'}{$set}";
+		}
+		my $label = '';
+		if ( $plot->{'show.legend'} > 0 ) {
+			$label = ",label = '$set'";
+		}
+		say { $args->{fh} } "ax$args->{ax}.plot(x, y $label $options) # " . __LINE__;
 	}
+	return 0;
 }
 
 sub scatter_helper {
@@ -1225,13 +1256,12 @@ sub scatter_helper {
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @undef_opt > 0 ) {
-	  p @undef_opt;
-	  die
-	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+		p @undef_opt;
+		die	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
 	my $overall_ref = ref $plot->{data};
 	unless ( $overall_ref eq 'HASH' ) {
-	  die
+		die
 	"scatter only takes 1) hashes of arrays (single or 2) hash of hash of arrays; but $overall_ref was entered";
 	}
 	my ( %ref_counts, $plot_type );
@@ -1245,9 +1275,9 @@ sub scatter_helper {
 	"different kinds of data were entered to plot $ax; it should be simple hash or hash of arrays.";
 	}
 	if ( defined $ref_counts{ARRAY} ) {
-	  $plot_type = 'single';
+		$plot_type = 'single';
 	} elsif ( defined $ref_counts{HASH} ) {
-	  $plot_type = 'multiple';
+		$plot_type = 'multiple';
 	}
 	$plot->{cmap} = $plot->{cmap} // 'gist_rainbow';
 	my $options = '';
@@ -1562,18 +1592,18 @@ sub wide_helper {
 			say { $args->{fh} } 'ys = []';
 			my ( $min_x, $max_x ) = ( 'inf', '-inf' );
 			foreach my $run ( 0 .. scalar @{ $plot->{data}{$group} } - 1 ) {
-				 $min_x = min( $min_x, @{ $plot->{data}{$group}[$run][0] } );
-				 $max_x = max( $max_x, @{ $plot->{data}{$group}[$run][0] } );
+				$min_x = min( $min_x, @{ $plot->{data}{$group}[$run][0] } );
+				$max_x = max( $max_x, @{ $plot->{data}{$group}[$run][0] } );
 			}
 			say { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)";
 			foreach my $run ( 0 .. scalar @{ $plot->{data}{$group} } - 1 ) {
-				 say { $args->{fh} } 'x = ['
-				   . join( ',', @{ $plot->{data}{$group}[$run][0] } ) . ']';
-				 say { $args->{fh} } 'y = ['
-				   . join( ',', @{ $plot->{data}{$group}[$run][1] } ) . ']';
-				 say { $args->{fh} } "ax$ax.plot(x, y, '$color', alpha=0.15)";
-				 say { $args->{fh} } 'y = np.interp(base_y, x, y)';
-				 say { $args->{fh} } 'ys.append(y)';
+				say { $args->{fh} } 'x = ['
+				. join( ',', @{ $plot->{data}{$group}[$run][0] } ) . ']';
+				say { $args->{fh} } 'y = ['
+				. join( ',', @{ $plot->{data}{$group}[$run][1] } ) . ']';
+				say { $args->{fh} } "ax$ax.plot(x, y, '$color', alpha=0.15)";
+				say { $args->{fh} } 'y = np.interp(base_y, x, y)';
+				say { $args->{fh} } 'ys.append(y)';
 			}
 			say { $args->{fh} } 'ys = np.array(ys)';
 			say { $args->{fh} } 'mean_ys = ys.mean(axis=0)';
