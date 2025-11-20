@@ -791,13 +791,147 @@ which makes the following simple plot:
 
 <img width="1511" height="491" alt="histogram" src="https://github.com/user-attachments/assets/b13b4cc8-6e64-40b0-913d-6a5886cee0db" />
 
+Make a 2-D histogram from a hash of arrays
+
 ## hist2d
+
+### single, simple plot
+    plot({
+    	'output.file' => 'output.images/single.hist2d.png',
+    	data              => {
+    		E => @e,
+    		B => @b
+    	},
+    	'plot.type'  => 'hist2d',
+    	title        => 'title',
+    	execute      => 0,
+    	'input.file' => $tmp_filename,
+    });
+makes the following image:
+
+<img width="650" height="491" alt="single hist2d" src="https://github.com/user-attachments/assets/86480c77-7b8f-4bfa-b5d8-71f82830260f" />
+
+the range for the density min and max is reported to stdout
 
 ### options
 
-### single, simple plot
+| Option | Description | Example |
+| -------- | ------- | ------- |
+|`cb_logscale`| make the colorbar log-scale | `cb_logscale => 1` |
+|`cmap`| color map for coloring # "gist_rainbow" by default |  |
+|'cmax', `cmin`| All bins that has count < *cmin* or > *cmax* will not be displayed|
+|  'density',      # density : bool, default: False
+|  'key.order'|    # define the keys in an order (an array reference)
+| 'logscale' |    # logscale, an array of axes that will get log scale
+|'show.colorbar'| self-evident, 0 or 1 | `show.colorbar` => 1|
+|'vmax'| When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover |
+|'vmin' | # When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover |
+|'xbins'| # default 15
+|'xmin', 'xmax',|
+|'ymin', 'ymax',|
+|'ybins' |  default 15 | 
 
 ### multiple plots
+    plot({
+    	'input.file'      => $tmp_filename,
+    	execute           => 1,
+    	ncols             => 3,
+    	nrows             => 3,
+    	suptitle          => 'Types of hist2d plots: all of the data is identical',
+    	plots => [
+    		{
+    			data => {
+    			X => $x,    # x-axis
+    			Y => $y,    # y-axis
+    			},
+    			'plot.type' => 'hist2d',
+    			title       => 'Simple hist2d',
+    		},
+    		{
+    			data => {
+    				X => $x,    # x-axis
+    				Y => $y,    # y-axis
+    			},
+    			'plot.type' => 'hist2d',
+    			title       => 'cmap = terrain',
+    			cmap        => 'terrain'
+    		},
+    		{
+    			cmap => 'ocean',
+    			data => {
+    				X => $x,    # x-axis
+    				Y => $y,    # y-axis
+    			},
+    			'plot.type' => 'hist2d',
+    			title => 'cmap = ocean and set colorbar range with vmin/vmax',
+    			set_figwidth => 15,
+    			vmin         => -2,
+    			vmax         => 14
+    		},
+    		{
+    			data => {
+    				X => $x,    # x-axis
+    				Y => $y,    # y-axis
+    			},
+    			'plot.type' => 'hist2d',
+    			title       => 'density = True',
+    			cmap        => 'terrain',
+    			density     => 'True'
+    		},
+    		{
+    			data => {
+    				X => $x,    # x-axis
+    				Y => $y,    # y-axis
+    			},
+    			'plot.type' => 'hist2d',
+    			title       => 'key.order flips axes',
+    			cmap        => 'terrain',
+    			'key.order' => [ 'Y', 'X' ]
+    		},
+    		{
+    			cb_logscale => 1,
+    			data => {
+    				X => $x,    # x-axis
+    				Y => $y,    # y-axis
+    			},
+    			'plot.type' => 'hist2d',
+    			title       => 'cb_logscale = 1',
+    		},
+    		{
+    			cb_logscale => 1,
+    			data => {
+    				X => $x,    # x-axis
+    				Y => $y,    # y-axis
+    			},
+    			'plot.type' => 'hist2d',
+    			title       => 'cb_logscale = 1 with vmax set',
+    			vmax        => 2.1,
+    			vmin        => 1
+    		},
+    		{
+    			data => {
+    				X => $x,    # x-axis
+    				Y => $y,    # y-axis
+    			},
+    			'plot.type'     => 'hist2d',
+    			'show.colorbar' => 0,
+    			title           => 'no colorbar',
+    		},
+    		{
+    			data => {
+    				X => $x,    # x-axis
+    				Y => $y,    # y-axis
+    			},
+    			'plot.type'     => 'hist2d',
+    			title           => 'xbins = 9',
+    			xbins           => 9
+    		},
+    	],
+    	'output.file' => 'output.images/hist2d.png',
+    });
+makes the following image:
+
+<img width="1510" height="491" alt="hist2d" src="https://github.com/user-attachments/assets/3d6becd3-44f3-4511-8b0f-eae39bc325fa" />
 
 ## imshow
 
