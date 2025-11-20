@@ -1167,6 +1167,7 @@ which makes the following "plot" plot:
 
 ### multiple sub-plots
 
+which makes
 
     my $epsilon = 10**-7;
     my (%set_opt, %d);
@@ -1183,8 +1184,8 @@ which makes the following "plot" plot:
     	@{ $d{cot}{$i}[0] } = @th;
     	@{ $d{cot}{$i}[1] } = map { cos($_)/sin($_) } @th;
     	if ($i == 0) {
-    		$set_opt{csc}{$i} = 'color = "red", label = "csc(x)"';
-    		$set_opt{cot}{$i} = 'color = "violet", label = "cot(x)"';
+    		$set_opt{csc}{$i} = 'color = "red", label = "csc(θ)"';
+    		$set_opt{cot}{$i} = 'color = "violet", label = "cot(θ)"';
     	} else {
     		$set_opt{csc}{$i} = 'color = "red"';
     		$set_opt{cot}{$i} = 'color = "violet"';
@@ -1203,8 +1204,8 @@ which makes the following "plot" plot:
     	@{ $d{sec}{$i}[0] } = @th;
     	@{ $d{sec}{$i}[1] } = map { 1/cos($_) } @th;
     	if ($i == 0) {
-    		$set_opt{sec}{$i} = 'color = "blue", label = "sec(x)"';
-    		$set_opt{tan}{$i} = 'color = "green", label = "tan(x)"';
+    		$set_opt{sec}{$i} = 'color = "blue", label = "sec(θ)"';
+    		$set_opt{tan}{$i} = 'color = "green", label = "tan(θ)"';
     	} else {
     		$set_opt{sec}{$i} = 'color = "blue"';
     		$set_opt{tan}{$i} = 'color = "green"';
@@ -1224,14 +1225,14 @@ which makes the following "plot" plot:
     	plots         => [
     	{ # sin
     		data          => {
-    			'sin(x)' => [
+    			'sin(θ)' => [
     				[@x],
     				[map {sin($_)} @x]
     			]
     		},
     		'plot.type'   => 'plot',
     		'set.options' => {
-    			'sin(x)' => 'color = "orange"'
+    			'sin(θ)' => 'color = "orange"'
     		},
     		set_xticks    => $xticks,
     		set_xlim      => "-2*$pi, 2*$pi",
@@ -1240,14 +1241,14 @@ which makes the following "plot" plot:
     	},
     	{ # sin
     		data          => {
-    			'cos(x)' => [
+    			'cos(θ)' => [
     				[@x],
     				[map {cos($_)} @x]
     			]
     		},
     		'plot.type'   => 'plot',
     		'set.options' => {
-    			'cos(x)' => 'color = "black"'
+    			'cos(θ)' => 'color = "black"'
     		},
     		set_xticks    => $xticks,
     		set_xlim      => "-2*$pi, 2*$pi",
@@ -1332,9 +1333,8 @@ which makes the following "plot" plot:
     	set_figwidth => 8,
     	suptitle     => 'Basic Trigonometric Functions'
     });
-which makes
 
-<img width="811" height="491" alt="plots" src="https://github.com/user-attachments/assets/4be27819-5b6a-4af1-83df-76db38538e6c" />
+<img width="811" height="491" alt="plots" src="https://github.com/user-attachments/assets/0bdd0744-c1bb-4c4a-9482-b3de3f2d4fc2" />
 
 ## scatter
 
