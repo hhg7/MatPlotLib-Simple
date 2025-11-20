@@ -1133,7 +1133,11 @@ which makes the image:
 
 ## plot
 
+plot either a hash of arrays or an array of arrays
+
 ### single, simple
+
+data can be given as a hash, where the hash key is the label:
 
     plot({
     	'input.file'      => $tmp_filename,
@@ -1160,8 +1164,34 @@ which makes the image:
     	}
     });
 
+or as an array of arrays:
 
-which makes the following "plot" plot:
+    plot({
+    	'input.file'      => $tmp_filename,
+    	execute           => 0,
+    	'output.file' => 'output.images/plot.single.arr.png',
+    	data              => [
+    		[
+    			[@x],                     # x
+    			[ map { sin($_) } @x ]    # y
+    		],
+    		[
+    		 	[@x],                     # x
+    		 	[ map { cos($_) } @x ]    # y
+    		],
+    	],
+    	'plot.type' => 'plot',
+    	title       => 'simple plot',
+    	set_xticks  =>
+    	"[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
+    	 . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']',
+    	'set.options' => [    # set options overrides global settings; indices match data array
+    		'color="blue", linewidth=2, label = "sin(x)"', # labels aren't added automatically when using array here
+    		'color="red",  linewidth=2, label = "cos(x)"'
+    	],
+    });
+
+both of which make the following "plot" plot:
 
 <img width="651" height="491" alt="plot single" src="https://github.com/user-attachments/assets/6cbd6aad-c464-4703-b962-b420ec08bb66" />
 
