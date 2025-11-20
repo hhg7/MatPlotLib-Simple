@@ -8,7 +8,7 @@ Simplest use case:
 
     use Matplotlib::Simple 'plot';
     plot({
-	   'output.filename' => '/tmp/gospel.word.counts.png',
+	   'output.file'     => '/tmp/gospel.word.counts.png',
 	   'plot.type'       => 'bar',
 	   data              => {
 		  Matthew => 18345,
@@ -28,7 +28,7 @@ Having a `plots` argument as an array lets the module know to create subplots:
 
     use Matplotlib::Simple 'plot';
     plot({
-    	'output.filename'	=> 'svg/pies.png',
+    	'output.file'	=> 'svg/pies.png',
     	plots             => [
         {
     			data	=> {
@@ -125,7 +125,7 @@ an example of multiple plots, showing many options:
 
     use Matplotlib::Simple 'plot';
     plot({
-	    'output.filename'			=> 'output.images/single.barplot.png',
+	    'output.file'			=> 'output.images/single.barplot.png',
 	    data	=> { # simple hash
 		    Fri => 76, Mon	=> 73, Sat => 26, Sun => 11, Thu	=> 94, Tue	=> 93, Wed	=> 77
 	    },
@@ -143,7 +143,7 @@ where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `
     plot({
 	    'input.file'		=> $tmp_filename,
 	    execute				=> 0,
-	    'output.filename'	=> 'output.images/barplots.png',
+	    'output.file'	=> 'output.images/barplots.png',
 	    plots					=> [
 		{ # simple plot
 			    data	=> { # simple hash
@@ -337,7 +337,7 @@ Plot a hash of arrays as a series of boxplots
 single plots are simple
 
     plot({
-    	'output.filename' => 'output.images/single.boxplot.png',
+    	'output.file' => 'output.images/single.boxplot.png',
     	data              => {                                     # simple hash
     		E => [ 55,    @{$x}, 160 ],
     		B => [ @{$y}, 140 ],
@@ -358,7 +358,7 @@ which makes the following image:
 ### multiple plots
 
     plot({
-    	'output.filename' => 'output.images/boxplot.png',
+    	'output.file' => 'output.images/boxplot.png',
     	execute           => 0,
     	'input.file'      => $tmp_filename,
     	plots             => [
@@ -511,7 +511,7 @@ see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.hexbin.html
     		E	=> generate_normal_dist(100, 15, 3*210),
     		B	=> generate_normal_dist(85, 15, 3*210)
     	},
-    	'output.filename'	=> 'output.images/single.hexbin.png',
+    	'output.file'	=> 'output.images/single.hexbin.png',
     	'plot.type'	=> 'hexbin',
     	set_figwidth => 12,
     	title			=> 'Simple Hexbin',
@@ -668,7 +668,7 @@ Plot a hash of arrays as a series of histograms
     plot({
     	'input.file'      => $tmp_filename,
     	execute           => 0,
-    	'output.filename' => 'output.images/single.hist.png',
+    	'output.file' => 'output.images/single.hist.png',
     	data              => {
 	    	E => @e,
 	    	B => @b,
@@ -960,7 +960,7 @@ Plot 2D array of numbers as an image
     	data              => \@imshow_data,
     	execute           => 0,
        'input.file'      => $tmp_filename,
-    	'output.filename' => 'output.images/imshow.single.png',
+    	'output.file' => 'output.images/imshow.single.png',
     	'plot.type'       => 'imshow',
     	set_xlim          => '0, ' . scalar @imshow_data,
     	set_ylim          => '0, ' . scalar @imshow_data,
@@ -1142,7 +1142,7 @@ data can be given as a hash, where the hash key is the label:
     plot({
     	'input.file'      => $tmp_filename,
     	execute           => 0,
-    	'output.filename' => 'output.images/plot.single.png',
+    	'output.file' => 'output.images/plot.single.png',
     	data              => {
     		'sin(x)' => [
     		    [@x],                     # x
@@ -1580,7 +1580,7 @@ all files will be written to $tmp_filename; be sure to put `execute => 0`
                 [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
             ]
         },
-        'output.filename' => 'output.images/single.wide.png',
+        'output.file' => 'output.images/single.wide.png',
         'plot.type'       => 'wide',
         color             => {
             Clinical => 'blue',
@@ -1600,7 +1600,7 @@ all files will be written to $tmp_filename; be sure to put `execute => 0`
             [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
             [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
         ],
-        'output.filename' => 'output.images/single.array.png',
+        'output.file' => 'output.images/single.array.png',
         'plot.type'       => 'wide',
         color             => 'red',
         title             => 'Visualization of similar lines plotted together',
