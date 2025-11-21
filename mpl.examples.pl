@@ -7,7 +7,7 @@ use feature 'say';
 use File::Temp 'tempfile';
 use DDP { output => 'STDOUT', array_max => 10, show_memsize => 1 };
 use Devel::Confess 'color';
-use Matplotlib::Simple 'plot';
+use Matplotlib::Simple qw(pie plt);
 
 sub linspace {    # mostly written by Grok
 	my ( $start, $stop, $num, $endpoint ) = @_;   # endpoint means include $stop
@@ -62,7 +62,7 @@ my $z = generate_normal_dist( 106, 15, 3 * 10 );
 my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
 my ( $fh, $tmp_filename ) = tempfile( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
 close $fh;
-plot({
+plt({
 	'output.file' => 'output.images/add.single.png',
 	'plot.type'       => 'plot',
 	data              => {
@@ -104,7 +104,7 @@ plot({
 	'input.file' => $tmp_filename,
 	execute      => 0,
 });
-plot({
+plt({
 	data => {
 		Clinical => [
 		    [
@@ -133,7 +133,7 @@ plot({
 	'input.file' => $tmp_filename,
 	execute      => 0,
 });
-plot({
+plt({
 	data => [
 		[
 		    [@xw],    # x
@@ -149,7 +149,7 @@ plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 });
-plot({
+plt({
 	plots => [
 		{ # start first plot
 			data => [
@@ -170,7 +170,7 @@ plot({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 });
-plot({
+pie({
 	'output.file' => 'output.images/single.pie.png',
 	data              => {                                 # simple hash
 		Fri => 76,
@@ -181,12 +181,11 @@ plot({
 		Tue => 93,
 		Wed => 77
 	},
-	'plot.type'  => 'pie',
 	title        => 'Single Simple Pie',
 	'input.file' => $tmp_filename,
 	execute      => 0,
 });
-plot({
+plt({
 	'output.file' => 'output.images/pie.png',
 	plots             => [
 		{
@@ -248,7 +247,7 @@ plot({
 });
 
 # single plots are simple
-plot({
+plt({
         'output.file' => 'output.images/single.boxplot.png',
         data              => {                                     # simple hash
             E => [ 55,    @{$x}, 160 ],
@@ -262,7 +261,7 @@ plot({
         'input.file' => $tmp_filename,
         execute      => 0,
 });
-plot({
+plt({
 	'output.file' => 'output.images/boxplot.png',
 	execute           => 0,
 	'input.file'      => $tmp_filename,
@@ -383,7 +382,7 @@ plot({
    set_figheight => 12,
    set_figwidth => 12
 });
-plot({
+plt({
 	'output.file' => 'output.images/single.violinplot.png',
 	data              => {                                     # simple hash
 		A => [ 55, @{$z} ],
@@ -399,7 +398,7 @@ plot({
 my @e = generate_normal_dist( 100, 15, 3 * 200 );
 my @b = generate_normal_dist( 85,  15, 3 * 200 );
 my @a = generate_normal_dist( 105, 15, 3 * 200 );
-plot({
+plt({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 	'output.file' => 'output.images/violin.png',
@@ -466,7 +465,7 @@ plot({
 	ncols => 3,
 	nrows => 2,
 });
-plot({
+plt({
 	'output.file' => 'output.images/single.barplot.png',
 	data              => { # simple hash
 		Fri => 76,
@@ -484,7 +483,7 @@ plot({
 	execute      => 0,
 	'input.file' => $tmp_filename,
 });
-plot({
+plt({
 	data => {
 		E => @e,
 		B => @b,
@@ -496,7 +495,7 @@ plot({
 	set_figwidth      => 12,
 	title             => 'Simple Hexbin',
 });
-plot({
+plt({
 	'output.file' => 'output.images/single.hist2d.png',
 	data              => {
 		E => @e,
@@ -507,7 +506,7 @@ plot({
 	execute      => 0,
 	'input.file' => $tmp_filename,
 });
-plot({
+plt({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 	'output.file' => 'output.images/hexbin.png',
@@ -675,7 +674,7 @@ mkdir 'svg' unless -d 'svg';
 my $xticks = "[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
 		. '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']';
 my ($min, $max) = (-9,9);
-plot({
+plt({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 	'output.file' => 'output.images/plots.png',
@@ -790,7 +789,7 @@ plot({
 	set_figwidth => 8,
 	suptitle     => 'Basic Trigonometric Functions'
 });
-plot({
+plt({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 	'output.file' => 'output.images/plot.single.png',
@@ -814,7 +813,7 @@ plot({
 		'cos(x)' => 'color="red",  linewidth=2'
 	}
 });
-plot({
+plt({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 	'output.file' => 'output.images/plot.single.arr.png',
@@ -838,7 +837,7 @@ plot({
 		'color="red",  linewidth=2, label = "cos(x)"'
 	],
 });
-plot({
+plt({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 	'output.file' => 'output.images/barplots.png',
@@ -1022,7 +1021,7 @@ plot({
 	ncols => 3,
 	nrows => 4
 });
-plot({
+plt({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 	'output.file' => 'output.images/single.hist.png',
@@ -1033,7 +1032,7 @@ plot({
 	},
 	'plot.type'       => 'hist'
 });
-plot({
+plt({
 	'input.file'      => $tmp_filename,
 	execute           => 0,
 	'output.file' => 'output.images/histogram.png',
@@ -1138,7 +1137,7 @@ plot({
 	ncols => 3,
 	nrows => 2,
 });
-plot({
+plt({
 	'input.file'      => $tmp_filename,
 	'output.file' => 'output.images/scatterplots.png',
 	execute           => 0,
@@ -1209,7 +1208,7 @@ foreach my $i (0..360) {
 		push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
 	}
 }
-plot({
+plt({
 	data              => \@imshow_data,
 	execute           => 0,
    'input.file'      => $tmp_filename,
@@ -1218,7 +1217,7 @@ plot({
 	set_xlim          => '0, ' . scalar @imshow_data,
 	set_ylim          => '0, ' . scalar @imshow_data,
 });
-plot({
+plt({
 	plots  => [
 		{
 			data => \@imshow_data,
@@ -1280,7 +1279,7 @@ plot({
 	set_figheight   => 6*3,# 4.8
 	set_figwidth    => 6*4 # 6.4
 });
-plot({
+plt({
 	'input.file'      => $tmp_filename,
 	execute           => 1,
 	ncols             => 3,

@@ -7,7 +7,7 @@ Requires python3 and matplotlib installations.
 Simplest use case:
 
     use Matplotlib::Simple 'plot';
-    plot({
+    plt({
 	   'output.file'     => '/tmp/gospel.word.counts.png',
 	   'plot.type'       => 'bar',
 	   data              => {
@@ -20,6 +20,20 @@ Simplest use case:
 
 where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `plot.type`, `data`, `input.file` are all specific to `MatPlotLib::Simple`.
 
+As of version 0.11, all plot types are available as their own subroutines for making **single** plots.
+For example, the above code is equivalent to the shorter version:
+
+    use Matplotlib::Simple 'plot';
+    bar({
+	   'output.file'     => '/tmp/gospel.word.counts.png',
+	   data              => {
+		  Matthew => 18345,
+		  Mark    => 11304,
+		  Luke    => 19482,
+		  John    => 15635,
+	   }
+    });
+
 <img width="651" height="491" alt="gospel word counts" src="https://github.com/user-attachments/assets/a008dece-2e34-47bf-af0f-8603709f7d52" />
 
 ## Multiple Plots
@@ -27,7 +41,7 @@ where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `
 Having a `plots` argument as an array lets the module know to create subplots:
 
     use Matplotlib::Simple 'plot';
-    plot({
+    plt({
     	'output.file'	=> 'svg/pies.png',
     	plots             => [
         {
@@ -124,7 +138,7 @@ an example of multiple plots, showing many options:
 ### single, simple plot
 
     use Matplotlib::Simple 'plot';
-    plot({
+    plt({
 	    'output.file'			=> 'output.images/single.barplot.png',
 	    data	=> { # simple hash
 		    Fri => 76, Mon	=> 73, Sat => 26, Sun => 11, Thu	=> 94, Tue	=> 93, Wed	=> 77
@@ -140,7 +154,7 @@ where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `
 
 ### multiple plots
 
-    plot({
+    plt({
 	    'input.file'		=> $tmp_filename,
 	    execute				=> 0,
 	    'output.file'	=> 'output.images/barplots.png',
@@ -336,7 +350,7 @@ Plot a hash of arrays as a series of boxplots
 
 single plots are simple
 
-    plot({
+    plt({
     	'output.file' => 'output.images/single.boxplot.png',
     	data              => {                                     # simple hash
     		E => [ 55,    @{$x}, 160 ],
@@ -357,7 +371,7 @@ which makes the following image:
 
 ### multiple plots
 
-    plot({
+    plt({
     	'output.file' => 'output.images/boxplot.png',
     	execute           => 0,
     	'input.file'      => $tmp_filename,
@@ -506,7 +520,7 @@ see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.hexbin.html
 
 ### single, simple plot
 
-    plot({
+    plt({
     	data	=> {
     		E	=> generate_normal_dist(100, 15, 3*210),
     		B	=> generate_normal_dist(85, 15, 3*210)
@@ -521,7 +535,7 @@ which makes the following plot:
 <img width="1208" height="491" alt="single hexbin" src="https://github.com/user-attachments/assets/129c41cd-2d7d-43de-978a-2b9c441b8939" />
 ### multiple plots
 
-    plot({
+    plt({
     	'input.file'      => $tmp_filename,
     	execute           => 0,
     	'output.file' => 'output.images/hexbin.png',
@@ -665,7 +679,7 @@ Plot a hash of arrays as a series of histograms
     my @b = generate_normal_dist( 85,  15, 3 * 200 );
     my @a = generate_normal_dist( 105, 15, 3 * 200 );
 
-    plot({
+    plt({
     	'input.file'      => $tmp_filename,
     	execute           => 0,
     	'output.file' => 'output.images/single.hist.png',
@@ -683,7 +697,7 @@ which makes the following simple plot:
 
 ### multiple plots
 
-    plot({
+    plt({
     	'input.file'      => $tmp_filename,
     	execute           => 0,
     	'output.file' => 'output.images/histogram.png',
@@ -796,7 +810,7 @@ Make a 2-D histogram from a hash of arrays
 ## hist2d
 
 ### single, simple plot
-    plot({
+    plt({
     	'output.file' => 'output.images/single.hist2d.png',
     	data              => {
     		E => @e,
@@ -832,7 +846,7 @@ the range for the density min and max is reported to stdout
 |'ybins' |  default 15 | 
 
 ### multiple plots
-    plot({
+    plt({
     	'input.file'      => $tmp_filename,
     	execute           => 1,
     	ncols             => 3,
@@ -956,7 +970,7 @@ Plot 2D array of numbers as an image
     		push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
     	}
     }
-    plot({
+    plt({
     	data              => \@imshow_data,
     	execute           => 0,
        'input.file'      => $tmp_filename,
@@ -972,7 +986,7 @@ which makes the following image:
 
 ### multiple plots
 
-    plot({
+    plt({
     	plots  => [
     		{
     			data => \@imshow_data,
@@ -1045,7 +1059,7 @@ which makes the following image:
 
 ### single, simple plot
 
-    plot({
+    plt({
     	'output.file' => 'output.images/single.pie.png',
     	data              => {                                 # simple hash
     		Fri => 76,
@@ -1068,7 +1082,7 @@ which makes the image:
 
 ### multiple plots
 
-    plot({
+    plt({
     	'output.file' => 'output.images/pie.png',
     	plots             => [
     		{
@@ -1139,7 +1153,7 @@ plot either a hash of arrays or an array of arrays
 
 data can be given as a hash, where the hash key is the label:
 
-    plot({
+    plt({
     	'input.file'      => $tmp_filename,
     	execute           => 0,
     	'output.file' => 'output.images/plot.single.png',
@@ -1166,7 +1180,7 @@ data can be given as a hash, where the hash key is the label:
 
 or as an array of arrays:
 
-    plot({
+    plt({
     	'input.file'      => $tmp_filename,
     	execute           => 0,
     	'output.file' => 'output.images/plot.single.arr.png',
@@ -1248,7 +1262,7 @@ which makes
     my $xticks = "[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
     		. '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']';
     my ($min, $max) = (-9,9);
-    plot({
+    plt({
     	'input.file'      => $tmp_filename,
     	execute           => 0,
     	'output.file' => 'output.images/plots.png',
@@ -1374,7 +1388,7 @@ which makes
 
 ### multiple plots
 
-    plot({
+    plt({
     	'input.file'      => $tmp_filename,
     	'output.file' => 'output.images/scatterplots.png',
     	execute           => 0,
@@ -1451,7 +1465,7 @@ which makes the following figure:
 
 ### single, simple plot
 
-    plot({
+    plt({
     	'output.file' => 'output.images/single.violinplot.png',
     	data              => {                                     # simple hash
     		A => [ 55, @{$z} ],
@@ -1471,7 +1485,7 @@ which makes:
 
 ### multiple plots
 
-    plot({
+    plt({
     	'input.file'      => $tmp_filename,
     	execute           => 0,
     	'output.file' => 'output.images/violin.png',
@@ -1561,7 +1575,7 @@ To improve speed, all data can be written into a single temp python3 file thus:
 	
 all files will be written to $tmp_filename; be sure to put `execute => 0`
 
-    plot({
+    plt({
         data => {
             Clinical => [
                 [
@@ -1591,7 +1605,7 @@ all files will be written to $tmp_filename; be sure to put `execute => 0`
         execute      => 0,
     });
     # the last plot should have `execute => 1`
-    plot({
+    plt({
         data => [
             [
                 [@xw],    # x

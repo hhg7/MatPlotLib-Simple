@@ -20,7 +20,7 @@ use Devel::Confess 'color';
 use FindBin '$RealScript';
 use Exporter 'import';
 use Capture::Tiny 'capture';
-our @EXPORT = ('bar', 'plot''barh', 'boxplot','hist','hist2d','imshow','pie','scatter','violin','wide');
+our @EXPORT = ('plt', 'bar', 'barh', 'boxplot', 'hist', 'hist2d', 'imshow', 'pie', 'plot', 'scatter', 'violin', 'wide');
 
 sub execute {
 	my ( $cmd, $return, $die ) = @_;
@@ -1535,9 +1535,8 @@ sub wide_helper {
 	);
 	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
 	if ( scalar @undef_args > 0 ) {
-	  p @undef_args;
-	  die
-	"the above args are necessary for $current_sub, but were not defined.";
+		p @undef_args;
+		die "the above args are necessary for $current_sub, but were not defined.";
 	}
 	my @opt = (
 	  @ax_methods, @plt_methods, @fig_methods, @arg,
@@ -1632,7 +1631,7 @@ sub print_type {
    return $type;
 }
 
-sub plot {
+sub plt {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
@@ -1643,7 +1642,7 @@ sub plot {
 	my @reqd_args = (
 	  'output.file',    # e.g. "my_image.svg"
 	);
-	my $single_example = 'plot({
+	my $single_example = 'plt({
 	\'output.file\' => \'/tmp/gospel.word.counts.svg\',
 	\'plot.type\'       => \'bar\',
 	data              => {
@@ -1653,7 +1652,7 @@ sub plot {
 	\'John\'    => 15635,
 	}
 	});';
-	my $multi_example = 'plot({
+	my $multi_example = 'plt({
 	\'output.file\'	=> \'svg/pie.svg\',
 	plots             => [
 	{
@@ -2202,7 +2201,7 @@ sub bar { # a wrapper to simplify calling
 	if (defined $args->{plots}) {
 		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
 	}
-	plot({
+	plt({
 		%{ $args },
 		'plot.type' => $current_sub
 	});
@@ -2216,7 +2215,7 @@ sub barh { # a wrapper to simplify calling
 	if (defined $args->{plots}) {
 		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
 	}
-	plot({
+	plt({
 		%{ $args },
 		'plot.type' => $current_sub
 	});
@@ -2231,7 +2230,7 @@ sub boxplot { # a wrapper to simplify calling
 	if (defined $args->{plots}) {
 		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
 	}
-	plot({
+	plt({
 		%{ $args },
 		'plot.type' => $current_sub
 	});
@@ -2246,7 +2245,7 @@ sub hist { # a wrapper to simplify calling
 	if (defined $args->{plots}) {
 		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
 	}
-	plot({
+	plt({
 		%{ $args },
 		'plot.type' => $current_sub
 	});
@@ -2261,7 +2260,7 @@ sub hist2d { # a wrapper to simplify calling
 	if (defined $args->{plots}) {
 		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
 	}
-	plot({
+	plt({
 		%{ $args },
 		'plot.type' => $current_sub
 	});
@@ -2276,7 +2275,7 @@ sub imshow { # a wrapper to simplify calling
 	if (defined $args->{plots}) {
 		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
 	}
-	plot({
+	plt({
 		%{ $args },
 		'plot.type' => $current_sub
 	});
@@ -2291,7 +2290,22 @@ sub pie { # a wrapper to simplify calling
 	if (defined $args->{plots}) {
 		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
 	}
-	plot({
+	plt({
+		%{ $args },
+		'plot.type' => $current_sub
+	});
+}
+
+sub plot {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $current_sub)) {
+		warn "$args->{'plot.type'} will be ignored for $current_sub";
+	}
+	if (defined $args->{plots}) {
+		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
+	}
+	plt({
 		%{ $args },
 		'plot.type' => $current_sub
 	});
@@ -2306,7 +2320,7 @@ sub scatter { # a wrapper to simplify calling
 	if (defined $args->{plots}) {
 		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
 	}
-	plot({
+	plt({
 		%{ $args },
 		'plot.type' => $current_sub
 	});
@@ -2321,7 +2335,7 @@ sub violin { # a wrapper to simplify calling
 	if (defined $args->{plots}) {
 		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
 	}
-	plot({
+	plt({
 		%{ $args },
 		'plot.type' => $current_sub
 	});
@@ -2336,7 +2350,7 @@ sub wide { # a wrapper to simplify calling
 	if (defined $args->{plots}) {
 		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
 	}
-	plot({
+	plt({
 		%{ $args },
 		'plot.type' => $current_sub
 	});
@@ -2354,7 +2368,7 @@ Requires python3 and matplotlib installations.
 Simplest use case:
 
  use Matplotlib::Simple 'plot';
- plot({
+ plt({
     'output.filename' => '/tmp/gospel.word.counts.png',
     'plot.type'       => 'bar',
     data              => {
@@ -2379,7 +2393,7 @@ where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself
 Having a C<plots> argument as an array lets the module know to create subplots:
 
  use Matplotlib::Simple 'plot';
- plot({
+ plt({
      'output.filename'   => 'svg/pies.png',
      plots             => [
      {
@@ -2487,7 +2501,7 @@ an example of multiple plots, showing many options:
 =head3 single, simple plot
 
  use Matplotlib::Simple 'plot';
- plot({
+ plt({
      'output.filename'           => 'output.images/single.barplot.png',
      data    => { # simple hash
          Fri => 76, Mon  => 73, Sat => 26, Sun => 11, Thu    => 94, Tue  => 93, Wed  => 77
@@ -2508,7 +2522,7 @@ where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself
 
 =head3 multiple plots
 
- plot({
+ plt({
      'input.file'        => $tmp_filename,
      execute             => 0,
      'output.filename'   => 'output.images/barplots.png',
@@ -2714,7 +2728,7 @@ Plot a hash of arrays as a series of boxplots
 
 single plots are simple
 
- plot({
+ plt({
      'output.filename' => 'output.images/single.boxplot.png',
      data              => {                                     # simple hash
          E => [ 55,    @{$x}, 160 ],
@@ -2740,7 +2754,7 @@ which makes the following image:
 
 =head3 multiple plots
 
- plot({
+ plt({
      'output.filename' => 'output.images/boxplot.png',
      execute           => 0,
      'input.file'      => $tmp_filename,
@@ -2899,7 +2913,7 @@ see https://matplotlib.org/stable/api/I<as>gen/matplotlib.pyplot.hexbin.html
 
 =head3 single, simple plot
 
- plot({
+ plt({
      data    => {
          E   => generate_normal_dist(100, 15, 3*210),
          B   => generate_normal_dist(85, 15, 3*210)
@@ -2919,7 +2933,7 @@ which makes the following plot:
 
 =head3 multiple plots
 
- plot({
+ plt({
      'input.file'      => $tmp_filename,
      execute           => 0,
      'output.file' => 'output.images/hexbin.png',
@@ -3072,7 +3086,7 @@ Plot a hash of arrays as a series of histograms
  my @b = generate_normal_dist( 85,  15, 3 * 200 );
  my @a = generate_normal_dist( 105, 15, 3 * 200 );
  
- plot({
+ plt({
      'input.file'      => $tmp_filename,
      execute           => 0,
      'output.filename' => 'output.images/single.hist.png',
@@ -3095,7 +3109,7 @@ which makes the following simple plot:
 
 =head3 multiple plots
 
- plot({
+ plt({
      'input.file'      => $tmp_filename,
      execute           => 0,
      'output.file' => 'output.images/histogram.png',
@@ -3214,7 +3228,7 @@ Make a 2-D histogram from a hash of arrays
 
 =head3 single, simple plot
 
- plot({
+ plt({
      'output.file' => 'output.images/single.hist2d.png',
      data              => {
          E => @e,
@@ -3269,7 +3283,7 @@ the range for the density min and max is reported to stdout
 
 =head3 multiple plots
 
- plot({
+ plt({
      'input.file'      => $tmp_filename,
      execute           => 1,
      ncols             => 3,
@@ -3405,7 +3419,7 @@ Plot 2D array of numbers as an image
          push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
      }
  }
- plot({
+ plt({
      data              => \@imshow_data,
      execute           => 0,
     'input.file'      => $tmp_filename,
@@ -3426,7 +3440,7 @@ which makes the following image:
 
 =head3 multiple plots
 
- plot({
+ plt({
      plots  => [
          {
              data => \@imshow_data,
@@ -3504,7 +3518,7 @@ which makes the following image:
 
 =head3 single, simple plot
 
- plot({
+ plt({
      'output.file' => 'output.images/single.pie.png',
      data              => {                                 # simple hash
          Fri => 76,
@@ -3532,7 +3546,7 @@ which makes the image:
 
 =head3 multiple plots
 
- plot({
+ plt({
      'output.file' => 'output.images/pie.png',
      plots             => [
          {
@@ -3608,7 +3622,7 @@ plot either a hash of arrays or an array of arrays
 
 data can be given as a hash, where the hash key is the label:
 
- plot({
+ plt({
      'input.file'      => $tmp_filename,
      execute           => 0,
      'output.filename' => 'output.images/plot.single.png',
@@ -3635,7 +3649,7 @@ data can be given as a hash, where the hash key is the label:
 
 or as an array of arrays:
 
- plot({
+ plt({
      'input.file'      => $tmp_filename,
      execute           => 0,
      'output.file' => 'output.images/plot.single.arr.png',
@@ -3722,7 +3736,7 @@ which makes
  my $xticks = "[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
          . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']';
  my ($min, $max) = (-9,9);
- plot({
+ plt({
      'input.file'      => $tmp_filename,
      execute           => 0,
      'output.file' => 'output.images/plots.png',
@@ -3853,7 +3867,7 @@ which makes
 
 =head3 multiple plots
 
- plot({
+ plt({
      'input.file'      => $tmp_filename,
      'output.file' => 'output.images/scatterplots.png',
      execute           => 0,
@@ -3934,7 +3948,7 @@ which makes the following figure:
 
 =head3 single, simple plot
 
- plot({
+ plt({
      'output.file' => 'output.images/single.violinplot.png',
      data              => {                                     # simple hash
          A => [ 55, @{$z} ],
@@ -3959,7 +3973,7 @@ which makes:
 
 =head3 multiple plots
 
- plot({
+ plt({
      'input.file'      => $tmp_filename,
      execute           => 0,
      'output.file' => 'output.images/violin.png',
@@ -4060,7 +4074,7 @@ To improve speed, all data can be written into a single temp python3 file thus:
 
 all files will be written to $tmp_filename; be sure to put C<< execute =E<gt> 0 >>
 
- plot({
+ plt({
      data => {
          Clinical => [
              [
@@ -4090,7 +4104,7 @@ all files will be written to $tmp_filename; be sure to put C<< execute =E<gt> 0 
      execute      => 0,
  });
  # the last plot should have C<< execute =E<gt> 1 >>
- plot({
+ plt({
      data => [
          [
              [@xw],    # x
