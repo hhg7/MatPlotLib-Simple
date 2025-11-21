@@ -40,23 +40,23 @@ sub execute {
 	  die "$cmd\n failed";
 	}
 	if ( $return eq 'exit' ) {
-	  return $exit;
+		return $exit;
 	} elsif ( $return eq 'stderr' ) {
-	  chomp $stderr;
-	  return $stderr;
+		chomp $stderr;
+		return $stderr;
 	} elsif ( $return eq 'stdout' ) {
-	  chomp $stdout;
-	  return $stdout;
+		chomp $stdout;
+		return $stdout;
 	} elsif ( $return eq 'all' ) {
-	  chomp $stdout;
-	  chomp $stderr;
-	  return {
-		   exit   => $exit,
-		   stdout => $stdout,
-		   stderr => $stderr
-	  };
+		chomp $stdout;
+		chomp $stderr;
+		return {
+			exit   => $exit,
+			stdout => $stdout,
+			stderr => $stderr
+		};
 	} else {
-	  die "$return broke pigeonholes";
+		die "$return broke pigeonholes";
 	}
 	return $stdout;
 }
@@ -192,13 +192,12 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
 	unless ( ref $args eq 'HASH' ) {
-	  die
-	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
-	  'ax',      # ax1, ax2, etc. when there are multiple plots
-	  'fh',      # e.g. $py, $fh, which will be passed by the subroutine
-	  'args',    # args to original function
+		'ax',   # ax1, ax2, etc. when there are multiple plots
+		'fh',   # e.g. $py, $fh, which will be passed by the subroutine
+		'args', # args to original function
 	);
 	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
 	if ( scalar @undef_args > 0 ) {
