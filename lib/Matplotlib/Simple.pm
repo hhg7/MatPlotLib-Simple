@@ -20,7 +20,7 @@ use Devel::Confess 'color';
 use FindBin '$RealScript';
 use Exporter 'import';
 use Capture::Tiny 'capture';
-our @EXPORT = ('plot');
+our @EXPORT = ('bar', 'plot''barh', 'boxplot','hist','hist2d','imshow','pie','scatter','violin','wide');
 
 sub execute {
 	my ( $cmd, $return, $die ) = @_;
@@ -260,34 +260,6 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 	say { $args->{fh} } 'if len(labels) > 0:';
 	say { $args->{fh} } "\t$args->{ax}.legend($legend)";
 }
-
-my @plot_keys = ('pplot');
-sub graphics {
-	my ($args) = @_;
-	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
-	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
-		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
-	}
-	my @reqd_args = (
-		'ax',
-		'fh',      # e.g. $py, $fh, which will be passed by the subroutine
-		'method',
-		'plot',    # args to original function
-	);
-	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
-	if ( scalar @undef_args > 0 ) {
-	  p @undef_args;
-	  die 'the above args are necessary, but were not defined.';
-	}
-	my $cmd = "$args->{ax}.plot(";
-	my %reqd_args = map {$_ => 1} @reqd_args;
-	foreach my $arg (grep {not defined $reqd_args{$_}} keys %{ $args }) {
-		$cmd .= "$arg = $args->{$arg}";
-	}
-	say {$args->{fh}} "$cmd)";
-}
-
 sub barplot_helper { # this is a helper function to other matplotlib subroutines
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
@@ -2220,6 +2192,156 @@ sub plot {
 		 . colored( ['cyan on_bright_yellow'], "$args->{'output.file'}" );
 	}
 }
+
+sub bar { # a wrapper to simplify calling
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $current_sub)) {
+		warn "$args->{'plot.type'} will be ignored for $current_sub";
+	}
+	if (defined $args->{plots}) {
+		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
+	}
+	plot({
+		%{ $args },
+		'plot.type' => $current_sub
+	});
+}
+sub barh { # a wrapper to simplify calling
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $current_sub)) {
+		warn "$args->{'plot.type'} will be ignored for $current_sub";
+	}
+	if (defined $args->{plots}) {
+		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
+	}
+	plot({
+		%{ $args },
+		'plot.type' => $current_sub
+	});
+}
+
+sub boxplot { # a wrapper to simplify calling
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $current_sub)) {
+		warn "$args->{'plot.type'} will be ignored for $current_sub";
+	}
+	if (defined $args->{plots}) {
+		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
+	}
+	plot({
+		%{ $args },
+		'plot.type' => $current_sub
+	});
+}
+
+sub hist { # a wrapper to simplify calling
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $current_sub)) {
+		warn "$args->{'plot.type'} will be ignored for $current_sub";
+	}
+	if (defined $args->{plots}) {
+		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
+	}
+	plot({
+		%{ $args },
+		'plot.type' => $current_sub
+	});
+}
+
+sub hist2d { # a wrapper to simplify calling
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $current_sub)) {
+		warn "$args->{'plot.type'} will be ignored for $current_sub";
+	}
+	if (defined $args->{plots}) {
+		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
+	}
+	plot({
+		%{ $args },
+		'plot.type' => $current_sub
+	});
+}
+
+sub imshow { # a wrapper to simplify calling
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $current_sub)) {
+		warn "$args->{'plot.type'} will be ignored for $current_sub";
+	}
+	if (defined $args->{plots}) {
+		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
+	}
+	plot({
+		%{ $args },
+		'plot.type' => $current_sub
+	});
+}
+
+sub pie { # a wrapper to simplify calling
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $current_sub)) {
+		warn "$args->{'plot.type'} will be ignored for $current_sub";
+	}
+	if (defined $args->{plots}) {
+		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
+	}
+	plot({
+		%{ $args },
+		'plot.type' => $current_sub
+	});
+}
+
+sub scatter { # a wrapper to simplify calling
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $current_sub)) {
+		warn "$args->{'plot.type'} will be ignored for $current_sub";
+	}
+	if (defined $args->{plots}) {
+		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
+	}
+	plot({
+		%{ $args },
+		'plot.type' => $current_sub
+	});
+}
+
+sub violin { # a wrapper to simplify calling
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $current_sub)) {
+		warn "$args->{'plot.type'} will be ignored for $current_sub";
+	}
+	if (defined $args->{plots}) {
+		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
+	}
+	plot({
+		%{ $args },
+		'plot.type' => $current_sub
+	});
+}
+
+sub wide { # a wrapper to simplify calling
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $current_sub)) {
+		warn "$args->{'plot.type'} will be ignored for $current_sub";
+	}
+	if (defined $args->{plots}) {
+		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
+	}
+	plot({
+		%{ $args },
+		'plot.type' => $current_sub
+	});
+}
+
 1;
 # from md2pod.pl πατερ ημων ο εν τοις ουρανοις, ἁγιασθήτω τὸ ὄνομά σου
 =head1 Synopsis
