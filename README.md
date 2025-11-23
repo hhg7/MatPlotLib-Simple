@@ -6,7 +6,7 @@ Requires python3 and matplotlib installations.
 ## Single Plots
 Simplest use case:
 
-    use Matplotlib::Simple 'plot';
+    use Matplotlib::Simple 'plt';
     plt({
 	   'output.file'     => '/tmp/gospel.word.counts.png',
 	   'plot.type'       => 'bar',
@@ -23,7 +23,7 @@ where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `
 As of version 0.11, all plot types are available as their own subroutines for making **single** plots.
 For example, the above code is equivalent to the shorter version:
 
-    use Matplotlib::Simple 'plot';
+    use Matplotlib::Simple 'bar';
     bar({
 	   'output.file'     => '/tmp/gospel.word.counts.png',
 	   data              => {
@@ -40,7 +40,7 @@ For example, the above code is equivalent to the shorter version:
 
 Having a `plots` argument as an array lets the module know to create subplots:
 
-    use Matplotlib::Simple 'plot';
+    use Matplotlib::Simple 'plt';
     plt({
     	'output.file'	=> 'svg/pies.png',
     	plots             => [
@@ -137,7 +137,7 @@ an example of multiple plots, showing many options:
 
 ### single, simple plot
 
-    use Matplotlib::Simple 'plot';
+    use Matplotlib::Simple 'plt';
     plt({
 	    'output.file'			=> 'output.images/single.barplot.png',
 	    data	=> { # simple hash
@@ -350,7 +350,8 @@ Plot a hash of arrays as a series of boxplots
 
 single plots are simple
 
-    plt({
+    use Matplotlib::Simple 'barplot';
+    barplot({
     	'output.file' => 'output.images/single.boxplot.png',
     	data              => {                                     # simple hash
     		E => [ 55,    @{$x}, 160 ],
@@ -358,7 +359,6 @@ single plots are simple
 
     		#		A => @a
     	},
-    	'plot.type'  => 'boxplot',
     	title        => 'Single Box Plot: Specified Colors',
     	colors       => { E => 'yellow', B => 'purple' },
     	'input.file' => $tmp_filename,
@@ -675,11 +675,13 @@ Plot a hash of arrays as a series of histograms
 
 ### single, simple plot
 
+    use Matplotlib::Simple 'hist';
+	
     my @e = generate_normal_dist( 100, 15, 3 * 200 );
     my @b = generate_normal_dist( 85,  15, 3 * 200 );
     my @a = generate_normal_dist( 105, 15, 3 * 200 );
 
-    plt({
+    hist({
     	'input.file'      => $tmp_filename,
     	execute           => 0,
     	'output.file' => 'output.images/single.hist.png',
@@ -687,8 +689,7 @@ Plot a hash of arrays as a series of histograms
 	    	E => @e,
 	    	B => @b,
 	    	A => @a,
-    	},
-    	'plot.type'       => 'hist'
+    	}
     });
 
 which makes the following simple plot:
