@@ -2357,6 +2357,8 @@ sub wide { # a wrapper to simplify calling
 
 1;
 # from md2pod.pl πατερ ημων ο εν τοις ουρανοις, ἁγιασθήτω τὸ ὄνομά σου
+=encoding utf8
+
 =head1 Synopsis
 
 Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in C</tmp>, to be edited at the user's discretion.
@@ -2368,7 +2370,7 @@ Simplest use case:
 
  use Matplotlib::Simple 'plot';
  plt({
-    'output.filename' => '/tmp/gospel.word.counts.png',
+    'output.file'     => '/tmp/gospel.word.counts.png',
     'plot.type'       => 'bar',
     data              => {
        Matthew => 18345,
@@ -2379,6 +2381,20 @@ Simplest use case:
  });
 
 where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself. C<plot.type>, C<data>, C<input.file> are all specific to C<MatPlotLib::Simple>.
+
+As of version 0.11, all plot types are available as their own subroutines for making B<single> plots.
+For example, the above code is equivalent to the shorter version:
+
+ use Matplotlib::Simple 'plot';
+ bar({
+    'output.file'     => '/tmp/gospel.word.counts.png',
+    data              => {
+       Matthew => 18345,
+       Mark    => 11304,
+       Luke    => 19482,
+       John    => 15635,
+    }
+ });
 
 
 =for html
@@ -2393,7 +2409,7 @@ Having a C<plots> argument as an array lets the module know to create subplots:
 
  use Matplotlib::Simple 'plot';
  plt({
-     'output.filename'   => 'svg/pies.png',
+     'output.file'   => 'svg/pies.png',
      plots             => [
      {
              data    => {
@@ -2483,14 +2499,14 @@ Plot a hash or a hash of arrays as a boxplot
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>------- </td></tr>
-<tr><td>color</td><td>:mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed</td><td>`color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],` or a single color for all bars `color => 'red'`</td></tr>
-<tr><td>edgecolor</td><td>:mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar edges</td><td>`edgecolor        => 'black'`</td></tr>
-<tr><td>key.order</td><td>define the keys in an order (an array reference)</td><td>`'key.order'     => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],`</td></tr>
-<tr><td>linewidth</td><td>float or array, optional; Width of the bar edge(s). If 0, don't draw edges. Only does anything with defined `edgecolor`</td><td>`linewidth => 2,`</td></tr>
-<tr><td>log</td><td>bool, default: False; If *True*, set the y-axis to be log scale.</td><td>`log = 'True',`</td></tr>
-<tr><td>stacked</td><td>stack the groups on top of one another; default 0 = off</td><td>`stacked    => 1,`</td></tr>
-<tr><td>width</td><td>float only, default: 0.8; The width(s) of the bars.  `width` will be deactivated with grouped, non-stacked bar plots</td><td>`width => 0.4,`</td></tr>
-<tr><td>xerr</td><td>float or array-like of shape(N,) or shape(2, N), optional. If not *None*, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - *None*: No errorbar. (Default)</td><td>`yerr                        => {'USA'               => [15,29], 'Russia'            => [199,1000],}`</td></tr>
+<tr><td>color</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed</td><td><code>color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],</code> or a single color for all bars <code>color => 'red'</code></td></tr>
+<tr><td>edgecolor</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar edges</td><td><code>edgecolor     => 'black'</code></td></tr>
+<tr><td>key.order</td><td>define the keys in an order (an array reference)</td><td><code>'key.order'        => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],</code></td></tr>
+<tr><td>linewidth</td><td>float or array, optional; Width of the bar edge(s). If 0, don't draw edges. Only does anything with defined <code>edgecolor</code></td><td><code>linewidth => 2,</code></td></tr>
+<tr><td>log</td><td>bool, default: False; If *True*, set the y-axis to be log scale.</td><td><code>log = 'True',</code></td></tr>
+<tr><td>stacked</td><td>stack the groups on top of one another; default 0 = off</td><td><code>stacked   => 1,</code></td></tr>
+<tr><td>width</td><td>float only, default: 0.8; The width(s) of the bars.  <code>width</code> will be deactivated with grouped, non-stacked bar plots</td><td><code>width => 0.4,</code></td></tr>
+<tr><td>xerr</td><td>float or array-like of shape(N,) or shape(2, N), optional. If not *None*, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - *None*: No errorbar. (Default)</td><td><code>yerr                       => {'USA'               => [15,29], 'Russia'            => [199,1000],}</code></td></tr>
 <tr><td>yerr</td><td>same as xerr, but better with bar</td><td></td></tr>
 </tbody>
 </table>
@@ -2501,7 +2517,7 @@ an example of multiple plots, showing many options:
 
  use Matplotlib::Simple 'plot';
  plt({
-     'output.filename'           => 'output.images/single.barplot.png',
+     'output.file'           => 'output.images/single.barplot.png',
      data    => { # simple hash
          Fri => 76, Mon  => 73, Sat => 26, Sun => 11, Thu    => 94, Tue  => 93, Wed  => 77
      },
@@ -2524,7 +2540,7 @@ where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself
  plt({
      'input.file'        => $tmp_filename,
      execute             => 0,
-     'output.filename'   => 'output.images/barplots.png',
+     'output.file'   => 'output.images/barplots.png',
      plots                   => [
      { # simple plot
              data    => { # simple hash
@@ -2708,14 +2724,14 @@ Plot a hash of arrays as a series of boxplots
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
-<tr><td>`color`</td><td>a single color for all plots</td><td>`color => 'pink'`</td></tr>
-<tr><td>`colors`</td><td>a hash, where each data point and color is a hash pair</td><td>`colors => { A => 'orange', E => 'yellow', B => 'purple' },`</td></tr>
-<tr><td>`key.order`</td><td>order that the keys in the entry hash will be plotted</td><td>`key.order = ['A', 'E', 'B']`</td></tr>
-<tr><td>`orientation`</td><td>orientation of the plot, by default `vertical`</td><td>`orientation = 'horizontal'`</td></tr>
-<tr><td>`showcaps`</td><td>Show the caps on the ends of whiskers; default `True`</td><td>`showcaps => 'False',`</td></tr>
-<tr><td>`showfliers`</td><td>Show the outliers beyond the caps; default `True`</td><td>`showfliers  => 'False'`</td></tr>
-<tr><td>`showmeans`</td><td>show means; default = `True`</td><td>`showmeans   => 'False'`</td></tr>
-<tr><td>`whiskers`</td><td>show whiskers, default = 1</td><td>` whiskers    => 0,`</td></tr>
+<tr><td><code>color</code></td><td>a single color for all plots</td><td><code>color => 'pink'</code></td></tr>
+<tr><td><code>colors</code></td><td>a hash, where each data point and color is a hash pair</td><td><code>colors => { A => 'orange', E => 'yellow', B => 'purple' },</code></td></tr>
+<tr><td><code>key.order</code></td><td>order that the keys in the entry hash will be plotted</td><td><code>key.order = ['A', 'E', 'B']</code></td></tr>
+<tr><td><code>orientation</code></td><td>orientation of the plot, by default <code>vertical</code></td><td><code>orientation = 'horizontal'</code></td></tr>
+<tr><td><code>showcaps</code></td><td>Show the caps on the ends of whiskers; default <code>True</code></td><td><code>showcaps => 'False',</code></td></tr>
+<tr><td><code>showfliers</code></td><td>Show the outliers beyond the caps; default <code>True</code></td><td><code>showfliers  => 'False'</code></td></tr>
+<tr><td><code>showmeans</code></td><td>show means; default = <code>True</code></td><td><code>showmeans   => 'False'</code></td></tr>
+<tr><td><code>whiskers</code></td><td>show whiskers, default = 1</td><td><code> whiskers    => 0,</code></td></tr>
 </tbody>
 </table>
 
@@ -2728,7 +2744,7 @@ Plot a hash of arrays as a series of boxplots
 single plots are simple
 
  plt({
-     'output.filename' => 'output.images/single.boxplot.png',
+     'output.file' => 'output.images/single.boxplot.png',
      data              => {                                     # simple hash
          E => [ 55,    @{$x}, 160 ],
          B => [ @{$y}, 140 ],
@@ -2754,7 +2770,7 @@ which makes the following image:
 =head3 multiple plots
 
  plt({
-     'output.filename' => 'output.images/boxplot.png',
+     'output.file' => 'output.images/boxplot.png',
      execute           => 0,
      'input.file'      => $tmp_filename,
      plots             => [
@@ -2896,17 +2912,17 @@ see https://matplotlib.org/stable/api/I<as>gen/matplotlib.pyplot.hexbin.html
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>------- </td></tr>
-<tr><td>cb_logscale</td><td>colorbar log scale `from matplotlib.colors import LogNorm`</td><td>default 0, any value > 0 enables</td></tr>
-<tr><td>cmap</td><td>The Colormap instance or registered colormap name used to map scalar data to colors</td><td>default `gist_rainbow`</td></tr>
-<tr><td>key.order</td><td>define the keys in an order (an array reference)</td><td>`'key.order' => ['X-rays', 'Yak Butter'],`</td></tr>
-<tr><td>marginals</td><td>integer, by default off = 0</td><td>`marginals => 1`</td></tr>
-<tr><td>mincnt</td><td>int >= 0, default: None; If not None, only display cells with at least mincnt number of points in the cell.</td><td>`mincnt => 2`</td></tr>
-<tr><td>vmax</td><td>The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap</td><td>`'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'` default `linear`</td></tr>
-<tr><td>vmin</td><td>The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap</td><td>`'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'` default `linear`</td></tr>
+<tr><td>cb_logscale</td><td>colorbar log scale <code>from matplotlib.colors import LogNorm</code></td><td>default 0, any value > 0 enables</td></tr>
+<tr><td>cmap</td><td>The Colormap instance or registered colormap name used to map scalar data to colors</td><td>default <code>gist_rainbow</code></td></tr>
+<tr><td>key.order</td><td>define the keys in an order (an array reference)</td><td><code>'key.order' => ['X-rays', 'Yak Butter'],</code></td></tr>
+<tr><td>marginals</td><td>integer, by default off = 0</td><td><code>marginals => 1</code></td></tr>
+<tr><td>mincnt</td><td>int >= 0, default: None; If not None, only display cells with at least mincnt number of points in the cell.</td><td><code>mincnt => 2</code></td></tr>
+<tr><td>vmax</td><td>The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap</td><td><code>'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'</code> default <code>linear</code></td></tr>
+<tr><td>vmin</td><td>The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap</td><td><code>'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'</code> default <code>linear</code></td></tr>
 <tr><td>xbins</td><td>integer that accesses horizontal gridsize</td><td>default is 15</td></tr>
-<tr><td>xscale.hexbin</td><td>'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the horizontal axis</td><td>`'xscale.hexbin' => 'log'`</td></tr>
+<tr><td>xscale.hexbin</td><td>'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the horizontal axis</td><td><code>'xscale.hexbin' => 'log'</code></td></tr>
 <tr><td>ybins</td><td>integer that accesses vertical gridsize</td><td>default is 15</td></tr>
-<tr><td>yscale.hexbin</td><td>'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the vertical axis</td><td>`'yscale.hexbin' => 'log'`</td></tr>
+<tr><td>yscale.hexbin</td><td>'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the vertical axis</td><td><code>'yscale.hexbin' => 'log'</code></td></tr>
 </tbody>
 </table>
 
@@ -2917,7 +2933,7 @@ see https://matplotlib.org/stable/api/I<as>gen/matplotlib.pyplot.hexbin.html
          E   => generate_normal_dist(100, 15, 3*210),
          B   => generate_normal_dist(85, 15, 3*210)
      },
-     'output.filename'   => 'output.images/single.hexbin.png',
+     'output.file'   => 'output.images/single.hexbin.png',
      'plot.type' => 'hexbin',
      set_figwidth => 12,
      title           => 'Simple Hexbin',
@@ -3071,11 +3087,11 @@ Plot a hash of arrays as a series of histograms
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
-<tr><td>`alpha`</td><td>default 0.5; same for all sets</td><td></td></tr>
-<tr><td>`bins`</td><td># nt or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open</td><td></td></tr>
-<tr><td>`color`</td><td>a hash, where keys are the keys in data, and values are colors</td><td>`X => 'blue'`</td></tr>
-<tr><td>`log`</td><td>if set to > 1, the y-axis will be logarithmic</td><td></td></tr>
-<tr><td>`orientation`</td><td>{'vertical', 'horizontal'}, default: 'vertical'</td><td></td></tr>
+<tr><td><code>alpha</code></td><td>default 0.5; same for all sets</td><td></td></tr>
+<tr><td><code>bins</code></td><td># nt or sequence or str, default: :rc:<code>hist.bins</code>If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open</td><td></td></tr>
+<tr><td><code>color</code></td><td>a hash, where keys are the keys in data, and values are colors</td><td><code>X => 'blue'</code></td></tr>
+<tr><td><code>log</code></td><td>if set to > 1, the y-axis will be logarithmic</td><td></td></tr>
+<tr><td><code>orientation</code></td><td>{'vertical', 'horizontal'}, default: 'vertical'</td><td></td></tr>
 </tbody>
 </table>
 
@@ -3088,7 +3104,7 @@ Plot a hash of arrays as a series of histograms
  plt({
      'input.file'      => $tmp_filename,
      execute           => 0,
-     'output.filename' => 'output.images/single.hist.png',
+     'output.file' => 'output.images/single.hist.png',
      data              => {
          E => @e,
          B => @b,
@@ -3257,9 +3273,9 @@ the range for the density min and max is reported to stdout
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
-<tr><td>`cb_logscale`</td><td>make the colorbar log-scale</td><td>`cb_logscale => 1`</td></tr>
-<tr><td>`cmap`</td><td>color map for coloring # "gist_rainbow" by default</td><td></td></tr>
-<tr><td>'cmax', `cmin`</td><td>All bins that has count < *cmin* or > *cmax* will not be displayed</td><td></td></tr>
+<tr><td><code>cb_logscale</code></td><td>make the colorbar log-scale</td><td><code>cb_logscale => 1</code></td></tr>
+<tr><td><code>cmap</code></td><td>color map for coloring # "gist_rainbow" by default</td><td></td></tr>
+<tr><td>'cmax', <code>cmin</code></td><td>All bins that has count < *cmin* or > *cmax* will not be displayed</td><td></td></tr>
 </tbody>
 </table>
 
@@ -3270,7 +3286,7 @@ the range for the density min and max is reported to stdout
 <tbody>
 <tr><td>'key.order'</td><td># define the keys in an order (an array reference)</td><td></td></tr>
 <tr><td>'logscale'</td><td># logscale, an array of axes that will get log scale</td><td></td></tr>
-<tr><td>'show.colorbar'</td><td>self-evident, 0 or 1</td><td>`show.colorbar` => 1</td></tr>
+<tr><td>'show.colorbar'</td><td>self-evident, 0 or 1</td><td><code>show.colorbar</code> => 1</td></tr>
 <tr><td>'vmax'</td><td>When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover</td><td></td></tr>
 <tr><td>'vmin'</td><td># When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover</td><td></td></tr>
 <tr><td>'xbins'</td><td># default 15</td><td></td></tr>
@@ -3400,13 +3416,13 @@ Plot 2D array of numbers as an image
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>------- </td></tr>
-<tr><td>`cblabel`</td><td>colorbar label</td><td>`cblabel => 'sin(x) * cos(x)',`</td></tr>
-<tr><td>`cbdrawedges`</td><td>draw edges for colorbar</td><td></td></tr>
-<tr><td>`cblocation`</td><td>'left', 'right', 'top', 'bottom'</td><td>`cblocation => 'left',`</td></tr>
-<tr><td>`cborientation`</td><td>None, or 'vertical', 'horizontal'</td><td></td></tr>
-<tr><td>`cmap`</td><td># The Colormap instance or registered colormap name used to map scalar data to colors.</td><td></td></tr>
-<tr><td>`vmax`</td><td>float</td><td></td></tr>
-<tr><td>`vmin`</td><td>float</td><td></td></tr>
+<tr><td><code>cblabel</code></td><td>colorbar label</td><td><code>cblabel => 'sin(x) * cos(x)',</code></td></tr>
+<tr><td><code>cbdrawedges</code></td><td>draw edges for colorbar</td><td></td></tr>
+<tr><td><code>cblocation</code></td><td>'left', 'right', 'top', 'bottom'</td><td><code>cblocation => 'left',</code></td></tr>
+<tr><td><code>cborientation</code></td><td>None, or 'vertical', 'horizontal'</td><td></td></tr>
+<tr><td><code>cmap</code></td><td># The Colormap instance or registered colormap name used to map scalar data to colors.</td><td></td></tr>
+<tr><td><code>vmax</code></td><td>float</td><td></td></tr>
+<tr><td><code>vmin</code></td><td>float</td><td></td></tr>
 </tbody>
 </table>
 
@@ -3422,7 +3438,7 @@ Plot 2D array of numbers as an image
      data              => \@imshow_data,
      execute           => 0,
     'input.file'      => $tmp_filename,
-     'output.filename' => 'output.images/imshow.single.png',
+     'output.file' => 'output.images/imshow.single.png',
      'plot.type'       => 'imshow',
      set_xlim          => '0, ' . scalar @imshow_data,
      set_ylim          => '0, ' . scalar @imshow_data,
@@ -3624,7 +3640,7 @@ data can be given as a hash, where the hash key is the label:
  plt({
      'input.file'      => $tmp_filename,
      execute           => 0,
-     'output.filename' => 'output.images/plot.single.png',
+     'output.file' => 'output.images/plot.single.png',
      data              => {
          'sin(x)' => [
              [@x],                     # x
@@ -4092,7 +4108,7 @@ all files will be written to $tmp_filename; be sure to put C<< execute =E<gt> 0 
              [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
          ]
      },
-     'output.filename' => 'output.images/single.wide.png',
+     'output.file' => 'output.images/single.wide.png',
      'plot.type'       => 'wide',
      color             => {
          Clinical => 'blue',
@@ -4112,7 +4128,7 @@ all files will be written to $tmp_filename; be sure to put C<< execute =E<gt> 0 
          [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
          [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
      ],
-     'output.filename' => 'output.images/single.array.png',
+     'output.file' => 'output.images/single.array.png',
      'plot.type'       => 'wide',
      color             => 'red',
      title             => 'Visualization of similar lines plotted together',

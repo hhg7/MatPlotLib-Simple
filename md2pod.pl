@@ -33,6 +33,9 @@ foreach my ($table_i, $table_start) (indexed reverse @table_start) {
 	my $t =  HTML::Table->new(-data => \@table);
 	my $table = $t->getTable;
 	@table = grep {$_ ne ''} split /\n/, $table;
+	foreach my $line (@table) {
+		$line =~ s/`([^`]+)`/\<code\>$1\<\/code\>/g;
+	}
 	splice @md, $idx[$table_start], 0, @table; # insert the HTML code
 }
 $md = join ("\n", @md);
@@ -56,6 +59,7 @@ foreach my $i ( grep {$pod[$_] =~ /^<img\h/} reverse 0..$#pod) {
 foreach my $i (grep {$pod[$_] eq '<table>'} reverse 0..$#pod) {
 	splice @pod, $i, 0, '=for html';
 }
+unshift @pod, "=encoding utf8\n";
 #p @pod;
 open my $fh, '>', 'README.pod';
 say $fh join ("\n", @pod);
@@ -66,7 +70,7 @@ my $line = first_index {$_ eq '# from md2pod.pl πατερ ημων ο εν το
 if ($line == -1) {
 	die 'Could not find correct line index';
 }
-splice @lib, -(scalar @lib - $line - 1);
+splice @lib, 1-(scalar @lib - $line);
 push @lib, @pod; # add properly formatted POD text
 open $fh, '>', 'lib/Matplotlib/Simple.pm';
 say $fh join ("\n", @lib);
