@@ -21,6 +21,7 @@ use FindBin '$RealScript';
 use Exporter 'import';
 use Capture::Tiny 'capture';
 our @EXPORT = ('plt', 'bar', 'barh', 'boxplot', 'hist', 'hist2d', 'imshow', 'pie', 'plot', 'scatter', 'violin', 'wide');
+our @EXPORT_OK = @EXPORT;
 
 sub execute {
 	my ( $cmd, $return, $die ) = @_;
@@ -83,7 +84,7 @@ my @ax_methods = (
 	'set_xmargin', 'set_xscale', 'set_xticklabels', 'set_xticks', 'set_ybound',
 	'set_ylabel',  'set_ylim',   'set_ymargin', 'set_yscale', 'set_yticklabels',
 	'set_yticks',  'sharex',     'sharey',      'spines', 'start_pan', 'tables',
-	'text',        'titleOffsetTrans', 'transAxes', 'transData', 'transLimits',
+	'text', 'ticklabel_format', 'titleOffsetTrans', 'transAxes', 'transData', 'transLimits',
 	'transScale', 'update_datalim', 'use_sticky_edges', 'viewLim', 'vlines', 'violin',
 	'xaxis',      'xaxis_date',     'xaxis_inverted',   'yaxis',   'yaxis_date',
 	'yaxis_inverted'
@@ -167,7 +168,7 @@ my @plt_methods = (
 	'subplots_adjust', 'summer', 'suptitle', 'switch_backend', 'sys', 'table',
 	'text'
 	, # text(x: 'float', y: 'float', s: 'str', fontdict: 'dict[str, Any] | None' = None, **kwargs) -> 'Text'
-	'thetagrids',   'threading', 'tick_params', 'ticklabel_format',
+	'thetagrids',   'threading', 'tick_params',
 	'tight_layout', 'time', 'title', 'tricontour', 'tricontourf', 'tripcolor',
 	'triplot', 'twinx',     'twiny', 'uninstall_repl_displayhook', 'violinplot',
 	'viridis', 'waitforbuttonpress', 'winter', 'xcorr', 'xkcd',# 'vlines'
