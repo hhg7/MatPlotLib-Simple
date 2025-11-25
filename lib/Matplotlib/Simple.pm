@@ -365,8 +365,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 	  my $ref = ref $plot->{$c};
 	  if ( $ref eq '' ) {    # single color
 		   $options .= ", $c = '$plot->{$c}'";
-	  }
-	  elsif ( $ref eq 'ARRAY' ) {
+	  } elsif ( $ref eq 'ARRAY' ) {
 		   $options .= ", $c = [\"" . join( '","', @{ $plot->{$c} } ) . '"]';
 	  }
 	}    # args that can be either arrays or strings below; NUMERIC:
@@ -382,28 +381,27 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 		}
 	}
 	foreach my $err ( grep { defined $plot->{$_} } ( 'xerr', 'yerr' ) ) {
-	  my $ref = ref $plot->{$err};
-	  if ( $ref eq '' ) {
-		   $options .= ", $err = $plot->{$err}";
-	  } elsif ( $ref eq 'HASH' ) {    # I assume that it's all defined
-		   my ( @low, @high );
-		   foreach my $i (@key_order) {
-		       if ( scalar @{ $plot->{$err}{$i} } != 2 ) {
-		           p $plot->{$err}{$i};
-		           die
-	"$err/$i should have exactly 2 items: low and high error bars";
-		       }
-		       push @low,  $plot->{$err}{$i}[0];
-		       push @high, $plot->{$err}{$i}[1];
-		   }
-		   $options .=
-		       ", $err = [["
-		     . join( ',', @low ) . '],['
-		     . join( ',', @high ) . ']]';
-	  } else {
-		   p $args;
-		   die "$ref for $err isn't acceptable";
-	  }
+		my $ref = ref $plot->{$err};
+		if ( $ref eq '' ) {
+			$options .= ", $err = $plot->{$err}";
+		} elsif ( $ref eq 'HASH' ) {    # I assume that it's all defined
+			my ( @low, @high );
+			foreach my $i (@key_order) {
+				if ( scalar @{ $plot->{$err}{$i} } != 2 ) {
+				  p $plot->{$err}{$i};
+				  die	"$err/$i should have exactly 2 items: low and high error bars";
+				}
+				push @low,  $plot->{$err}{$i}[0];
+				push @high, $plot->{$err}{$i}[1];
+			}
+			$options .=
+				 ", $err = [["
+			  . join( ',', @low ) . '],['
+			  . join( ',', @high ) . ']]';
+		} else {
+			p $args;
+			die "$ref for $err isn't acceptable";
+		}
 	}
 	if ( $plot_type eq 'simple' ) {    # a simple hash -> simple bar plot
 	  say { $args->{fh} } 'labels = ["' . join( '","', @key_order ) . '"]';
@@ -720,8 +718,8 @@ sub hist_helper {
 	);
 	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
 	if ( scalar @undef_args > 0 ) {
-	  p @undef_args;
-	  die 'the above args are necessary, but were not defined.';
+		p @undef_args;
+		die 'the above args are necessary, but were not defined.';
 	}
 	my @opt = (
 	  @ax_methods, @plt_methods, @fig_methods, @arg,
@@ -1760,8 +1758,7 @@ sub plt {
 	} else {
 		$fh = File::Temp->new( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
 	}
-	my $filename = $fh->filename;
-	say "temp file is $filename";# if $unlink == 0;
+	say 'temp file is ' . $fh->filename;# if $unlink == 0;
 	say $fh 'import matplotlib.pyplot as plt';
 	if ( $single_plot == 0 ) {
 		$args->{sharex} = $args->{sharex} // 'False';
