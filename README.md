@@ -835,8 +835,8 @@ the range for the density min and max is reported to stdout
 |`cb_logscale`| make the colorbar log-scale | `cb_logscale => 1` |
 |`cmap`| color map for coloring # "gist_rainbow" by default |  |
 |'cmax', `cmin`| All bins that has count < *cmin* or > *cmax* will not be displayed|
-|  'density',      # density : bool, default: False
-|  'key.order'|    # define the keys in an order (an array reference)
+|  'density'|  density : bool, default: False|
+|  'key.order'|  define the keys in an order (an array reference)
 | 'logscale' |    # logscale, an array of axes that will get log scale
 |'show.colorbar'| self-evident, 0 or 1 | `show.colorbar` => 1|
 |'vmax'| When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover |
@@ -1383,9 +1383,23 @@ which makes
 
 ## scatter
 
-### options
 
 ### single, simple plot
+    scatter({
+    	fh            => $fh,
+    	data          => {
+    		X => [@x],
+    		Y => [map {sin($_)} @x]
+    	},
+    	execute       => 0,
+    	'output.file' => 'output.images/single.scatter.png',
+    });
+
+makes the following image:
+
+<img width="651" height="491" alt="single scatter" src="https://github.com/user-attachments/assets/c45d9922-23e0-4f85-8306-aa7fca400328" />
+
+### options
 
 ### multiple plots
 
