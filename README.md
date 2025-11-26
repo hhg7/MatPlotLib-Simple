@@ -1383,7 +1383,6 @@ which makes
 
 ## scatter
 
-
 ### single, simple plot
     scatter({
     	fh            => $fh,
@@ -1400,6 +1399,8 @@ makes the following image:
 <img width="651" height="491" alt="single scatter" src="https://github.com/user-attachments/assets/c45d9922-23e0-4f85-8306-aa7fca400328" />
 
 ### options
+
+
 
 ### multiple plots
 
@@ -1475,8 +1476,17 @@ which makes the following figure:
 
 ## violin
 
+plot a hash of array refs as violins
+
 ### options
 
+| Option | Description | Example |
+| -------- | ------- | -------
+|`color`| # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
+|`colors`| match sets | `colors       => { E => 'yellow', B => 'purple', A => 'green' }`|
+|`key.order`| determine key order display on x-axis|
+|`log`|    # if set to > 1, the y-axis will be logarithmic
+|`orientation`|'vertical', 'horizontal'}, default: 'vertical'|
 
 ### single, simple plot
 
