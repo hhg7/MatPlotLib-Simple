@@ -6,6 +6,45 @@ use autodie ':all';
 use feature 'say';
 use File::Temp 'tempfile';
 use Matplotlib::Simple;
+use File::Path 'rmtree';
+use Test::More;
+
+mkdir 'output.images' unless -d 'output.images';
+sub is_valid_svg { # mostly written by Gemini
+	my ($filepath) = @_;
+	my $expected_namespace = 'http://www.w3.org/2000/svg';
+	# 1. Ensure the file exists
+	unless (-f $filepath) {
+		warn "Error: SVG file either not found or not a file at $filepath\n";
+		return 0;
+	}
+	# 2. Slurp the file content (base Perl method)
+	# This reads the entire file into a scalar variable.
+	local $/; 
+	open my $fh, '<', $filepath or return 0;
+	my $content = <$fh>;
+	close $fh;
+	# Pre-process content: Remove leading/trailing whitespace and collapse internal whitespace
+	$content =~ s/^\s+|\s+$//g;
+	$content =~ s/\s+/ /g;
+	# 3. Check for the mandatory SVG root tag and Namespace
+	# We look for: <svg ... xmlns="http://www.w3.org/2000/svg" ... >
+	unless ($content =~ /<svg[^>]*xmlns\s*=\s*['"]$expected_namespace['"]/) {
+		return 0;
+	}
+	# 4. Check for the closing root tag
+	# This check helps catch files that are prematurely truncated (like the invalid example).
+	unless ($content =~ /<\/svg>$/) {
+		return 0;
+	}
+	unless ($content =~ m/\<dc:title\>made\/written by .+Matplotlib\/Simple\.pm\<\/dc\:title\>/) {
+		warn "comment line not found for $filepath";
+		return 0;
+	}
+	# All basic checks passed
+	return 1;
+}
+
 # Λέγω οὖν, μὴ ἀπώσατο ὁ θεὸς
 sub linspace {    # mostly written by Grok
 	my ( $start, $stop, $num, $endpoint ) = @_;   # endpoint means include $stop
@@ -60,7 +99,7 @@ my $z = generate_normal_dist( 106, 15, 3 * 10 );
 my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
 my $fh = File::Temp->new( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
 plt({
-	'output.file' => 'output.images/add.single.png',
+	'output.file' => 'output.images/add.single.svg',
 	'plot.type'       => 'plot',
 	data              => {
 		'sin(2x)'       => [
@@ -120,7 +159,7 @@ plt({
 		    [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
 		]
 	},
-	'output.file' => 'output.images/single.wide.png',
+	'output.file' => 'output.images/single.wide.svg',
 	'plot.type'       => 'wide',
 	color             => {
 		Clinical => 'blue',
@@ -139,7 +178,7 @@ plt({
 		[ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
 		[ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
 	],
-	'output.file' => 'output.images/single.array.png',
+	'output.file' => 'output.images/single.array.svg',
 	'plot.type'       => 'wide',
 	color             => 'red',
 	title             => 'Visualization of similar lines plotted together',
@@ -162,13 +201,13 @@ plt({
 			title       => 'Visualization of similar lines plotted together'
 		}
 	],
-	'output.file' => 'output.images/wide.subplots.png',
+	'output.file' => 'output.images/wide.subplots.svg',
 	suptitle          => 'SubPlots',
 	fh => $fh,
 	execute           => 0,
 });
 pie({
-	'output.file' => 'output.images/single.pie.png',
+	'output.file' => 'output.images/single.pie.svg',
 	data              => {                                 # simple hash
 		Fri => 76,
 		Mon => 73,
@@ -183,7 +222,7 @@ pie({
 	execute      => 0,
 });
 plt({
-	'output.file' => 'output.images/pie.png',
+	'output.file' => 'output.images/pie.svg',
 	plots             => [
 		{
 		    data => {
@@ -245,7 +284,7 @@ plt({
 
 # single plots are simple
 plt({
-        'output.file' => 'output.images/single.boxplot.png',
+        'output.file' => 'output.images/single.boxplot.svg',
         data              => {                                     # simple hash
             E => [ 55,    @{$x}, 160 ],
             B => [ @{$y}, 140 ],
@@ -259,7 +298,7 @@ plt({
         execute      => 0,
 });
 plt({
-	'output.file' => 'output.images/boxplot.png',
+	'output.file' => 'output.images/boxplot.svg',
 	execute           => 0,
 	fh => $fh,
 	plots             => [
@@ -380,7 +419,7 @@ plt({
    set_figwidth => 12
 });
 plt({
-	'output.file' => 'output.images/single.violinplot.png',
+	'output.file' => 'output.images/single.violinplot.svg',
 	data              => {                                     # simple hash
 		A => [ 55, @{$z} ],
 		E => [ @{$y} ],
@@ -398,7 +437,7 @@ my @a = generate_normal_dist( 105, 15, 3 * 200 );
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => 'output.images/violin.png',
+	'output.file' => 'output.images/violin.svg',
 	plots             => [
 		{
 		    data => {
@@ -463,7 +502,7 @@ plt({
 	nrows => 2,
 });
 plt({
-	'output.file' => 'output.images/single.barplot.png',
+	'output.file' => 'output.images/single.barplot.svg',
 	data              => { # simple hash
 		Fri => 76,
 		Mon => 73,
@@ -487,13 +526,13 @@ plt({
 	},
 	execute           => 0,
 	fh => $fh,
-	'output.file' => 'output.images/single.hexbin.png',
+	'output.file' => 'output.images/single.hexbin.svg',
 	'plot.type'       => 'hexbin',
 	set_figwidth      => 12,
 	title             => 'Simple Hexbin',
 });
 plt({
-	'output.file' => 'output.images/single.hist2d.png',
+	'output.file' => 'output.images/single.hist2d.svg',
 	data              => {
 		E => @e,
 		B => @b
@@ -506,7 +545,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => 'output.images/hexbin.png',
+	'output.file' => 'output.images/hexbin.svg',
 	plots             => [
 		{
 			data => {
@@ -674,7 +713,7 @@ my ($min, $max) = (-9,9);
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => 'output.images/plots.png',
+	'output.file' => 'output.images/plots.svg',
 	plots         => [
 	{ # sin
 		data          => {
@@ -789,7 +828,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => 'output.images/plot.single.png',
+	'output.file' => 'output.images/plot.single.svg',
 	data              => {
 		'sin(x)' => [
 			[@x],                     # x
@@ -813,7 +852,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => 'output.images/plot.single.arr.png',
+	'output.file' => 'output.images/plot.single.arr.svg',
 	data              => [
 		[
 			[@x],                     # x
@@ -837,7 +876,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => 'output.images/barplots.png',
+	'output.file' => 'output.images/barplots.svg',
 	plots             => [
 		{    # simple plot
 			data => {    # simple hash
@@ -1021,7 +1060,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => 'output.images/single.hist.png',
+	'output.file' => 'output.images/single.hist.svg',
 	data              => {
 		E => @e,
 		B => @b,
@@ -1032,7 +1071,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => 'output.images/histogram.png',
+	'output.file' => 'output.images/histogram.svg',
    set_figwidth => 15,
    suptitle          => 'hist Examples',
 	plots             => [
@@ -1141,11 +1180,11 @@ scatter({
 		Y => [map {sin($_)} @x]
 	},
 	execute       => 0,
-	'output.file' => 'output.images/single.scatter.png',
+	'output.file' => 'output.images/single.scatter.svg',
 });
 plt({
 	fh                => $fh,
-	'output.file'     => 'output.images/scatterplots.png',
+	'output.file'     => 'output.images/scatterplots.svg',
 	execute           => 0,
 	nrows             => 2,
 	ncols             => 3,
@@ -1236,7 +1275,7 @@ plt({
 	data              => \@imshow_data,
 	execute           => 0,
    fh => $fh,
-	'output.file' => 'output.images/imshow.single.png',
+	'output.file' => 'output.images/imshow.single.svg',
 	'plot.type'       => 'imshow',
 	set_xlim          => '0, ' . scalar @imshow_data,
 	set_ylim          => '0, ' . scalar @imshow_data,
@@ -1297,7 +1336,7 @@ plt({
 	],
 	execute         => 0,
    fh              => $fh,
-	'output.file'   => 'output.images/imshow.multiple.png',
+	'output.file'   => 'output.images/imshow.multiple.svg',
 	ncols           => 2,
 	nrows           => 2,
 	set_figheight   => 6*3,# 4.8
@@ -1398,5 +1437,14 @@ plt({
 			xbins           => 9
 		},
 	],
-	'output.file' => 'output.images/hist2d.png',
+	'output.file' => 'output.images/hist2d.svg',
 });
+# σὺ δὲ τῇ πίστει ἕστηκας. μὴ ὑψηλὰ φρόνει, ἀλλὰ φοβοῦ
+my @output_files = ('output.images/add.single.svg','output.images/single.wide.svg','output.images/single.array.svg','output.images/wide.subplots.svg','output.images/single.pie.svg','output.images/pie.svg','output.images/single.boxplot.svg','output.images/boxplot.svg','output.images/single.violinplot.svg','output.images/violin.svg','output.images/single.barplot.svg','output.images/single.hexbin.svg','output.images/single.hist2d.svg','output.images/hexbin.svg','output.images/plots.svg','output.images/plot.single.svg','output.images/plot.single.arr.svg','output.images/barplots.svg','output.images/single.hist.svg','output.images/histogram.svg','output.images/single.scatter.svg','output.images/scatterplots.svg','output.images/imshow.single.svg','output.images/imshow.multiple.svg','output.images/hist2d.svg');
+foreach my $file (@output_files) {
+	ok(-f $file, "Output file ($file) was created.");
+	ok(is_valid_svg($file), "$file is likely a valid SVG file");
+}
+done_testing();
+say 'Now removing test files and directory to save space.';
+rmtree('output.images');
