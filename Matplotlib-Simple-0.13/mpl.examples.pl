@@ -1232,13 +1232,14 @@ foreach my $i (0..360) {
 		push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
 	}
 }
-imshow({
-	data          => \@imshow_data,
-	execute       => 0,
-   fh            => $fh,
+plt({
+	data              => \@imshow_data,
+	execute           => 0,
+   fh => $fh,
 	'output.file' => 'output.images/imshow.single.png',
-	set_xlim      => '0, ' . scalar @imshow_data,
-	set_ylim      => '0, ' . scalar @imshow_data,
+	'plot.type'       => 'imshow',
+	set_xlim          => '0, ' . scalar @imshow_data,
+	set_ylim          => '0, ' . scalar @imshow_data,
 });
 plt({
 	plots  => [
@@ -1301,46 +1302,6 @@ plt({
 	nrows           => 2,
 	set_figheight   => 6*3,# 4.8
 	set_figwidth    => 6*4 # 6.4
-});
-# https://labs.chem.ucsb.edu/zakarian/armen/11---bonddissociationenergy.pdf
-my %bond_dissociation_energy = ( # kJ/mol
-	H  => {
-		H  => 436.002,
-		F  => 568.6,
-		Cl => 431.8,
-		Br => 365.7,
-		I  => 298.7
-	},
-	F  => {
-		F  => 156.9,
-		Cl => 250.54,
-		Br => 233.8,
-		I  => 280
-	},
-	Cl => {
-		Cl => 242.580,
-		Br => 218.84,
-		I  => 213.3,
-	},
-	Br => {
-		Br => 193.870,
-		I  => 179.1,
-	},
-	I  => {
-		I  => 152.549
-	}
-);
-colored_table({
-	'cblabel'     => 'kJ/mol',
-	'col.labels'  => ['H', 'F', 'Cl', 'Br', 'I'],
-	data          => \%bond_dissociation_energy,
-	execute       => 0,
-	fh            => $fh,
-	mirror        => 1,
-	'output.file' => 'output.images/single.tab.png',
-	'row.labels'  => ['H', 'F', 'Cl', 'Br', 'I'],
-	'show.numbers'=> 1,
-	set_title     => 'Bond Dissociation Energy'
 });
 plt({
 	fh                => $fh,
