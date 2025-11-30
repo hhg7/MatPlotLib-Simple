@@ -3,7 +3,7 @@
 Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in `/tmp`, to be edited at the user's discretion.
 Requires python3 and matplotlib installations.
 
-## Single Plots
+# Single Plots
 Simplest use case:
 
     use Matplotlib::Simple 'plt';
@@ -36,7 +36,7 @@ For example, the above code is equivalent to the shorter version:
 
 <img width="651" height="491" alt="gospel word counts" src="https://github.com/user-attachments/assets/a008dece-2e34-47bf-af0f-8603709f7d52" />
 
-## Multiple Plots
+# Multiple Plots
 
 Having a `plots` argument as an array lets the module know to create subplots:
 
@@ -496,6 +496,63 @@ which makes the following image:
 which makes the following plot:
 
 <img width="1230" height="1211" alt="boxplot" src="https://github.com/user-attachments/assets/7e32e394-86fc-49e7-ad97-f48fd82fc8b0" />
+
+## Colored Table
+
+### options
+
+### Single, simple plot
+
+the bond dissociation energy table can be plotted:
+
+    # https://labs.chem.ucsb.edu/zakarian/armen/11---bonddissociationenergy.pdf
+    my %bond_dissociation_energy = ( # kJ/mol
+    	H  => {
+    		H  => 436.002,
+    		F  => 568.6,
+    		Cl => 431.8,
+    		Br => 365.7,
+    		I  => 298.7
+    	},
+    	F  => {
+    		F  => 156.9,
+    		Cl => 250.54,
+    		Br => 233.8,
+    		I  => 280
+    	},
+    	Cl => {
+    		Cl => 242.580,
+    		Br => 218.84,
+    		I  => 213.3,
+    	},
+    	Br => {
+    		Br => 193.870,
+    		I  => 179.1,
+    	},
+    	I  => {
+    		I  => 152.549
+    	}
+    );
+	# and the plot itself:
+    colored_table({
+    	'cblabel'     => 'kJ/mol',
+    	'col.labels'  => ['H', 'F', 'Cl', 'Br', 'I'],
+    	data          => \%bond_dissociation_energy,
+    	execute       => 0,
+    	fh            => $fh,
+    	mirror        => 1,
+    	'output.file' => 'output.images/single.tab.png',
+    	'row.labels'  => ['H', 'F', 'Cl', 'Br', 'I'],
+    	'show.numbers'=> 1,
+    	set_title     => 'Bond Dissociation Energy'
+    });
+
+which makes the following image:
+
+<img width="592" height="491" alt="single tab" src="https://github.com/user-attachments/assets/a3b38e84-a5df-4d93-a494-b8289b3555ec" />
+
+### Multiple Plots
+
 
 ## hexbin
 
