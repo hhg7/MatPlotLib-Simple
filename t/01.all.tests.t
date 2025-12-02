@@ -1332,14 +1332,13 @@ foreach my $i (0..360) {
 		push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
 	}
 }
-plt({
-	data              => \@imshow_data,
-	execute           => 0,
-   fh => $fh,
+imshow({
+	data          => \@imshow_data,
+	execute       => 0,
+   fh            => $fh,
 	'output.file' => 'output.images/imshow.single.svg',
-	'plot.type'       => 'imshow',
-	set_xlim          => '0, ' . scalar @imshow_data,
-	set_ylim          => '0, ' . scalar @imshow_data,
+	set_xlim      => '0, ' . scalar @imshow_data,
+	set_ylim      => '0, ' . scalar @imshow_data,
 });
 plt({
 	plots  => [
@@ -1403,6 +1402,46 @@ plt({
 	set_figheight   => 6*3,# 4.8
 	set_figwidth    => 6*4 # 6.4
 });
+# https://labs.chem.ucsb.edu/zakarian/armen/11---bonddissociationenergy.pdf
+my %bond_dissociation_energy = ( # kJ/mol
+	H  => {
+		H  => 436.002,
+		F  => 568.6,
+		Cl => 431.8,
+		Br => 365.7,
+		I  => 298.7
+	},
+	F  => {
+		F  => 156.9,
+		Cl => 250.54,
+		Br => 233.8,
+		I  => 280
+	},
+	Cl => {
+		Cl => 242.580,
+		Br => 218.84,
+		I  => 213.3,
+	},
+	Br => {
+		Br => 193.870,
+		I  => 179.1,
+	},
+	I  => {
+		I  => 152.549
+	}
+);
+colored_table({
+	'cblabel'     => 'kJ/mol',
+	'col.labels'  => ['H', 'F', 'Cl', 'Br', 'I'],
+	data          => \%bond_dissociation_energy,
+	execute       => 0,
+	fh            => $fh,
+	mirror        => 1,
+	'output.file' => 'output.images/single.tab.svg',
+	'row.labels'  => ['H', 'F', 'Cl', 'Br', 'I'],
+	'show.numbers'=> 1,
+	set_title     => 'Bond Dissociation Energy'
+});
 plt({
 	fh                => $fh,
 	execute           => 1,
@@ -1462,7 +1501,7 @@ plt({
 		{
 			cb_logscale => 1,
 			data => {
-				X => $x,    # x-axis
+my @output_files = ('output.images/add.single.svg','output.images/single.wide.svg','output.images/single.array.svg','output.images/wide.subplots.svg','output.images/single.pie.svg','output.images/pie.svg','output.images/single.boxplot.svg','output.images/boxplot.svg','output.images/single.violinplot.svg','output.images/violin.svg','output.images/single.barplot.svg','output.images/single.hexbin.svg','output.images/single.hist2d.svg','output.images/hexbin.svg','output.images/plots.svg','output.images/plot.single.svg','output.images/plot.single.arr.svg','output.images/barplots.svg','output.images/single.hist.svg','output.images/histogram.svg','output.images/single.scatter.svg','output.images/scatterplots.svg','output.images/imshow.single.svg','output.images/imshow.multiple.svg','output.images/single.tab.svg','output.images/hist2d.svg');
 				Y => $y,    # y-axis
 			},
 			'plot.type' => 'hist2d',
