@@ -82,4 +82,5 @@ colored_table({
 	'col.labels'  => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
 	'row.labels'  => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
 	'show.numbers'=> 1,
+	'undef.color' => 'gray'
 });

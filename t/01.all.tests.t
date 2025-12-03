@@ -1501,7 +1501,7 @@ plt({
 		{
 			cb_logscale => 1,
 			data => {
-my @output_files = ('output.images/add.single.svg','output.images/single.wide.svg','output.images/single.array.svg','output.images/wide.subplots.svg','output.images/single.pie.svg','output.images/pie.svg','output.images/single.boxplot.svg','output.images/boxplot.svg','output.images/single.violinplot.svg','output.images/violin.svg','output.images/single.barplot.svg','output.images/single.hexbin.svg','output.images/single.hist2d.svg','output.images/hexbin.svg','output.images/plots.svg','output.images/plot.single.svg','output.images/plot.single.arr.svg','output.images/barplots.svg','output.images/single.hist.svg','output.images/histogram.svg','output.images/single.scatter.svg','output.images/scatterplots.svg','output.images/imshow.single.svg','output.images/imshow.multiple.svg','output.images/single.tab.svg','output.images/hist2d.svg');
+				X => $x,    # x-axis
 				Y => $y,    # y-axis
 			},
 			'plot.type' => 'hist2d',
@@ -1540,7 +1540,7 @@ my @output_files = ('output.images/add.single.svg','output.images/single.wide.sv
 	'output.file' => 'output.images/hist2d.svg',
 });
 # σὺ δὲ τῇ πίστει ἕστηκας. μὴ ὑψηλὰ φρόνει, ἀλλὰ φοβοῦ
-my @output_files = ('output.images/add.single.svg','output.images/single.wide.svg','output.images/single.array.svg','output.images/wide.subplots.svg','output.images/single.pie.svg','output.images/pie.svg','output.images/single.boxplot.svg','output.images/boxplot.svg','output.images/single.violinplot.svg','output.images/violin.svg','output.images/single.barplot.svg','output.images/single.hexbin.svg','output.images/single.hist2d.svg','output.images/hexbin.svg','output.images/plots.svg','output.images/plot.single.svg','output.images/plot.single.arr.svg','output.images/barplots.svg','output.images/single.hist.svg','output.images/histogram.svg','output.images/single.scatter.svg','output.images/scatterplots.svg','output.images/imshow.single.svg','output.images/imshow.multiple.svg','output.images/hist2d.svg');
+my @output_files = ('output.images/add.single.svg','output.images/single.wide.svg','output.images/single.array.svg','output.images/wide.subplots.svg','output.images/single.pie.svg','output.images/pie.svg','output.images/single.boxplot.svg','output.images/boxplot.svg','output.images/single.violinplot.svg','output.images/violin.svg','output.images/single.barplot.svg','output.images/single.hexbin.svg','output.images/single.hist2d.svg','output.images/hexbin.svg','output.images/plots.svg','output.images/plot.single.svg','output.images/plot.single.arr.svg','output.images/barplots.svg','output.images/single.hist.svg','output.images/histogram.svg','output.images/single.scatter.svg','output.images/scatterplots.svg','output.images/imshow.single.svg','output.images/imshow.multiple.svg','output.images/single.tab.svg','output.images/hist2d.svg');
 foreach my $file (@output_files) {
 	ok(-f $file, "Output file ($file) was created.");
 	ok(is_valid_svg($file), "$file is likely a valid SVG file");

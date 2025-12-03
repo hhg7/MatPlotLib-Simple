@@ -188,7 +188,7 @@ my @cb_arg = (
 'cblocation', # of the colorbar None or {'left', 'right', 'top', 'bottom'}
 'cborientation', # None or {'vertical', 'horizontal'}
 'cb_logscale');
-my @colored_table_args = ('col.labels', 'default_undefined', 'mirror', 'row.labels', 'show.numbers');
+my @colored_table_args = ('col.labels', 'default_undefined', 'mirror', 'row.labels', 'show.numbers', 'undef.color');
 my $cb_regex = join ('|', @cb_arg);
 my $colored_table_regex = join ('|', @colored_table_args);
 sub plot_args {    # this is a helper function to other matplotlib subroutines
@@ -600,6 +600,7 @@ sub colored_table_helper {
 		'mirror',   # $data{A}{B} = $data{B}{A}
 		'row.labels',	# row labels
 		'show.numbers',# show the numbers or not, by default off.  0 = "off"; "show.numbers" > 0 => "on"
+		'undef.color', # what color will undefined points be
 #		'xlabel',	# xlabel prints in a bad position, so I removed this as a possible option
 #		'ylabel',	# ylabel prints under the row labels
 	);
@@ -651,6 +652,8 @@ sub colored_table_helper {
 	$plot->{cblogscale} = $plot->{cblogscale} // 0;
 	my $ax = $args->{ax} // '';
 	say {$args->{fh}} 'from matplotlib import colors' if $plot->{cblogscale} > 0;
+	$plot->{'undef.color'} = $plot->{'undef.color'} // 'gray';
+	say {$args->{fh}} 'plt.cm.gist_rainbow.set_bad("' . $plot->{'undef.color'} . '")';
 	say {$args->{fh}} "norm = plt.Normalize($min, $max)";
 	say {$args->{fh}} 'datacolors = plt.cm.gist_rainbow(norm(data))';
 	if ($plot->{cblogscale} > 0) {
