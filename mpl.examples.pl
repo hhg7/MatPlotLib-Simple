@@ -1383,7 +1383,9 @@ plt({
 			'undef.color' => 'white'
 		}
 	],
-	ncols         => 3
+	ncols         => 3,
+	set_figwidth  => 14,
+	suptitle      => 'Colored Table options'
 });
 plt({
 	fh                => $fh,
