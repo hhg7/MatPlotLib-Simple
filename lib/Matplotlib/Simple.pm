@@ -239,12 +239,12 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 				die "$current_sub only accepts scalar or array types, but $ref was entered.";
 			}
 			if ( $ref eq '' ) {
-				say {$args->{fh}} "$obj[$i].$method($args->{args}{$method}) #" . __LINE__;
+				say {$args->{fh}} "$obj[$i].$method($args->{args}{$method}) #line" . __LINE__;
 				next;
 			}
 			# can only be ARRAY
 			foreach my $j ( @{ $args->{args}{$method} } ) {
-				say { $args->{fh} } "$obj[$i].$method($j) # " . __LINE__;
+				say { $args->{fh} } "$obj[$i].$method($j) #line" . __LINE__;
 			}
 		}
 	}
@@ -657,14 +657,14 @@ sub colored_table_helper {
 	say {$args->{fh}} "norm = plt.Normalize($min, $max)";
 	say {$args->{fh}} 'datacolors = plt.cm.gist_rainbow(norm(data))';
 	if ($plot->{cblogscale} > 0) {
-		say {$args->{fh}} "img = plt.imshow(data, cmap='$plot->{cmap}', norm=colors.LogNorm())";
+		say {$args->{fh}} "img = ax$ax.imshow(data, cmap='$plot->{cmap}', norm=colors.LogNorm())";
 	} else {
-		say {$args->{fh}} "img = plt.imshow(data, cmap='$plot->{cmap}')";
+		say {$args->{fh}} "img = ax$ax.imshow(data, cmap='$plot->{cmap}')";
 	}
 	if (defined $plot->{cblabel}) {
-		say {$args->{fh}} "plt.colorbar(label = '$plot->{cblabel}')";
+		say {$args->{fh}} "fig.colorbar(img, label = '$plot->{cblabel}')";
 	} else {
-		say {$args->{fh}} 'plt.colorbar()';
+		say {$args->{fh}} 'fig.colorbar(img)';
 	}
 	say {$args->{fh}} 'img.set_visible(False)';
 	$plot->{'show.numbers'} = $plot->{'show.numbers'} // 0;
@@ -783,18 +783,18 @@ sub hexbin_helper {
 	  grep { defined $plot->{$_} } ('xrange', 'yrange', 'vmin', 'vmax', 'mincnt')
 	)
 	{
-	  $options .= ", $opt = $plot->{$opt}";
+		$options .= ", $opt = $plot->{$opt}";
 	}
 	foreach my $opt (grep {defined $plot->{$_} } ('xscale.hexbin', 'yscale.hexbin')) {
-	if (($plot->{$opt} ne 'log') && ($plot->{$opt} ne 'linear')) {
-	 	die "\"$opt\" is neither \"log\" nor \"linear\"";
-	}
-	my $opth = $opt;
-	$opth =~ s/\.\w+$//;
-	$options .= ", $opth = '$plot->{$opt}'";
+		if (($plot->{$opt} ne 'log') && ($plot->{$opt} ne 'linear')) {
+			die "\"$opt\" is neither \"log\" nor \"linear\"";
+		}
+		my $opth = $opt;
+		$opth =~ s/\.\w+$//;
+		$options .= ", $opth = '$plot->{$opt}'";
 	}
 	if ((defined $plot->{marginals}) && ($plot->{marginals} > 0)) {
-	$options .= ', marginals = True';
+		$options .= ', marginals = True';
 	}
 	say { $args->{fh} } 'x = ['
 	. join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
@@ -1739,9 +1739,11 @@ sub print_type {
 	my $str = shift;
 	my $type = 'no quotes';
    if ($str =~ m/^\w+$/) {
-   	$type = 'single quotes';
+   	return 'single quotes';
    } elsif ($str =~ m/[!@#\$\%^&*\(\)\{\}\[\]\<\>,\/\-\h:;\+=\w]+$/) {
-   	$type = 'single quotes';
+   	return 'single quotes';
+   } elsif ($str =~ m/,/) {
+   	return 'single quotes';
    }
    return $type;
 }

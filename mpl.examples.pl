@@ -1303,37 +1303,43 @@ plt({
 	set_figwidth    => 6*4 # 6.4
 });
 # https://labs.chem.ucsb.edu/zakarian/armen/11---bonddissociationenergy.pdf
-my %bond_dissociation_energy = ( # kJ/mol
-	H  => {
-		H  => 436.002,
-		F  => 568.6,
-		Cl => 431.8,
-		Br => 365.7,
-		I  => 298.7
+my %bond_dissociation = (
+	Br =>  {
+	  Br =>  193
 	},
-	F  => {
-		F  => 156.9,
-		Cl => 250.54,
-		Br => 233.8,
-		I  => 280
+	C  =>  {
+		Br =>  276,	C  =>  347,	Cl =>  339,	F   => 485,	H  =>  413,	I  =>  240,
+		N  =>  305,	O  =>  358,	S  =>  259
 	},
-	Cl => {
-		Cl => 242.580,
-		Br => 218.84,
-		I  => 213.3,
+	Cl =>  {
+		Br =>  218,	Cl =>  239
 	},
-	Br => {
-		Br => 193.870,
-		I  => 179.1,
+	F =>   {
+		I => 280, Br =>  237, Cl  => 253, F   => 154
 	},
-	I  => {
-		I  => 152.549
+	H  =>  {
+		Br =>  363,	Cl =>  427,	F  =>  565,	H   => 432,	I   => 295
+	},
+	I  =>  {
+		Br  => 175,	Cl =>  208,	I  =>  149
+	},
+	N  =>  {
+		Br =>  243,	Cl  => 200,	F   => 272,	H  =>  391,	N  =>  160, O  =>  201
+	},
+	O =>   {
+		Cl =>  203, F  =>  190,	H  =>  467,	I  =>  234,	O  =>  146
+	},
+	S  =>  {
+		Br => 218,	Cl => 253,	F  => 327,	H  => 347,	S  => 266
+	},
+	Si => {
+		C  => 360, H  => 393, O  => 452,	Si => 340
 	}
 );
 colored_table({
 	'cblabel'     => 'kJ/mol',
 	'col.labels'  => ['H', 'F', 'Cl', 'Br', 'I'],
-	data          => \%bond_dissociation_energy,
+	data          => \%bond_dissociation,
 	execute       => 0,
 	fh            => $fh,
 	mirror        => 1,
@@ -1341,6 +1347,43 @@ colored_table({
 	'row.labels'  => ['H', 'F', 'Cl', 'Br', 'I'],
 	'show.numbers'=> 1,
 	set_title     => 'Bond Dissociation Energy'
+});
+plt({
+	'output.file' => 'output.images/tab.multiple.png',
+	execute       => 0,
+	fh            => $fh,
+	plots         => [
+		{
+			data          => \%bond_dissociation,
+			'output.file' => '/tmp/single.bonds.svg',
+			'plot.type'   => 'colored_table',
+			set_title     => 'No other options'
+		},
+		{
+			data          => \%bond_dissociation,
+			cblabel       => 'Average Dissociation Energy (kJ/mol)',
+			'col.labels'  => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
+			mirror        => 1,
+			'output.file' => '/tmp/single.bonds.svg',
+			'plot.type'   => 'colored_table',
+			'row.labels'  => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
+			'show.numbers'=> 1,
+			set_title     => 'Showing numbers and mirror with defined order'
+		},
+		{
+			data          => \%bond_dissociation,
+			cblabel       => 'Average Dissociation Energy (kJ/mol)',
+			'col.labels'  => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
+			mirror        => 1,
+			'output.file' => '/tmp/single.bonds.svg',
+			'plot.type'   => 'colored_table',
+			'row.labels'  => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
+			'show.numbers'=> 1,
+			set_title     => 'Set undefined color to white',
+			'undef.color' => 'white'
+		}
+	],
+	ncols         => 3
 });
 plt({
 	fh                => $fh,
