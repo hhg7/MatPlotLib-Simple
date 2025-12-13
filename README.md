@@ -68,7 +68,9 @@ which produces the following subplots image:
 
 `bar`, `barh`, `boxplot`, `hexbin`, `hist`, `hist2d`, `imshow`, `pie`, `plot`, `scatter`, and `violinplot` all match the methods in matplotlib itself.
 
+
 # Examples/Plot Types
+
 
 Consider the following helper subroutines to generate data to plot:
 
