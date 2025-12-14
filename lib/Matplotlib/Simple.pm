@@ -9,7 +9,7 @@ use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.15;
+our $VERSION = 0.16;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
@@ -1774,7 +1774,7 @@ sub plt {
 		die 'either "plot.type" or "plots" must be defined, but neither were';
 	}
 	my @defined_args = (@reqd_args, @ax_methods, @fig_methods,  @plt_methods,
-	@arg, 'add', 'scale', @all_opt);
+	@arg, 'add', 'scale', @all_opt, 'arr');
 	my @bad_args = grep {
 	  my $key = $_;
 	  not grep { $_ eq $key } @defined_args
@@ -1828,8 +1828,8 @@ sub plt {
 	my ( @py, @y, $fh );
 	my $i = 0;
 	foreach my $ax (@ax) {
-		my $a1i = int $i / $args->{ncols};    # 1st index
-		my $a2i = $i % $args->{ncols};        # 2nd index
+		my $a1i = int $i / $args->{ncols}; # 1st index
+		my $a2i = $i % $args->{ncols};     # 2nd index
 		$y[$a1i][$a2i] = $ax;
 		$i++;
 	}
@@ -1951,11 +1951,6 @@ sub plt {
 			} # sometimes, I need "ax" methods instead of plt, while keeping calling simpler
 		}
 		delete $args->{add};
-	}
-	if ($single_plot == 1) {
-		if ( not defined $args->{'plot.type'} ) {
-			die "\"plot.type\" is not defined for \"$current_sub\"";
-		}
 		if ( $args->{'plot.type'} =~ m/^barh?$/ ) {  # barplot: "bar" and "barh"
 			barplot_helper({
 				fh   => $fh,

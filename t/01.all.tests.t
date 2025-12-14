@@ -133,7 +133,7 @@ dies_ok {
 			A => [1,2,3]
 		},
 		'plot.type'   => 'hist',
-		undefo        => 1,
+		vmax          => 1,
 		'output.file' => '/tmp/t.svg'
 	});
 } '"plt" hist dies when undefined option is used';
@@ -145,6 +145,16 @@ dies_ok {
 		'plot.type'   => 'hist',
 	});
 } '"plt" hist dies when "output.file" is omitted';
+dies_ok {
+	plt({
+		data => {
+			A => [1,2,3]
+		},
+		execute       => 0,
+		fh            => $python_available,
+		'plot.type'   => 'hist',
+	});
+} '"plt" dies when it is given a scalar that is not a filehandle';
 # Λέγω οὖν, μὴ ἀπώσατο ὁ θεὸς
 sub linspace {    # mostly written by Grok
 	my ( $start, $stop, $num, $endpoint ) = @_;   # endpoint means include $stop
