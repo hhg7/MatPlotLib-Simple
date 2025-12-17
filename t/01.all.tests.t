@@ -155,6 +155,34 @@ dies_ok {
 		'plot.type'   => 'hist',
 	});
 } '"plt" dies when it is given a scalar that is not a filehandle';
+dies_ok {
+	plt({
+		plots         => [
+			{
+				'plot.type'   => 'violinplot',
+			},
+		],
+		'output.file' => '/tmp/test.svg'
+	});
+} '"plt" dies when given a subplot that is missing {data}';
+dies_ok {
+	plt({
+		plots         => [
+			{
+				data          => {},
+				'plot.type'   => 'violinplot',
+			},
+		],
+		'output.file' => '/tmp/test.svg'
+	});
+} '"plt" dies when a subplot is given an empty data hash';
+dies_ok {
+	plt({
+		data => {},
+		'plot.type' => 'violinplot',
+		'output.file' => '/tmp/t.svg'
+	});
+} '"plt" dies when a single plot is given an empty data hash';
 # Λέγω οὖν, μὴ ἀπώσατο ὁ θεὸς
 sub linspace {    # mostly written by Grok
 	my ( $start, $stop, $num, $endpoint ) = @_;   # endpoint means include $stop

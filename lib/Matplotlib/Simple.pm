@@ -9,7 +9,7 @@ use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.16;
+our $VERSION = 0.17;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
@@ -1807,10 +1807,10 @@ sub plt {
 	  die "$current_sub \"plots\" has 0 plots entered.";
 	}
 	if ($single_plot == 1) {
-	 foreach my $arg (grep {defined $args->{$_} && $args->{$_} > 1} ('ncols', 'nrows')) {
-	 	warn "\"$arg\" is set to >1, but there is only 1 plot: resetting $arg to 1.";
-	 	$args->{$arg} = 1;
-	 }
+		foreach my $arg (grep {defined $args->{$_} && $args->{$_} > 1} ('ncols', 'nrows')) {
+			warn "\"$arg\" is set to >1, but there is only 1 plot: resetting $arg to 1.";
+			$args->{$arg} = 1;
+		}
 	}
 	$args->{nrows} = $args->{nrows} // 1;
 	$args->{ncols} = $args->{ncols} // 1;
@@ -1823,6 +1823,20 @@ sub plt {
 	  say
 	"ncols = $args->{ncols}; nrows = $args->{nrows}, but there are $n_plots plots.\n";
 	  die 'There are not enough subplots for the data';
+	}
+	if ($single_plot == 0) { # multiple plots
+		my $max_i = scalar @{ $args->{plots} } - 1;
+		my @hash_ref_i = grep { ref $args->{plots}[$_]{data} eq 'HASH' } 0..$max_i;
+		my @undef = grep { scalar keys %{ $args->{plots}[$_]{data} } == 0} @hash_ref_i;
+		if (scalar @undef > 0) {
+			p $args;
+			p @undef;
+			die 'the above hash ref indices have empty data hashes';
+		}
+	}
+	if (($single_plot == 1) && (ref $args->{data} eq 'HASH') && (scalar keys %{ $args->{data}} == 0 )) {
+		p $args;
+		die '"data" is an empty hash';
 	}
 	my @ax = map { "ax$_" } 0 .. $args->{nrows} * $args->{ncols} - 1;
 	my ( @py, @y, $fh );
