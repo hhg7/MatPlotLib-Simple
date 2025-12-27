@@ -3,6 +3,7 @@
 use strict;
 use feature 'say';
 use warnings FATAL => 'all';
+use warnings::unused;
 use autodie ':all';
 use DDP { output => 'STDOUT', array_max => 10, show_memsize => 1 };
 use Devel::Confess 'color';
@@ -22,7 +23,52 @@ use Exporter 'import';
 use Capture::Tiny 'capture';
 our @EXPORT = ('plt', 'bar', 'barh', 'boxplot', 'colored_table', 'hist', 'hist2d', 'imshow', 'pie', 'plot', 'scatter', 'violin', 'wide');
 our @EXPORT_OK = @EXPORT;
-
+# import matplotlib.colors as mcolors
+# mcolors.CSS4_COLORS is %css4
+=my %css4 = (
+'aliceblue' => '#F0F8FF', 'antiquewhite' => '#FAEBD7', 'aqua'=> '#00FFFF',
+'aquamarine'=> '#7FFFD4', 'azure'=> '#F0FFFF', 'beige'=> '#F5F5DC', 'bisque'=> '#FFE4C4',
+'black'=> '#000000', 'blanchedalmond'=> '#FFEBCD', 'blue'=> '#0000FF', 'blueviolet'=> '#8A2BE2',
+'brown'=> '#A52A2A', 'burlywood'=> '#DEB887', 'cadetblue'=> '#5F9EA0', 'chartreuse'=> '#7FFF00', 'chocolate'=> '#D2691E', 'coral'=> '#FF7F50', 'cornflowerblue'=> '#6495ED', 'cornsilk'=> '#FFF8DC',
+ 'crimson'=> '#DC143C', 'cyan'=> '#00FFFF', 'darkblue'=> '#00008B', 'darkcyan'=> '#008B8B',
+'darkgoldenrod'=> '#B8860B', 'darkgray'=> '#A9A9A9', 'darkgreen'=> '#006400',
+'darkgrey'=> '#A9A9A9', 'darkkhaki'=> '#BDB76B', 'darkmagenta'=> '#8B008B',
+'darkolivegreen'=> '#556B2F', 'darkorange'=> '#FF8C00', 'darkorchid'=> '#9932CC',
+'darkred'=> '#8B0000', 'darksalmon'=> '#E9967A', 'darkseagreen'=> '#8FBC8F',
+'darkslateblue'=> '#483D8B', 'darkslategray'=> '#2F4F4F', 'darkslategrey'=> '#2F4F4F',
+'darkturquoise'=> '#00CED1', 'darkviolet'=> '#9400D3', 'deeppink'=> '#FF1493',
+'deepskyblue'=> '#00BFFF', 'dimgray'=> '#696969', 'dimgrey'=> '#696969',
+'dodgerblue'=> '#1E90FF', 'firebrick'=> '#B22222', 'floralwhite'=> '#FFFAF0',
+'forestgreen'=> '#228B22', 'fuchsia'=> '#FF00FF', 'gainsboro'=> '#DCDCDC',
+'ghostwhite'=> '#F8F8FF', 'gold'=> '#FFD700', 'goldenrod'=> '#DAA520', 'gray'=> '#808080',
+'green'=> '#008000', 'greenyellow'=> '#ADFF2F', 'grey'=> '#808080', 'honeydew'=> '#F0FFF0',
+'hotpink'=> '#FF69B4', 'indianred'=> '#CD5C5C', 'indigo'=> '#4B0082', 'ivory'=> '#FFFFF0',
+'khaki'=> '#F0E68C', 'lavender'=> '#E6E6FA', 'lavenderblush'=> '#FFF0F5',
+'lawngreen'=> '#7CFC00', 'lemonchiffon'=> '#FFFACD', 'lightblue'=> '#ADD8E6',
+ 'lightcoral'=> '#F08080', 'lightcyan'=> '#E0FFFF', 'lightgoldenrodyellow'=> '#FAFAD2', 'lightgray'=> '#D3D3D3', 'lightgreen'=> '#90EE90', 'lightgrey'=> '#D3D3D3',
+'lightpink'=> '#FFB6C1', 'lightsalmon'=> '#FFA07A', 'lightseagreen'=> '#20B2AA',
+'lightskyblue'=> '#87CEFA', 'lightslategray'=> '#778899', 'lightslategrey'=> '#778899', 'lightsteelblue'=> '#B0C4DE', 'lightyellow'=> '#FFFFE0', 'lime'=> '#00FF00',
+'limegreen'=> '#32CD32', 'linen'=> '#FAF0E6', 'magenta'=> '#FF00FF', 'maroon'=> '#800000',
+'mediumaquamarine'=> '#66CDAA', 'mediumblue'=> '#0000CD', 'mediumorchid'=> '#BA55D3',
+'mediumpurple'=> '#9370DB', 'mediumseagreen'=> '#3CB371', 'mediumslateblue'=> '#7B68EE',
+'mediumspringgreen'=> '#00FA9A', 'mediumturquoise'=> '#48D1CC', 'mediumvioletred'=> '#C71585',
+'midnightblue'=> '#191970', 'mintcream'=> '#F5FFFA', 'mistyrose'=> '#FFE4E1',
+'moccasin'=> '#FFE4B5', 'navajowhite'=> '#FFDEAD', 'navy'=> '#000080', 'oldlace'=> '#FDF5E6',
+'olive'=> '#808000', 'olivedrab'=> '#6B8E23', 'orange'=> '#FFA500', 'orangered'=> '#FF4500',
+'orchid'=> '#DA70D6', 'palegoldenrod'=> '#EEE8AA', 'palegreen'=> '#98FB98',
+'paleturquoise'=> '#AFEEEE', 'palevioletred'=> '#DB7093', 'papayawhip'=> '#FFEFD5',
+'peachpuff'=> '#FFDAB9', 'peru'=> '#CD853F', 'pink'=> '#FFC0CB', 'plum'=> '#DDA0DD',
+'powderblue'=> '#B0E0E6', 'purple'=> '#800080', 'rebeccapurple'=> '#663399', 'red'=> '#FF0000',
+'rosybrown'=> '#BC8F8F', 'royalblue'=> '#4169E1', 'saddlebrown'=> '#8B4513', 'salmon'=> '#FA8072',
+'sandybrown'=> '#F4A460', 'seagreen'=> '#2E8B57', 'seashell'=> '#FFF5EE',
+'sienna'=> '#A0522D', 'silver'=> '#C0C0C0', 'skyblue'=> '#87CEEB', 'slateblue'=> '#6A5ACD',
+'slategray'=> '#708090', 'slategrey'=> '#708090', 'snow'=> '#FFFAFA', 'springgreen'=> '#00FF7F', 'steelblue'=> '#4682B4', 'tan'=> '#D2B48C', 'teal'=> '#008080', 'thistle'=> '#D8BFD8',
+'tomato'=> '#FF6347', 'turquoise'=> '#40E0D0', 'violet'=> '#EE82EE', 'wheat'=> '#F5DEB3',
+'white'=> '#FFFFFF', 'whitesmoke'=> '#F5F5F5', 'yellow'=> '#FFFF00', 'yellowgreen'=> '#9ACD32'
+);
+=cut
+my @prop_cycle = ('#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2',
+ '#7f7f7f', '#bcbd22', '#17becf'); #plt.rcParams['axes.prop_cycle']
 sub execute {
 	my ( $cmd, $return, $die ) = @_;
 	$return = $return // 'exit';
@@ -173,13 +219,13 @@ my @plt_methods = (
 #	'xlim','xticks','yticks'
 );
 
-my @arg = ('cmap', 'data', 'execute', 'fh','ncols', 'plot.type',
- 'plots', 'plot', 'output.file','nrows');
+my @arg = ('add', 'cmap', 'data', 'execute', 'fh','ncols', 'plot.type',  'plots', 'plot', 'output.file', 'nrows', 'scale', 'scalex', 'scaley', 'shared.colorbar');
 my @cb_arg = (
 'cbdrawedges', # for colarbar: Whether to draw lines at color boundaries
 'cblabel',		# The label on the colorbar's long axis
 'cblocation', # of the colorbar None or {'left', 'right', 'top', 'bottom'}
 'cborientation', # None or {'vertical', 'horizontal'}
+'cbpad',         # pad : float, default: 0.05 if vertical, 0.15 if horizontal; Fraction of original Axes between colorbar and new image Axes
 'cb_logscale');
 my %opt = (
 	barplot_helper => [
@@ -188,8 +234,7 @@ my %opt = (
 	'edgecolor'	, # optional; The colors of the bar edges.
 	'key.order',    # define the keys in an order (an array reference)
 	'label',        # an array of labels for grouped bar plots
-	'linewidth'
-	, # float or array, optional; Width of the bar edge(s). If 0, don't draw edges
+	'linewidth', # float or array, optional; Width of the bar edge(s). If 0, don't draw edges
 	'log'	,   # bool, default: False; If *True*, set the y-axis to be log scale.
 	'stacked',    # stack the groups on top of one another; default 0 = off
 	'width',      # float or array, default: 0.8; The width(s) of the bars.
@@ -209,9 +254,11 @@ my %opt = (
 	colored_table_helper => [@cb_arg,
 		'col.labels',
 		'cmap',		# the cmap used for coloring
+		'colorbar.on', # only draw if colorbar is on
 		'default_undefined',	# what value should undefined values be assigned to?
 		'mirror',   # $data{A}{B} = $data{B}{A}
 		'row.labels',	# row labels
+		'shared.colorbar', # array of 0-based indices for sharing a colorbar
 		'show.numbers',# show the numbers or not, by default off.  0 = "off"; "show.numbers" > 0 => "on"
 		'undef.color', # what color will undefined points be
 #		'xlabel',	# xlabel prints in a bad position, so I removed this as a possible option
@@ -220,10 +267,12 @@ my %opt = (
 	hexbin_helper => [
 	  'cb_logscale',
 	  'cmap',         # "gist_rainbow" by default
+	  'colorbar.on',  # only draw colorbar if colorbar is on
 	  'key.order',    # define the keys in an order (an array reference)
 	  'marginals',  # If marginals is *True*, plot the marginal density as colormapped rectangles along the bottom of the x-axis and left of the y-axis.
 	  'mincnt'
 	  , # int >= 0, default: 0 If > 0, only display cells with at least *mincnt*        number of points in the cell.
+		'shared.colorbar', # array of 0-based indices for sharing a colorbar
 	  'vmax'
 	  , #  When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover
 	  'vmin'
@@ -238,17 +287,21 @@ my %opt = (
 	  'bins'
 	  , # nt or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open
 	  'color', # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
+	  'colorbar.on',  # only draw colorbar if colorbar is on
 	  'log',            # if set to > 1, the y-axis will be logarithmic
 	  'orientation',    # {'vertical', 'horizontal'}, default: 'vertical'
+		'shared.colorbar', # array of 0-based indices for sharing a colorbar
 	],
-	hist2d_helper => [
+	hist2d_helper => [@cb_arg,
 	  'cb_logscale',
 	  'cmap',         # "gist_rainbow" by default
 	  'cmax',         # All bins that has count < *cmin* or > *cmax* will not be displayed
 	  'cmin',         # color min
+	  'colorbar.on',  # only draw colorbar if colorbar is on
 	  'density',      # density : bool, default: False
 	  'key.order',    # define the keys in an order (an array reference)
 	  'logscale',     # logscale, an array of axes that will get log scale
+	  'shared.colorbar', # array of 0-based indices for sharing a colorbar
 	  'show.colorbar',
 	  'vmax'
 	  , #  When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover
@@ -259,20 +312,23 @@ my %opt = (
 	  'ymin', 'ymax',
 	  'ybins',    # default 15
 	],
-	imshow_helper => [
+	imshow_helper => [@cb_arg,
 	  'cblabel', # colorbar label
 	  'cbdrawedges', # for colorbar
 	  'cblocation', # of the colorbar None or {'left', 'right', 'top', 'bottom'}
 	  'cborientation', # None or {'vertical', 'horizontal'}
-	  'cmap', # The Colormap instance or registered colormap name used to map scalar data to colors.
+	  'cmap', # The Colormap instance or registered colormap name used to map scalar data to colors
+	  'colorbar.on', # only draw if colorbar is on
+	  'shared.colorbar', # array of 0-based indices for sharing a colorbar
+	  'stringmap', # 'H' => 'Alpha helix'
 	  'vmax', # float
 	  'vmin', # flat
 	],
 	pie_helper => [
-		'autopct',    # percent wise
-		#labeldistance and pctdistance are ratios of the radius; therefore they vary between 0 for the center of the pie and 1 for the edge of the pie, and can be set to greater than 1 to place text outside the pie https://matplotlib.org/stable/gallery/pie_and_polar_charts/pie_features.html
-		'labeldistance',
-		'pctdistance',
+	 'autopct',    # percent wise
+	 #labeldistance and pctdistance are ratios of the radius; therefore they vary between 0 for the center of the pie and 1 for the edge of the pie, and can be set to greater than 1 to place text outside the pie https://matplotlib.org/stable/gallery/pie_and_polar_charts/pie_features.html
+	 'labeldistance',
+	 'pctdistance',
    ],
 	plot_helper => [
 	 'key.order',      # an array of key strings (which are defined in data)
@@ -280,14 +336,17 @@ my %opt = (
 	 'set.options'
 	],
 	scatter_helper => [
-	  'color_key',    # which of data keys is the color key
-	  'cmap',         # for 3-set scatterplots; default "gist_rainbow"
-	  'keys'
+	 'color_key',    # which of data keys is the color key
+	 'cmap',         # for 3-set scatterplots; default "gist_rainbow"
+	 'colorbar.on',  # only draw colorbar if colorbar is on
+	 'keys'
 	  , # specify the order, otherwise alphabetical #'log', # if set to > 1, the y-axis will be logarithmic # 's', # float or array-like, shape (n, ), optional. The marker size in points**2 (typographic points are 1/72 in.).
-	  'set.options'    # color = 'red', marker = 'v', etc.
+	 'shared.colorbar', # array of 0-based indices for sharing a colorbar
+	 'set.options'    # color = 'red', marker = 'v', etc.
 	],
 	violin_helper => [
 	 'color', # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
+	 'colorbar.on',  # only draw colorbar if colorbar is on
 	 'colors',
 	 'key.order',
 	 'log',            # if set to > 1, the y-axis will be logarithmic
@@ -725,10 +784,11 @@ sub colored_table_helper {
 	} else {
 		say {$args->{fh}} "img = ax$ax.imshow(data, cmap='$plot->{cmap}')";
 	}
+	$plot->{'colorbar.on'} = $plot->{'colorbar.on'} // 1;
 	if (defined $plot->{cblabel}) {
 		say {$args->{fh}} "fig.colorbar(img, label = '$plot->{cblabel}')";
 	} else {
-		say {$args->{fh}} 'fig.colorbar(img)';
+		say {$args->{fh}} 'fig.colorbar(img)' if $plot->{'colorbar.on'};
 	}
 	say {$args->{fh}} 'img.set_visible(False)';
 	$plot->{'show.numbers'} = $plot->{'show.numbers'} // 0;
@@ -1080,9 +1140,7 @@ sub imshow_helper {
 	  p @undef_args;
 	  die 'the above args are necessary, but were not defined.';
 	}
-	my @opt = (
-	  @ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} }
-	);
+	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
 	my $plot = $args->{plot};
 	@undef_args = grep {
 	  my $key = $_;
@@ -1093,16 +1151,49 @@ sub imshow_helper {
 	  die
 	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
-	print { $args->{fh} } 'd = [';
-	my ($min_val, $max_val) = ('inf', '-inf');
+	my $non_numeric_data = 0;
 	foreach my $row (@{ $plot->{data} }) {
+		if (grep {not looks_like_number($_)} @{ $row }) {
+			$non_numeric_data = 1;
+			last;
+		}
+	}
+	if (($non_numeric_data) && (not defined $plot->{stringmap})) {
+		p $args;
+		die "$current_sub needs a map to translate strings to integers";
+	}
+	my (@ytick_labels, %intmap);
+	# assign integers for each key in stringmap
+	foreach my $string (sort keys %{ $plot->{stringmap} }) {
+		$intmap{$string} = scalar @ytick_labels;
+		push @ytick_labels, $plot->{stringmap}{$string};
+	}
+	if ($non_numeric_data) {
+		foreach my $row (@{ $plot->{data} }) {
+			@{ $row } = map { $intmap{$_} } @{ $row };
+		}
+	}
+	my ($min_val, $max_val) = ('inf', '-inf');
+	my $opts = '';
+	if ($non_numeric_data) {
+		say { $args->{fh} } 'from matplotlib.colors import ListedColormap';
+		say { $args->{fh} } 'colors = ["' . join ('","', @prop_cycle[0..(scalar keys %intmap) - 1]) . '"]';
+		say { $args->{fh} } 'this_cmap = ListedColormap(colors)';
+		warn "deleting \"$plot->{cmap}\" because string data is present" if defined $plot->{cmap};
+		delete $plot->{cmap};
+		$min_val = 0;
+		$max_val = max(values %intmap);
+		$opts .= ', cmap = this_cmap';
+	}
+	print { $args->{fh} } 'd = [';
+	foreach my $row (@{ $plot->{data} }) { # write data to the python file
 		say { $args->{fh} } '[' . join (',', @{ $row }) . '],';
+		next if $non_numeric_data; # strings don't have max and min
 		$min_val = min(@{ $row }, $min_val);
 		$max_val = max(@{ $row }, $max_val);
 	}
 	say { $args->{fh} } ']';
 	my $ax = $args->{ax} // '';
-	my $opts = '';
 	$plot->{vmax} = $plot->{vmax} // $max_val;
 	$plot->{vmin} = $plot->{vmin} // $min_val;
 	foreach my $opt (grep {defined $plot->{$_}} ('cmap')) { # strings
@@ -1111,19 +1202,31 @@ sub imshow_helper {
 	foreach my $opt (grep {defined $plot->{$_}} ('vmax', 'vmin')) { # numeric
 		$opts .= ", $opt = $plot->{$opt}";
 	}
-	say { $args->{fh} } "im$ax = ax$ax.imshow(d $opts)";#, labels = labels $opt)";
+	say { $args->{fh} } "im$ax = ax$ax.imshow(d, aspect = 'auto' $opts)";#, labels = labels $opt)";
 	$opts = '';
+	if ($non_numeric_data) {
+		$opts .= ', ticks = [' . join (',', map {$_ + 0.5 - $_/$max_val} 0..$max_val) . ']';
+	}
 	foreach my $o (grep {defined $plot->{$_}} ('cblabel', 'cblocation', 'cborientation')) { #str
 		my $mpl_opt = $o;
 		$mpl_opt =~ s/^cb//;
 		$opts .= ", $mpl_opt = '$plot->{$o}'";
 	}
-	foreach my $o (grep {defined $plot->{$_}} ('cbdrawedges')) { # numeric
+	foreach my $o (grep {defined $plot->{$_}} ('cbdrawedges', 'cbpad')) { # numeric
+		die "$o = $plot->{$o} must be numeric" unless (looks_like_number($plot->{$o}));
 		my $mpl_opt = $o;
 		$mpl_opt =~ s/^cb//;
 		$opts .= ", $mpl_opt = $plot->{$o}";
 	}
-	say { $args->{fh} } "fig.colorbar(im$ax $opts)";
+	$plot->{'colorbar.on'} = $plot->{'colorbar.on'} // 1;
+	if (($plot->{'colorbar.on'}) && (defined $plot->{'shared.colorbar'})) {
+		my @ax = map {"ax$_"} @{ $plot->{'shared.colorbar'} };
+		$opts .= ', ax = [' . join (',', @ax) . '] ';
+	}
+	say { $args->{fh} } "cbar = fig.colorbar(im$ax $opts)" if $plot->{'colorbar.on'};
+	if (($non_numeric_data) && ($plot->{'colorbar.on'})) {
+		say { $args->{fh} } 'cbar.ax.set_yticklabels(["' . join ('","', @ytick_labels) . '"])';
+	}
 }
 
 sub pie_helper {
@@ -1773,8 +1876,7 @@ sub plt {
 		p $args;
 		die 'either "plot.type" or "plots" must be defined, but neither were';
 	}
-	my @defined_args = (@reqd_args, @ax_methods, @fig_methods,  @plt_methods,
-	@arg, 'add', 'scale', @all_opt, 'arr');
+	my @defined_args = (@reqd_args, @ax_methods, @fig_methods, @plt_methods, @arg, @all_opt);
 	my @bad_args = grep {
 	  my $key = $_;
 	  not grep { $_ eq $key } @defined_args
@@ -1850,12 +1952,28 @@ sub plt {
 	foreach my $y (@y) {
 		push @py, '(' . join( ',', @{$y} ) . ')';
 	}
+	if ((defined $args->{'shared.colorbar'}) && ($single_plot == 1)) {
+		warn 'There is only 1 plot/subplot, shared colorbars make no sense... deleting';
+		delete $args->{'shared.colorbar'};
+	}
+	if (defined $args->{'shared.colorbar'}) {
+		my $ref = ref $args->{'shared.colorbar'};
+		unless ($ref eq 'ARRAY') {
+			p $args;
+			die '"shared.colobar" must be an array reference';
+		}
+		my $max_subplot_idx = max(@{ $args->{'shared.colorbar'} });
+		if ($max_subplot_idx > ($args->{nrows} * $args->{ncols} - 1)) {
+			p $args;
+			die "the max \"shared.colorbar\" index $max_subplot_idx > than the max index of plots";
+		}
+	}
 	if ( defined $args->{fh} ) {
 		$fh = $args->{fh};# open $fh, '>>', $args->{fh};
 	} else {
 		$fh = File::Temp->new( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
 	}
-	say 'temp file is ' . $fh->filename;# if $unlink == 0;
+	say 'temp file is ' . $fh->filename;
 	say $fh 'import matplotlib.pyplot as plt';
 	if ( $single_plot == 0 ) {
 		$args->{sharex} = $args->{sharex} // 'False';
@@ -1881,11 +1999,6 @@ sub plt {
 			die 'The above subplot indices are missing "plot.type"';
 		}
 	}
-#	my $find_global_min_max = scalar grep { $_->{'plot.type'} eq 'hist2d' } @{ $args->{plots} };
-#	if ( $find_global_min_max > 0 ) {
-#		say $fh 'global_max = float("-inf")';
-#		say $fh 'global_min = float("inf")';
-#	}
 	if ($single_plot == 1) {
 		foreach my $graph (@{ $args->{add} }) {
 			if ( $args->{'plot.type'} =~ m/^barh?$/ ) {  # barplot: "bar" and "barh"
@@ -2059,6 +2172,17 @@ sub plt {
 	}
 	my $ax = 0;
 	foreach my $plot (@{ $args->{plots} } ) {
+		if (
+				(defined $args->{'shared.colorbar'})               && # shared.colorbar is defined
+				(grep {$_ == $ax} @{ $args->{'shared.colorbar'} })    # subplot's colorbar is shared w other plots
+			) {
+			if ($ax == max( @{ $args->{'shared.colorbar'} } )) { # this is the max
+				$plot->{'colorbar.on'}     = 1; # turn on if this is the max plot
+				$plot->{'shared.colorbar'} = $args->{'shared.colorbar'};
+			} else {
+				$plot->{'colorbar.on'} = 0; # turn off, its colorbar will be shared later
+			}
+		}
 		foreach my $graph (@{ $plot->{add} }) {
 			if ( $graph->{'plot.type'} =~ m/^barh?$/ ) {  # barplot: "bar" and "barh"
 				barplot_helper({
@@ -2282,8 +2406,17 @@ sub plt {
 		}
 	}
 	if (defined $args->{scale}) {
+		die "scale = \$args->{scale}, must be numeric" unless looks_like_number($args->{scale});
 		say $fh "fig.set_figheight(plt.rcParams['figure.figsize'][1] * $args->{scale}) #" . __LINE__;
 		say $fh "fig.set_figwidth(plt.rcParams['figure.figsize'][0] * $args->{scale}) #" . __LINE__;
+	}
+	if (defined $args->{scalex}) {
+		die "scalex, $args->{scalex}, must be numeric" unless looks_like_number($args->{scalex});
+		say $fh "fig.set_figwidth(plt.rcParams['figure.figsize'][0] * $args->{scalex}) #" . __LINE__;
+	}
+	if (defined $args->{scaley}) {
+		die "scaley, $args->{scaley}, must be numeric" unless looks_like_number($args->{scaley});
+		say $fh "fig.set_figheight(plt.rcParams['figure.figsize'][1] * $args->{scaley}) #" . __LINE__;
 	}
 	say $fh
 	"plt.savefig('$args->{'output.file'}', bbox_inches = 'tight', metadata={'Creator': 'made/written by "
@@ -2868,7 +3001,7 @@ Plot a hash of arrays as a series of boxplots
 single plots are simple
 
  use Matplotlib::Simple 'barplot';
- barplot({
+ boxplot({
      'output.file' => 'output.images/single.boxplot.png',
      data              => {                                     # simple hash
          E => [ 55,    @{$x}, 160 ],
@@ -2896,7 +3029,7 @@ which makes the following image:
  plt({
      'output.file' => 'output.images/boxplot.png',
      execute           => 0,
-     fh => $fh,
+     fh                => $fh,
      plots             => [
          {
              data => {

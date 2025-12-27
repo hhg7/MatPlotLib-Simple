@@ -9,7 +9,16 @@ use Matplotlib::Simple;
 use Test::Exception; # die_ok
 use File::Path 'rmtree';
 use Test::More;
+use Digest::SHA 'sha512_base64';
 
+my $sha_sum_filename = 'sha.sums.tsv';
+die "$sha_sum_filename isn't a file or isn't readable" unless -f -r $sha_sum_filename;
+
+sub file2string {
+	my $file = shift;
+	open my $fh, '<', $file;
+	return do { local $/; <$fh> };
+}
 my $python_version_raw = qx/python3 --version 2>&1/;
 my $python_version = '';
 my $python_available = 0;
@@ -1676,12 +1685,48 @@ plt({
 	],
 	'output.file' => 'output.images/hist2d.svg',
 });
-my @output_files = ('output.images/add.single.svg','output.images/single.wide.svg','output.images/single.array.svg','output.images/wide.subplots.svg','output.images/single.pie.svg','output.images/pie.svg','output.images/single.boxplot.svg','output.images/boxplot.svg','output.images/single.violinplot.svg','output.images/violin.svg','output.images/single.barplot.svg','output.images/single.hexbin.svg','output.images/single.hist2d.svg','output.images/hexbin.svg','output.images/plots.svg','output.images/plot.single.svg','output.images/plot.single.arr.svg','output.images/barplots.svg','output.images/single.hist.svg','output.images/histogram.svg','output.images/single.scatter.svg','output.images/scatterplots.svg','output.images/imshow.single.svg','output.images/imshow.multiple.svg','output.images/single.tab.svg','output.images/tab.multiple.svg','output.images/hlines.svg','output.images/hist2d.svg');
 # σὺ δὲ τῇ πίστει ἕστηκας. μὴ ὑψηλὰ φρόνει, ἀλλὰ φοβοῦ
+my @output_files = ('output.images/add.single.svg','output.images/single.wide.svg','output.images/single.array.svg','output.images/wide.subplots.svg','output.images/single.pie.svg','output.images/pie.svg','output.images/single.boxplot.svg','output.images/boxplot.svg','output.images/single.violinplot.svg','output.images/violin.svg','output.images/single.barplot.svg','output.images/single.hexbin.svg','output.images/single.hist2d.svg','output.images/hexbin.svg','output.images/plots.svg','output.images/plot.single.svg','output.images/plot.single.arr.svg','output.images/barplots.svg','output.images/single.hist.svg','output.images/histogram.svg','output.images/single.scatter.svg','output.images/scatterplots.svg','output.images/imshow.single.svg','output.images/imshow.multiple.svg','output.images/single.tab.svg','output.images/tab.multiple.svg','output.images/hlines.svg','output.images/hist2d.svg');
+my %file2SHA;
+open my $tsv, '<', $sha_sum_filename;
+while (<$tsv>) {
+	chomp;
+	my @line = split;
+	$file2SHA{$line[0]} = $line[1];
+}
+close $tsv;
+sub check_SHA_sum {
+	my ($sum, $file) = @_;
+	my $text = file2string($file);
+	my @text = split /\n/, $text;
+	@text = grep {$_ !~ m/^\h*\<dc:title\>made.+\/Simple\.pm\<\/dc:title\>$/} @text;
+	@text = grep {$_ !~ m/^\h*\<dc:date\>/}          @text;
+	@text = grep {$_ !~ m/^\h*\<path\h+id="/}        @text;
+	@text = grep {$_ !~ m/^\h*\<use\h*xlink:href="/} @text;
+	@text = grep {$_ !~ m/clipPath/}                 @text;
+	@text = grep {$_ !~ m/clip\-path="/}             @text;
+	foreach my $line (@text) {
+		$line =~ s/\h+id="image[a-z\d]+"//;
+	}
+#	printf("$file has %u lines.\n", scalar @text);
+	$text = join ("\n", @text);
+	my $test_sum = sha512_base64($text);
+	if ($sum eq $test_sum) {
+		return 1;
+	} else {
+		die "$file: $test_sum doesn't equal $sum";
+	}
+}
+my %check_files = map {'output.images/' . "$_.svg" => 1} ('add.single', 'barplots',
+'imshow.multiple','imshow.single', 'pie', 'plot.single', 'plots',
+'tab.multiple', 'tab.single', 'barplots', 'single.barplot', 'hlines',
+'single.pie');
 foreach my $file (@output_files) {
-	ok(-f $file, "Output file ($file) was created.");
-	ok(is_valid_svg($file), "$file is likely a valid SVG file");
-	unlink $file;
+	if (defined $check_files{$file}) {
+		ok(check_SHA_sum($file2SHA{$file}, $file), "$file matches verified file SHA sum");
+	} else {
+		ok(is_valid_svg($file), "$file is likely a valid SVG file");
+	}
 }
 done_testing();
 say 'Now removing test files and directory to save space.';

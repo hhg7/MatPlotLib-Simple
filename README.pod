@@ -383,7 +383,7 @@ Plot a hash of arrays as a series of boxplots
 single plots are simple
 
  use Matplotlib::Simple 'barplot';
- barplot({
+ boxplot({
      'output.file' => 'output.images/single.boxplot.png',
      data              => {                                     # simple hash
          E => [ 55,    @{$x}, 160 ],
@@ -411,7 +411,7 @@ which makes the following image:
  plt({
      'output.file' => 'output.images/boxplot.png',
      execute           => 0,
-     fh => $fh,
+     fh                => $fh,
      plots             => [
          {
              data => {
