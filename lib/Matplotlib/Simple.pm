@@ -1935,6 +1935,12 @@ sub plt {
 			p @undef;
 			die 'the above hash ref indices have empty data hashes';
 		}
+		my @output_file = grep {defined $args->{plots}[$_]{'output.file'}} 0..$max_i;
+		if (scalar @output_file > 0) {
+			p $args;
+			p @output_file;
+			die '"output.file" was defined at subplots indices above, which does not make sense';
+		}
 	}
 	if (($single_plot == 1) && (ref $args->{data} eq 'HASH') && (scalar keys %{ $args->{data}} == 0 )) {
 		p $args;
@@ -1969,6 +1975,10 @@ sub plt {
 		}
 	}
 	if ( defined $args->{fh} ) {
+		if (ref $args->{fh} ne 'File::Temp') {
+			p $args;
+			die "$current_sub received something besides a \"File::Temp\" object.";
+		}
 		$fh = $args->{fh};# open $fh, '>>', $args->{fh};
 	} else {
 		$fh = File::Temp->new( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
@@ -2179,6 +2189,7 @@ sub plt {
 			if ($ax == max( @{ $args->{'shared.colorbar'} } )) { # this is the max
 				$plot->{'colorbar.on'}     = 1; # turn on if this is the max plot
 				$plot->{'shared.colorbar'} = $args->{'shared.colorbar'};
+				$plot->{cbpad} = $args->{cbpad};
 			} else {
 				$plot->{'colorbar.on'} = 0; # turn off, its colorbar will be shared later
 			}
@@ -3893,6 +3904,107 @@ which makes the following image:
 =for html
 <p>
 <img width="2416" height="1811" alt="imshow multiple" src="https://github.com/user-attachments/assets/091acccb-151c-47ca-82cc-99c19d2bff91" />
+<p>
+
+
+=head3 Secondary Structure Prediction (DSSP)
+
+Sometimes strings instead of numbers can be entered into a 2-D array, one example is protein secondary structure.
+Protein secondary structure can be plotted thus, with a key in C<stringmap> to show which strings become which integers in a minimal working example:
+
+ plt({
+     cbpad       => 0.01,          # default 0.05 is too big
+     data        => [              # imshow gets a 2D array
+         [' ', ' ', ' ', ' ', 'G'], # bottom
+         ['S', 'I', 'T', 'E', 'H'], # top
+     ],
+     'plot.type' => 'imshow',
+     stringmap   => {
+         'H' => 'Alpha helix',
+         'B' => 'Residue in isolated β-bridge',
+         'E' => 'Extended strand, participates in β ladder',
+         'G' => '3-helix (3/10 helix)',
+         'I' => '5 helix (pi helix)',
+         'T' => 'hydrogen bonded turn',
+         'S' => 'bend',
+         ' ' => 'Loops and irregular elements'
+     },
+     'output.file' => 'output.images/dssp.single.png',
+     scalex        => 2.4,
+     set_ylim      => '0, 1',
+     title         => 'Dictionary of Secondary Structure in Proteins (DSSP)',
+     xlabel        => 'xlabel',
+     ylabel        => 'ylabel'
+ });
+
+
+=for html
+<p>
+<img width="1547" height="491" alt="dssp single" src="https://github.com/user-attachments/assets/712f6199-4a41-4d8f-953e-19df9dacc447" />
+<p>
+
+
+or for multiple plots, where the colorbar can be spread across multiple plots now:
+
+ plt({
+     cbpad       => 0.01,          # default 0.05 is too big
+     plots       => [
+         { # 1st plot
+             data    => [
+                 [' ', ' ', ' ', ' ', 'G'], # bottom
+                 ['S', 'I', 'T', 'E', 'H'], # top
+             ],
+             'plot.type' => 'imshow',
+             set_xticklabels=> '[]', # remove x-axis labels
+             set_ylim    => '0, 1',
+             stringmap   => {
+                 'H' => 'Alpha helix',
+                 'B' => 'Residue in isolated β-bridge',
+                 'E' => 'Extended strand, participates in β ladder',
+                 'G' => '3-helix (3/10 helix)',
+                 'I' => '5 helix (pi helix)',
+                 'T' => 'hydrogen bonded turn',
+                 'S' => 'bend',
+                 ' ' => 'Loops and irregular elements'
+             },
+             title         => 'top plot',
+             ylabel        => 'ylabel'
+         },
+         { # 2nd plot
+             data    => [
+                 [' ', ' ', ' ', ' ', 'G'], # bottom
+                 ['S', 'I', 'T', 'E', 'H'], # top
+             ],
+             'plot.type' => 'imshow',
+             set_ylim    => '0, 1',
+             stringmap   => {
+                 'H' => 'Alpha helix',
+                 'B' => 'Residue in isolated β-bridge',
+                 'E' => 'Extended strand, participates in β ladder',
+                 'G' => '3-helix (3/10 helix)',
+                 'I' => '5 helix (pi helix)',
+                 'T' => 'hydrogen bonded turn',
+                 'S' => 'bend',
+                 ' ' => 'Loops and irregular elements'
+             },
+             title         => 'bottom plot',
+             xlabel        => 'xlabel',
+             ylabel        => 'ylabel'
+         }
+     ],
+     nrows             => 2,
+     'output.file'     => 'output.images/dssp.multiple.png',
+     scalex            => 2.4,
+     'shared.colorbar' => [0,1], # plots 0 and 1 share a colorbar
+     suptitle          => 'Dictionary of Secondary Structure in Proteins (DSSP)',
+ });
+
+which makes the following plot:
+
+
+=for html
+<p>
+<img width="1547" height="491" alt="dssp multiple" src="https://github.com/user-attachments/assets/d88e295e-1d1e-4e2a-bd5b-48029c46f5b0" />
 <p>
 
 

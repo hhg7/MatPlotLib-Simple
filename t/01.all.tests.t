@@ -192,6 +192,15 @@ dies_ok {
 		'output.file' => '/tmp/t.svg'
 	});
 } '"plt" dies when a single plot is given an empty data hash';
+my ($tfh, $tfname) = tempfile(DIR => '/tmp', UNLINK => 1);
+dies_ok {
+	plt({
+		data => {A => 1},
+		fh          => $tfh,
+		'plot.type' => 'bar',
+		'output.file' => '/tmp/t.svg'
+	});
+} '"plt" dies when given a non-File::Temp object';
 # Λέγω οὖν, μὴ ἀπώσατο ὁ θεὸς
 sub linspace {    # mostly written by Grok
 	my ( $start, $stop, $num, $endpoint ) = @_;   # endpoint means include $stop
@@ -1538,10 +1547,10 @@ plt({
 	'output.file' => 'output.images/tab.multiple.svg',
 	execute       => 0,
 	fh            => $fh,
+	'output.file' => 'output.images/single.bonds.svg',
 	plots         => [
 		{
 			data          => \%bond_dissociation,
-			'output.file' => '/tmp/single.bonds.svg',
 			'plot.type'   => 'colored_table',
 			set_title     => 'No other options'
 		},
@@ -1550,7 +1559,6 @@ plt({
 			cblabel       => 'Average Dissociation Energy (kJ/mol)',
 			'col.labels'  => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
 			mirror        => 1,
-			'output.file' => '/tmp/single.bonds.svg',
 			'plot.type'   => 'colored_table',
 			'row.labels'  => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
 			'show.numbers'=> 1,
@@ -1561,7 +1569,6 @@ plt({
 			cblabel       => 'Average Dissociation Energy (kJ/mol)',
 			'col.labels'  => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
 			mirror        => 1,
-			'output.file' => '/tmp/single.bonds.svg',
 			'plot.type'   => 'colored_table',
 			'row.labels'  => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
 			'show.numbers'=> 1,
@@ -1587,6 +1594,86 @@ plt({
 	'output.file' => 'output.images/hlines.svg',
 	set_xlim      => "$x[0],$x[-1]",
 	'show.legend' => 0
+});
+plt({
+	cbpad       => 0.01,          # default 0.05 is too big
+	data        => [              # imshow gets a 2D array
+		[' ', ' ', ' ', ' ', 'G'], # bottom
+		['S', 'I', 'T', 'E', 'H'], # top
+	],
+	execute     => 0,
+	fh          => $fh,
+	'plot.type' => 'imshow',
+	stringmap   => {
+		'H' => 'Alpha helix',
+		'B' => 'Residue in isolated β-bridge',
+		'E' => 'Extended strand, participates in β ladder',
+		'G' => '3-helix (3/10 helix)',
+		'I' => '5 helix (pi helix)',
+		'T' => 'hydrogen bonded turn',
+		'S' => 'bend',
+		' ' => 'Loops and irregular elements'
+	},
+	'output.file' => 'output.images/dssp.single.svg',
+	scalex        => 2.4,
+	set_ylim      => '0, 1',
+	title         => 'Dictionary of Secondary Structure in Proteins (DSSP)',
+	xlabel        => 'xlabel',
+	ylabel        => 'ylabel'
+});
+plt({
+	cbpad       => 0.01,          # default 0.05 is too big
+	plots       => [
+		{ # 1st plot
+			data 	=> [
+				[' ', ' ', ' ', ' ', 'G'], # bottom
+				['S', 'I', 'T', 'E', 'H'], # top
+			],
+			'plot.type' => 'imshow',
+			set_xticklabels=> '[]', # remove x-axis labels
+			set_ylim    => '0, 1',
+			stringmap   => {
+				'H' => 'Alpha helix',
+				'B' => 'Residue in isolated β-bridge',
+				'E' => 'Extended strand, participates in β ladder',
+				'G' => '3-helix (3/10 helix)',
+				'I' => '5 helix (pi helix)',
+				'T' => 'hydrogen bonded turn',
+				'S' => 'bend',
+				' ' => 'Loops and irregular elements'
+			},
+			title         => 'top plot',
+			ylabel        => 'ylabel'
+		},
+		{ # 2nd plot
+			data 	=> [
+				[' ', ' ', ' ', ' ', 'G'], # bottom
+				['S', 'I', 'T', 'E', 'H'], # top
+			],
+			'plot.type' => 'imshow',
+			set_ylim    => '0, 1',
+			stringmap   => {
+				'H' => 'Alpha helix',
+				'B' => 'Residue in isolated β-bridge',
+				'E' => 'Extended strand, participates in β ladder',
+				'G' => '3-helix (3/10 helix)',
+				'I' => '5 helix (pi helix)',
+				'T' => 'hydrogen bonded turn',
+				'S' => 'bend',
+				' ' => 'Loops and irregular elements'
+			},
+			title         => 'bottom plot',
+			xlabel        => 'xlabel',
+			ylabel        => 'ylabel'
+		}
+	],
+	execute           => 0,
+	fh                => $fh,
+	nrows             => 2,
+	'output.file'     => 'output.images/dssp.multiple.svg',
+	scalex            => 2.4,
+	'shared.colorbar' => [0,1], # plots 0 and 1 share a colorbar
+	suptitle          => 'Dictionary of Secondary Structure in Proteins (DSSP)',
 });
 plt({
 	fh                => $fh,
@@ -1686,7 +1773,7 @@ plt({
 	'output.file' => 'output.images/hist2d.svg',
 });
 # σὺ δὲ τῇ πίστει ἕστηκας. μὴ ὑψηλὰ φρόνει, ἀλλὰ φοβοῦ
-my @output_files = ('output.images/add.single.svg','output.images/single.wide.svg','output.images/single.array.svg','output.images/wide.subplots.svg','output.images/single.pie.svg','output.images/pie.svg','output.images/single.boxplot.svg','output.images/boxplot.svg','output.images/single.violinplot.svg','output.images/violin.svg','output.images/single.barplot.svg','output.images/single.hexbin.svg','output.images/single.hist2d.svg','output.images/hexbin.svg','output.images/plots.svg','output.images/plot.single.svg','output.images/plot.single.arr.svg','output.images/barplots.svg','output.images/single.hist.svg','output.images/histogram.svg','output.images/single.scatter.svg','output.images/scatterplots.svg','output.images/imshow.single.svg','output.images/imshow.multiple.svg','output.images/single.tab.svg','output.images/tab.multiple.svg','output.images/hlines.svg','output.images/hist2d.svg');
+my @output_files = ('output.images/add.single.svg', 'output.images/single.wide.svg', 'output.images/single.array.svg', 'output.images/wide.subplots.svg', 'output.images/single.pie.svg', 'output.images/pie.svg', 'output.images/single.boxplot.svg', 'output.images/boxplot.svg', 'output.images/single.violinplot.svg', 'output.images/violin.svg', 'output.images/single.barplot.svg', 'output.images/single.hexbin.svg', 'output.images/single.hist2d.svg', 'output.images/hexbin.svg', 'output.images/plots.svg', 'output.images/plot.single.svg', 'output.images/plot.single.arr.svg', 'output.images/barplots.svg', 'output.images/single.hist.svg', 'output.images/histogram.svg', 'output.images/single.scatter.svg', 'output.images/scatterplots.svg', 'output.images/imshow.single.svg', 'output.images/imshow.multiple.svg', 'output.images/single.tab.svg', 'output.images/tab.multiple.svg', 'output.images/single.bonds.svg', 'output.images/hlines.svg', 'output.images/dssp.single.svg', 'output.images/dssp.multiple.svg', 'output.images/hist2d.svg');
 my %file2SHA;
 open my $tsv, '<', $sha_sum_filename;
 while (<$tsv>) {
@@ -1720,7 +1807,7 @@ sub check_SHA_sum {
 my %check_files = map {'output.images/' . "$_.svg" => 1} ('add.single', 'barplots',
 'imshow.multiple','imshow.single', 'pie', 'plot.single', 'plots',
 'tab.multiple', 'tab.single', 'barplots', 'single.barplot', 'hlines',
-'single.pie');
+'single.pie', 'dssp.single', 'dssp.multiple');
 foreach my $file (@output_files) {
 	if (defined $check_files{$file}) {
 		ok(check_SHA_sum($file2SHA{$file}, $file), "$file matches verified file SHA sum");
@@ -1729,5 +1816,5 @@ foreach my $file (@output_files) {
 	}
 }
 done_testing();
-say 'Now removing test files and directory to save space.';
-rmtree('output.images');
+#say 'Now removing test files and directory to save space.';
+#rmtree('output.images');
