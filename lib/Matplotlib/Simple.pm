@@ -3,7 +3,6 @@
 use strict;
 use feature 'say';
 use warnings FATAL => 'all';
-use warnings::unused;
 use autodie ':all';
 use DDP { output => 'STDOUT', array_max => 10, show_memsize => 1 };
 use Devel::Confess 'color';
@@ -2437,9 +2436,7 @@ sub plt {
 	. getcwd()
 	. "/$RealScript called using \"$current_sub\" in " . __FILE__ . "'})";
 	$args->{execute} = $args->{execute} // 1;
-	if ( $args->{execute} == 0 ) {
-		say $fh 'plt.close()';
-	}
+	say $fh 'plt.close()' if $args->{execute} == 0;
 	if ( $args->{execute} ) {
 		my $r = execute( 'python3 ' . $fh->filename, 'all' );
 		say 'wrote '		
