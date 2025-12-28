@@ -10,7 +10,7 @@ use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.17;
+our $VERSION = 0.18;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
@@ -1946,6 +1946,12 @@ sub plt {
 		p $args;
 		die '"data" is an empty hash';
 	}
+	@bad_args = grep {defined $args->{$_} && (not looks_like_number($args->{$_}))} ('ncols', 'nrows', 'scale', 'scalex', 'scaley');
+	if (scalar @bad_args > 0) {
+		p $args;
+		p @bad_args;
+		die 'the above args must be numeric';
+	}
 	my @ax = map { "ax$_" } 0 .. $args->{nrows} * $args->{ncols} - 1;
 	my ( @py, @y, $fh );
 	my $i = 0;
@@ -2417,16 +2423,13 @@ sub plt {
 		}
 	}
 	if (defined $args->{scale}) {
-		die "scale = \$args->{scale}, must be numeric" unless looks_like_number($args->{scale});
 		say $fh "fig.set_figheight(plt.rcParams['figure.figsize'][1] * $args->{scale}) #" . __LINE__;
 		say $fh "fig.set_figwidth(plt.rcParams['figure.figsize'][0] * $args->{scale}) #" . __LINE__;
 	}
 	if (defined $args->{scalex}) {
-		die "scalex, $args->{scalex}, must be numeric" unless looks_like_number($args->{scalex});
 		say $fh "fig.set_figwidth(plt.rcParams['figure.figsize'][0] * $args->{scalex}) #" . __LINE__;
 	}
 	if (defined $args->{scaley}) {
-		die "scaley, $args->{scaley}, must be numeric" unless looks_like_number($args->{scaley});
 		say $fh "fig.set_figheight(plt.rcParams['figure.figsize'][1] * $args->{scaley}) #" . __LINE__;
 	}
 	say $fh
@@ -2435,9 +2438,9 @@ sub plt {
 	. "/$RealScript called using \"$current_sub\" in " . __FILE__ . "'})";
 	$args->{execute} = $args->{execute} // 1;
 	if ( $args->{execute} == 0 ) {
-	  say $fh 'plt.close()';
+		say $fh 'plt.close()';
 	}
-	if ( $args->{execute} > 0 ) {
+	if ( $args->{execute} ) {
 		my $r = execute( 'python3 ' . $fh->filename, 'all' );
 		say 'wrote '		
 		 . colored( ['cyan on_bright_yellow'], "$args->{'output.file'}" );
