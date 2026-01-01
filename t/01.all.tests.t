@@ -1772,7 +1772,7 @@ plt({
 	'output.file' => '/tmp/hist2d.svg',
 });
 # σὺ δὲ τῇ πίστει ἕστηκας. μὴ ὑψηλὰ φρόνει, ἀλλὰ φοβοῦ
-my @output_files = ('/tmp/add.single.svg', '/tmp/single.wide.svg', '/tmp/single.array.svg', '/tmp/wide.subplots.svg', '/tmp/single.pie.svg', '/tmp/pie.svg', '/tmp/single.boxplot.svg', '/tmp/boxplot.svg', '/tmp/single.violinplot.svg', '/tmp/violin.svg', '/tmp/single.barplot.svg', '/tmp/single.hexbin.svg', '/tmp/single.hist2d.svg', '/tmp/hexbin.svg', '/tmp/plots.svg', '/tmp/plot.single.svg', '/tmp/plot.single.arr.svg', '/tmp/barplots.svg', '/tmp/single.hist.svg', '/tmp/histogram.svg', '/tmp/single.scatter.svg', '/tmp/scatterplots.svg', '/tmp/imshow.single.svg', '/tmp/imshow.multiple.svg', '/tmp/single.tab.svg', '/tmp/single.bonds.svg', '/tmp/hlines.svg', '/tmp/dssp.single.svg', '/tmp/dssp.multiple.svg', '/tmp/hist2d.svg');
+my @output_files = map {"/tmp/$_.svg"} sort ('add.single', 'single.wide', 'single.array', 'wide.subplots', 'single.pie', 'pie', 'single.boxplot', 'boxplot', 'single.violinplot', 'violin', 'single.barplot', 'single.hexbin', 'single.hist2d', 'hexbin', 'plots', 'plot.single', 'plot.single.arr', 'barplots', 'single.hist', 'histogram', 'single.scatter', 'scatterplots', 'imshow.single', 'imshow.multiple', 'single.tab', 'single.bonds', 'hlines', 'dssp.single', 'dssp.multiple', 'hist2d');
 my %file2SHA;
 open my $tsv, '<', $sha_sum_filename;
 while (<$tsv>) {
@@ -1783,7 +1783,7 @@ while (<$tsv>) {
 close $tsv;
 sub check_SHA_sum {
 	my ($sum, $file) = @_;
-	say "Testing $file";
+#	say "Testing $file";
 	die "$file has no defined sum" unless defined $sum;
 	my $text = file2string($file);
 	my @text = split /\n/, $text;
@@ -1806,9 +1806,9 @@ sub check_SHA_sum {
 	}
 }
 my %check_files = map {'/tmp/' . "$_.svg" => 1} ('add.single', 'barplots',
-'imshow.multiple','imshow.single', 'pie', 'plot.single', 'plots',
-'tab.multiple', 'tab.single', 'barplots', 'single.barplot', 'hlines',
-'single.pie', 'dssp.single', 'dssp.multiple');
+'imshow.multiple','imshow.single', 'plot.single', 'plots',
+'single.bonds', 'single.tab', 'barplots', 'single.barplot', 'hlines',
+'dssp.single', 'dssp.multiple', 'plot.single.arr');
 foreach my $file (@output_files) {
 	if (defined $check_files{$file}) {
 		ok(check_SHA_sum($file2SHA{$file}, $file), "$file matches verified file SHA sum");
