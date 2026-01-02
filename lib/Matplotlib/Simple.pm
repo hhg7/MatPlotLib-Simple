@@ -1168,6 +1168,11 @@ sub imshow_helper {
 	  die
 	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
+	my $data_ref = ref $plot->{data};
+	unless ($data_ref eq 'ARRAY') {
+		p $args;
+		die "$current_sub can only accept 2-D arrays as input in \"data\", but received $data_ref";
+	}
 	my $non_numeric_data = 0;
 	foreach my $row (@{ $plot->{data} }) {
 		if (grep {not looks_like_number($_)} @{ $row }) {
@@ -1963,7 +1968,7 @@ sub plt {
 		p $args;
 		die '"data" is an empty hash';
 	}
-	@bad_args = grep {defined $args->{$_} && (not looks_like_number($args->{$_}))} ('ncols', 'nrows', 'scale', 'scalex', 'scaley');
+	@bad_args = grep {defined $args->{$_} && (not looks_like_number($args->{$_}))} ('cbpad', 'ncols', 'nrows', 'scale', 'scalex', 'scaley');
 	if (scalar @bad_args > 0) {
 		p $args;
 		p @bad_args;

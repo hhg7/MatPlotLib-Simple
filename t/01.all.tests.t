@@ -201,6 +201,23 @@ dies_ok {
 		'output.file' => '/tmp/dies_ok.svg',
 	});
 } '"plt" dies when given a non-File::Temp object';
+foreach my $numeric_arg ('cbpad', 'ncols', 'nrows', 'scale', 'scalex', 'scaley') {
+	dies_ok {
+		plt({
+			$numeric_arg  => 'A',
+			data          => [[0,1], [0,3]],
+			'plot.type'   => 'imshow', # this plot.type actually has all of these options
+			'output.file' => '/tmp/dies_ok.svg',
+		});
+	} '"plt" dies when "' . $numeric_arg . '" is non-numeric';
+}
+dies_ok {
+	plt({
+		data          => {A => [0,1], B => [0,3]},
+		'plot.type'   => 'imshow', # this plot.type actually has all of these options
+		'output.file' => '/tmp/dies_ok.svg',
+	});
+} '"plt" dies when "imshow" gets something besides an array (dies with better error)';
 # Λέγω οὖν, μὴ ἀπώσατο ὁ θεὸς
 sub linspace {    # mostly written by Grok
 	my ( $start, $stop, $num, $endpoint ) = @_;   # endpoint means include $stop
