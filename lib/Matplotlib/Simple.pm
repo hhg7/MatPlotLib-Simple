@@ -794,7 +794,7 @@ sub colored_table_helper {
 	say {$args->{fh}} '	for ii, item in enumerate(row):';
 	say {$args->{fh}} '		if np.isnan(item):';
 	say {$args->{fh}} '			d[ri][ii] = ""';
-	if ($plot->{'show.numbers'} > 0) {
+	if ($plot->{'show.numbers'}) {
 		say {$args->{fh}} "table = ax$ax" . '.table(cellText=d, rowLabels=["' . join ('","', @rows) . '"], colLabels = ["' . join ('","', @cols) . '"], cellColours = datacolors, loc = "center", bbox=[0,0,1,1])';
 	} else {
 		say {$args->{fh}} "table = ax$ax" . '.table(rowLabels=["' . join ('","', @rows) . '"], colLabels = ["' . join ('","', @cols) . '"], cellColours = datacolors, loc = "center", bbox=[0,0,1,1])';
@@ -824,12 +824,12 @@ sub hexbin_helper {
 	}
 	my @reqd_args = (
 		'fh',      # e.g. $py, $fh, which will be passed by the subroutine
-	  'plot',    # args to original function
+		'plot',    # args to original function
 	);
 	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
 	if ( scalar @undef_args > 0 ) {
-	  p @undef_args;
-	  die 'the above args are necessary, but were not defined.';
+		p @undef_args;
+		die 'the above args are necessary, but were not defined.';
 	}
 	my @opt = (
 	  @ax_methods, @fig_methods, @arg, @plt_methods,
@@ -1364,7 +1364,7 @@ sub plot_helper {
 			say { $args->{fh} } "ax$args->{ax}.plot(x, y $options) # " . __LINE__;
 			$arr_i++;
 		}
-		return 0; # the rest only applies if $plot->{data} is a hash
+		return 1; # the rest only applies if $plot->{data} is a hash
 	}
 	my @key_order;
 	if ( defined $plot->{'key.order'} ) {
@@ -1427,7 +1427,7 @@ sub plot_helper {
 		}
 		say { $args->{fh} } "ax$args->{ax}.plot(x, y $label $options) # " . __LINE__;
 	}
-	return 0;
+	return 1;
 }
 
 sub scatter_helper {
@@ -1627,7 +1627,7 @@ sub violin_helper {
 	$plot->{whiskers} = $plot->{whiskers} // 1;
 	$plot->{edgecolor} = $plot->{edgecolor} // 'black';
 	my $options = '';    # these args go to the plt.hist call
-	if ( ( defined $plot->{'log'} ) && ( $plot->{'log'} > 0 ) ) {
+	if ( $plot->{'log'} ) {
 	  $options .= ', log = True';
 	}
 	say { $args->{fh} } 'd = []';
@@ -1659,13 +1659,13 @@ sub violin_helper {
 	} else {
 		say { $args->{fh} } 'for pc in vp["bodies"]:';
 		if ( defined $plot->{color} ) {
-			print { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')\n";
+			say { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')";
 		}
-		print { $args->{fh} } "\tpc.set_edgecolor('black')\n";
+		say { $args->{fh} } "\tpc.set_edgecolor('black')";
 
 		#		say {$args->{fh}} "\tpc.set_alpha(1)";
 	}
-	if ( $plot->{whiskers} > 0 ) {
+	if ( $plot->{whiskers} ) {
 	 # https://matplotlib.org/stable/gallery/statistics/customized_violin.html
 	  say { $args->{fh} } 'import numpy as np';
 	  say { $args->{fh} } 'def adjacent_values(vals, q1, q3):';
