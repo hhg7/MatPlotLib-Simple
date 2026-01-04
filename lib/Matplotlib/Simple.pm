@@ -880,7 +880,7 @@ sub hexbin_helper {
 	my $options =
 	", gridsize = ($plot->{xbins}, $plot->{ybins}), cmap = '$plot->{cmap}'"
 	;    # these args go to the plt.hist call
-	if ( $plot->{cb_logscale} > 0 ) {
+	if ( $plot->{cb_logscale} ) {
 	  say { $args->{fh} } 'from matplotlib.colors import LogNorm';
 	  $options .= ', norm = LogNorm()';
 	}
@@ -1070,7 +1070,7 @@ sub hist2d_helper {
 	$plot->{ylabel} = $plot->{ylabel} // $keys[1];
 	$plot->{cmap}   = $plot->{cmap}   // 'gist_rainbow';
 	my $options = ", cmap = '$plot->{cmap}'"; # these args go to the plt.hist call
-	if ( $plot->{cb_logscale} > 0 ) {
+	if ( $plot->{cb_logscale} ) {
 		say {$args->{fh}} 'from matplotlib.colors import LogNorm';
 		# prevents "ValueError: Passing a Normalize instance simultaneously with vmin/vmax is not supported.  Please pass vmin/vmax directly to the norm when creating it"
 		my @logNorm_opt;
@@ -1599,6 +1599,41 @@ sub scatter_helper {
 	}
 }
 
+sub venn_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	unless ( ref $args eq 'HASH' ) {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+	  'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+	  'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
+	my $plot      = $args->{plot};
+	my @undef_opt = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_opt > 0 ) {
+		p @undef_opt;
+		die "The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
+	}
+	my $data_ref = ref $plot->{data};
+	unless ($data_ref eq 'HASH') {
+		p $args;
+		die "Data ref to $current_sub is \"$data_ref\", but must be \"HASH\"";
+	}
+	my $n_keys = scalar keys %{ $plot->{data} };
+	
+}
+
 sub violin_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
@@ -2029,10 +2064,11 @@ sub plt {
 	say 'temp file is ' . $fh->filename;
 	say $fh 'import matplotlib.pyplot as plt';
 	if ( $single_plot == 0 ) {
-		$args->{sharex} = $args->{sharex} // 'False';
+		$args->{sharex} = $args->{sharex} // 0;
+		$args->{sharey} = $args->{sharey} // 0;
 		say $fh 'fig, ('
 		 . join( ',', @py )
-		 . ") = plt.subplots($args->{nrows}, $args->{ncols}, sharex = $args->{sharex}, layout = 'constrained') #" . __LINE__;
+		 . ") = plt.subplots($args->{nrows}, $args->{ncols}, sharex = $args->{sharex}, sharey = $args->{sharey}, layout = 'constrained') #" . __LINE__;
 	} elsif ( $single_plot == 1 ) {
 		say $fh 'fig, ax0 = plt.subplots(1,1, layout = "constrained")';
 	} else {
@@ -2672,6 +2708,8 @@ sub wide { # a wrapper to simplify calling
 Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in C</tmp>, to be edited at the user's discretion.
 Requires python3 and matplotlib installations.
 
+My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib itself.
+
 =head1 Single Plots
 
 Simplest use case:
@@ -2747,6 +2785,42 @@ which produces the following subplots image:
 
 
 C<bar>, C<barh>, C<boxplot>, C<hexbin>, C<hist>, C<hist2d>, C<imshow>, C<pie>, C<plot>, C<scatter>, and C<violinplot> all match the methods in matplotlib itself.
+
+=head2 Options
+
+C<sharex> and C<sharey> are both implemented at the plot, rather than subplot, level.  See Matplotlib's documentation for more clarity.
+
+=head1 Color Bars (colorbars)
+
+Colarbar args attempt to match matplotlib closely
+
+=for html
+<table>
+<tbody>
+<tr><td>Option</td><td>Description</td><td>Example</td></tr>
+<tr><td>--------</td><td>-------</td><td>------- </td></tr>
+<tr><td><code>cbdrawedges</code></td><td>Whether to draw lines at color boundaries</td><td><code>cbdrawedges => 1</code></td></tr>
+<tr><td><code>cblabel</code></td><td>The label on the colorbar's long axis</td><td><code>cblabel => 1</code></td></tr>
+<tr><td><code>cblocation</code></td><td>of the colorbar None or {'left', 'right', 'top', 'bottom'}</td><td></td></tr>
+<tr><td><code>cborientation</code></td><td># None or {<code>vertical</code>, <code>horizontal</code>}</td><td></td></tr>
+<tr><td><code>cbpad</code></td><td>pad : float, default: 0.05 if vertical, 0.15 if horizontal; Fraction of original Axes between colorbar and new image Axes</td><td></td></tr>
+<tr><td><code>cb_logscale</code></td><td>Perl true (anything but 0) or false (0)</td><td></td></tr>
+<tr><td><code>shared.colorbar</code></td><td>share colorbar between different plots: specify plot indices</td><td><code>'shared.colorbar' => [0,1]</code></td></tr>
+</tbody>
+</table>
+
+=head1 Size/Dimensions of output file
+
+=for html
+<table>
+<tbody>
+<tr><td>Option</td><td>Description</td><td>Example</td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td></tr>
+<tr><td><code>scale</code></td><td>scale/multiply the size of the output figure</td><td><code>scale => 2.4</code></td></tr>
+<tr><td><code>scalex</code></td><td>scale/multiply the x-axis only</td><td><code>scalex => 2.4</code></td></tr>
+<tr><td><code>scaley</code></td><td>scale/multiply the y-axis only</td><td><code>scalex => 1.4</code></td></tr>
+</tbody>
+</table>
 
 =head1 Examples/Plot Types
 

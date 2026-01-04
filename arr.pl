@@ -9,31 +9,31 @@ use Matplotlib::Simple;
 
 my @plots = ({
 	data => {
-			'sin' => [map {sin($_ * 3.14159265/180)} 0..360],
-			'cos' => [map {cos($_ * 3.14159265/180)} 0..360]
-		},
+		'sin' => [map {sin($_ * 3.14159265/180)} 0..360],
+		'cos' => [map {cos($_ * 3.14159265/180)} 0..360]
+	},
 	'plot.type' => 'hist2d',
 	cbpad       => 0.001,
 	title       => 'pad = 0.001'
 });
-for (my $pad = 0.01; $pad <= 0.09; $pad += 0.03) {
+for (my $pad = 0.01; $pad <= 0.06; $pad += 0.03) {
 	push @plots, {
 		data => {
 			'sin' => [map {sin($_ * 3.14159265/180)} 0..360],
 			'cos' => [map {cos($_ * 3.14159265/180)} 0..360]
 		},
 		'plot.type' => 'hist2d',
+		cbdrawedges => 1,
 		cbpad       => $pad,
 		title       => "pad = $pad"
 	};
 }
 plt({
-	execute       => 0,
-	fh            => $fh,
 	'output.file' => '/tmp/hist2d.pads.svg',
 	plots         => \@plots,
-	ncols         => 2,
-	nrows         => 2,
+	ncols         => 1,
+	nrows         => 3,
+	sharey        => 1,
 	scale         => 2
 });
 #my $fh = File::Temp->new(DIR => '/tmp', SUFFIX => '.py', UNLINK => 0);
