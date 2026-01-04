@@ -80,6 +80,7 @@ Colarbar args attempt to match matplotlib closely
 |`cborientation` | # None or {`vertical`, `horizontal`} |
 |`cbpad`        | pad : float, default: 0.05 if vertical, 0.15 if horizontal; Fraction of original Axes between colorbar and new image Axes
 |`cb_logscale`  | Perl true (anything but 0) or false (0)| |
+|`shared.colorbar` | share colorbar between different plots: specify plot indices | `'shared.colorbar' => [0,1]`|
 
 # Size/Dimensions of output file
 
