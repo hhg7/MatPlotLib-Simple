@@ -78,8 +78,16 @@ Colarbar args attempt to match matplotlib closely
 |`cblabel`      | The label on the colorbar's long axis | `cblabel => 1` |
 |`cblocation`   |  of the colorbar None or {'left', 'right', 'top', 'bottom'} | |
 |`cborientation` | # None or {`vertical`, `horizontal`} |
-|`cbpad`,        | pad : float, default: 0.05 if vertical, 0.15 if horizontal; Fraction of original Axes between colorbar and new image Axes
+|`cbpad`        | pad : float, default: 0.05 if vertical, 0.15 if horizontal; Fraction of original Axes between colorbar and new image Axes
 |`cb_logscale`  | Perl true (anything but 0) or false (0)| |
+
+# Size/Dimensions of output file
+
+| Option | Description | Example |
+| -------- | ------- | ------- |
+|`scale`  | scale/multiply the size of the output figure | `scale => 2.4`|
+|`scalex` | scale/multiply the x-axis only | `scalex => 2.4` |
+|`scaley` | scale/multiply the y-axis only | `scalex => 1.4` |
 
 # Examples/Plot Types
 
