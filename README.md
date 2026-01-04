@@ -68,9 +68,20 @@ which produces the following subplots image:
 
 `bar`, `barh`, `boxplot`, `hexbin`, `hist`, `hist2d`, `imshow`, `pie`, `plot`, `scatter`, and `violinplot` all match the methods in matplotlib itself.
 
+# Color Bars (colorbars)
+
+Colarbar args attempt to match matplotlib closely
+
+| Option | Description | Example |
+| -------- | ------- | ------- 
+|`cbdrawedges` | Whether to draw lines at color boundaries | `cbdrawedges => 1`|
+|`cblabel`      | The label on the colorbar's long axis | `cblabel => 1` |
+|`cblocation`   |  of the colorbar None or {'left', 'right', 'top', 'bottom'} | |
+|`cborientation` | # None or {`vertical`, `horizontal`} |
+|`cbpad`,        | pad : float, default: 0.05 if vertical, 0.15 if horizontal; Fraction of original Axes between colorbar and new image Axes
+|`cb_logscale`  | Perl true (anything but 0) or false (0)| |
 
 # Examples/Plot Types
-
 
 Consider the following helper subroutines to generate data to plot:
 
