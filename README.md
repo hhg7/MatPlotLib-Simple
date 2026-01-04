@@ -3,6 +3,8 @@
 Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in `/tmp`, to be edited at the user's discretion.
 Requires python3 and matplotlib installations.
 
+My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib itself.
+
 # Single Plots
 Simplest use case:
 
@@ -67,6 +69,10 @@ which produces the following subplots image:
 <img width="651" height="424" alt="pies" src="https://github.com/user-attachments/assets/49d3e28b-f897-4b01-9e72-38afa12fa538" />
 
 `bar`, `barh`, `boxplot`, `hexbin`, `hist`, `hist2d`, `imshow`, `pie`, `plot`, `scatter`, and `violinplot` all match the methods in matplotlib itself.
+
+## Options
+
+`sharex` and `sharey` are both implemented at the plot, rather than subplot, level.  See Matplotlib's documentation for more clarity.
 
 # Color Bars (colorbars)
 
