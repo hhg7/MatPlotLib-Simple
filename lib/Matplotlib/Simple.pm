@@ -259,8 +259,6 @@ my %opt = (
 		'shared.colorbar', # array of 0-based indices for sharing a colorbar
 		'show.numbers',# show the numbers or not, by default off.  0 = "off"; "show.numbers" > 0 => "on"
 		'undef.color', # what color will undefined points be
-#		'xlabel',	# xlabel prints in a bad position, so I removed this as a possible option
-#		'ylabel',	# ylabel prints under the row labels
 	],
 	hexbin_helper => [ @cb_arg,
 	  'cb_logscale',
@@ -916,7 +914,6 @@ sub hexbin_helper {
 		$opts .= ", $mpl_opt = '$plot->{$o}'";
 	}
 	foreach my $o (grep {defined $plot->{$_}} ('cbdrawedges', 'cbpad')) { # numeric
-		say $o;
 		die "$o = $plot->{$o} must be numeric" unless (looks_like_number($plot->{$o}));
 		my $mpl_opt = $o;
 		$mpl_opt =~ s/^cb//;
@@ -1132,10 +1129,28 @@ sub hist2d_helper {
 	say {$args->{fh}} 'min_hist2d_box = np.min(hist2d_n)';
 	say {$args->{fh}} "print(f'plot $ax hist2d density range = [{min_hist2d_box}, {max_hist2d_box}]')";
 	return 0 if $plot->{'show.colorbar'} == 0;
+	my $opts = '';
+	foreach my $o (grep {defined $plot->{$_}} ('cblabel', 'cblocation', 'cborientation')) { #str
+		my $mpl_opt = $o;
+		$mpl_opt =~ s/^cb//;
+		$opts .= ", $mpl_opt = '$plot->{$o}'";
+	}
+	foreach my $o (grep {defined $plot->{$_}} ('cbdrawedges', 'cbpad')) { # numeric
+		die "$o = $plot->{$o} must be numeric" unless (looks_like_number($plot->{$o}));
+		my $mpl_opt = $o;
+		$mpl_opt =~ s/^cb//;
+		$opts .= ", $mpl_opt = $plot->{$o}";
+	}
+	$plot->{'colorbar.on'} = $plot->{'colorbar.on'} // 1;
+	if (($plot->{'colorbar.on'}) && (defined $plot->{'shared.colorbar'})) {
+		my @ax = map {"ax$_"} @{ $plot->{'shared.colorbar'} };
+		$opts .= ', ax = [' . join (',', @ax) . '] ';
+	}
+#	say { $args->{fh} } "cbar = fig.colorbar(im$ax $opts)" if $plot->{'colorbar.on'};
 	if ( defined $plot->{cblabel} ) {
-		say { $args->{fh} } "plt.colorbar(im$ax, label = '$plot->{cblabel}')";
+	  say { $args->{fh} } "plt.colorbar(im$ax, label = '$plot->{cblabel}' $opts)";
 	} else {
-		say { $args->{fh} } "plt.colorbar(im$ax, label = 'Density')";
+	  say { $args->{fh} } "plt.colorbar(im$ax, label = 'Density' $opts)";
 	}
 }
 
