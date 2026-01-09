@@ -126,7 +126,7 @@ my @ax_methods = (
  'set_xmargin', 'set_xscale', 'set_xticklabels', 'set_xticks', 'set_ybound',
  'set_ylabel',  'set_ylim',   'set_ymargin', 'set_yscale', 'set_yticklabels',
  'set_yticks',  'sharex',     'sharey',      'spines', 'start_pan', 'tables',
- 'text', 'ticklabel_format', 'titleOffsetTrans', 'transAxes', 'transData', 'transLimits',
+ 'text', 'tick_params', 'ticklabel_format', 'titleOffsetTrans', 'transAxes', 'transData', 'transLimits',
  'transScale', 'update_datalim', 'use_sticky_edges', 'viewLim', 'vlines', 'violin',
  'xaxis',      'xaxis_date',     'xaxis_inverted',   'yaxis',   'yaxis_date',
  'yaxis_inverted'
@@ -209,15 +209,17 @@ my @plt_methods = (
 	'subplots_adjust', 'summer', 'suptitle', 'switch_backend', 'sys', 'table',
 #	'text'
 	, # text(x: 'float', y: 'float', s: 'str', fontdict: 'dict[str, Any] | None' = None, **kwargs) -> 'Text'
-	'thetagrids',   'threading', 'tick_params',
+	'thetagrids',   'threading',# 'tick_params',
 	'tight_layout', 'time', 'title', 'tricontour', 'tricontourf', 'tripcolor',
-	'triplot', 'twinx',     'twiny', 'uninstall_repl_displayhook', 'violinplot',
+	'triplot',
+#'twinx', 'twiny',
+	'uninstall_repl_displayhook', 'violinplot',
 	'viridis', 'waitforbuttonpress', 'winter', 'xcorr', 'xkcd',# 'vlines'
 	'xlabel','xscale','ylabel', 'ylim', 'yscale',
 #	'xlim','xticks','yticks'
 );
 
-my @arg = ('add', 'cmap', 'data', 'execute', 'fh','ncols', 'plot.type',  'plots', 'plot', 'output.file', 'nrows', 'scale', 'scalex', 'scaley', 'shared.colorbar');
+my @arg = ('add', 'cmap', 'data', 'execute', 'fh','ncols', 'plot.type',  'plots', 'plot', 'output.file', 'nrows', 'scale', 'scalex', 'scaley', 'shared.colorbar', 'twinx');
 my @cb_arg = (
 'cbdrawedges', # for colarbar: Whether to draw lines at color boundaries
 'cblabel',		# The label on the colorbar's long axis
@@ -329,7 +331,8 @@ my %opt = (
 	plot_helper => [
 	 'key.order',      # an array of key strings (which are defined in data)
 	 'show.legend',    # be default on; should be 0 if off
-	 'set.options'
+	 'set.options',
+	 'twinx.args'
 	],
 	scatter_helper => [
 	 'color_key',    # which of data keys is the color key
@@ -1335,20 +1338,19 @@ sub plot_helper {
 	  p @undef_args;
 	  die 'the above args are necessary, but were not defined.';
 	}
-	my @opt = (
-	  @ax_methods, @fig_methods, @arg, @plt_methods, 'ax', @{ $opt{$current_sub} }
-	);
-	my $plot      = $args->{plot};
-	my @undef_opt = grep {
+	my @opt = (@ax_methods, @fig_methods, @arg, @plt_methods, 'ax', @{ $opt{$current_sub} });
+	my $plot = $args->{plot};
+	my @bad_opt = grep {
 	  my $key = $_;
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
-	if ( scalar @undef_opt > 0 ) {
+	if ( scalar @bad_opt > 0 ) {
 	  p $args;
-	  p @undef_opt;
+	  p @bad_opt;
 	  die	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
 	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
+	my @twinx;
 	if (ref $plot->{data} eq 'ARRAY') {
 		if (defined $plot->{'set.options'}) {
 			my $ref_type = ref $plot->{'set.options'};
@@ -1363,6 +1365,32 @@ sub plot_helper {
 				die "there are $n_set_opt sets for options, but only $n_data data points.";
 			}
 		}
+		if (defined $plot->{twinx}) {
+			if (ref $plot->{twinx} eq '') {
+				die "twinx must be an array index, not \"$plot->{twinx}\"" unless $plot->{twinx} =~ m/^\d+$/;
+				@twinx = $plot->{twinx};
+			} elsif (ref $plot->{twinx} eq 'ARRAY') {
+				@bad_opt = grep {$_ !~ m/^\d+$/} @{ $plot->{twinx} };
+				if (scalar @bad_opt > 0) {
+					p @bad_opt;
+					die 'data that could not possibly be an array index for twinx is shown above';
+				}
+				@twinx = @{ $plot->{twinx} };
+			}
+		}
+		if (defined $plot->{'twinx.args'}) {
+			my $ref = ref $plot->{'twinx.args'};
+			die "\"twinx.args\" must be a hash, but $ref was entered" unless $ref eq 'HASH';
+			@bad_opt = grep {$_ !~ m/^\d+$/} keys %{ $plot->{'twinx.args'} };
+			if (scalar @bad_opt > 0) {
+				p @bad_opt;
+				die 'the above keys are not hash indices';
+			}
+			foreach my $idx (keys %{ $plot->{'twinx.args'} }) {
+				next if grep {$idx == $_} @twinx;
+				push @twinx, $idx;
+			}
+		}
 		my $arr_i = 0;
 		foreach my $arr (@{ $plot->{data} }) {
 			my $ref = ref $arr;
@@ -1375,21 +1403,21 @@ sub plot_helper {
 				p $arr;
 				die "there must be 2 array references (x, y) but index $arr_i has $n_elem";
 			}
-			my @n = map { scalar @{ $arr->[$_] } } (0,1);
-			if ($n[0] != $n[1]) {
+			@bad_opt = map { scalar @{ $arr->[$_] } } (0,1);
+			if ($bad_opt[0] != $bad_opt[1]) {
 				say STDERR "index $arr_i must have arrays/array refs of equal length, but these lengths were given:";
-				p @n;
+				p @bad_opt;
 				die 'the array/array ref lengths must be equal';
 			}
 			foreach my $i (0,1) {
 				my $max_i = scalar @{ $arr->[$i] } - 1;
-				my @non_numeric_i = grep {not looks_like_number($arr->[$i][$_])} 0..$max_i;
-				next if scalar @non_numeric_i == 0; # it's fine, don't worry
+				@bad_opt = grep {not looks_like_number($arr->[$i][$_])} 0..$max_i;
+				next if scalar @bad_opt == 0; # it's fine, don't worry
 				p $plot->{data}[$arr_i];
-				p @non_numeric_i;
-				@n = @{ $arr->[$i] }[@non_numeric_i];
+				p @bad_opt;
+				@bad_opt = @{ $arr->[$i] }[@bad_opt];
 				say STDERR 'have these non-numeric values:';
-				p @n;
+				p @bad_opt;
 				die "Array index $arr_i/axis $i has non-numeric values (above)";
 			}
 			my $options = '';
@@ -1403,7 +1431,20 @@ sub plot_helper {
 			if ( defined $plot->{'set.options'}[$arr_i] ) {
 				$options = ", $plot->{'set.options'}[$arr_i]";
 			}
-			say { $args->{fh} } "ax$args->{ax}.plot(x, y $options) # " . __LINE__;
+			my $ax = "ax$args->{ax}";
+			if (grep {$arr_i == $_} @twinx) {
+				say { $args->{fh} } "twinx_$ax = $ax.twinx()# " . __LINE__;
+				say { $args->{fh} } "twinx_$ax.plot(x, y $options) # " . __LINE__;
+				if (defined $plot->{'twinx.args'}{$arr_i}) {
+					plot_args({
+						fh   => $args->{fh},
+						args => $plot->{'twinx.args'}{$arr_i},
+						ax   => "twinx_$ax"
+					});
+				}
+			} else {
+				say { $args->{fh} } "ax$args->{ax}.plot(x, y $options) # " . __LINE__;
+			}
 			$arr_i++;
 		}
 		return 1; # the rest only applies if $plot->{data} is a hash
@@ -1875,12 +1916,14 @@ sub wide_helper {
 sub print_type {
 	my $str = shift;
 	my $type = 'no quotes';
+	if ($str =~ m/^\w+\h*=\h*["']/) {
+		return 'no quotes';
+	}
    if ($str =~ m/^\w+$/) {
    	return 'single quotes';
    } elsif ($str =~ m/[!@#\$\%^&*\(\)\{\}\[\]\<\>,\/\-\h:;\+=\w]+$/) {
    	return 'single quotes';
    } elsif (($str =~ m/,/) && ($str !~ m/[\]\[]/)) {
-   	say __LINE__;
    	return 'single quotes';
    }
    return $type;
@@ -2017,7 +2060,7 @@ sub plt {
 		die 'the above args must be numeric';
 	}
 	my @ax = map { "ax$_" } 0 .. $args->{nrows} * $args->{ncols} - 1;
-	my ( @py, @y, $fh );
+	my ( @py, @y, $fh, @twinx );
 	my $i = 0;
 	foreach my $ax (@ax) {
 		my $a1i = int $i / $args->{ncols}; # 1st index
@@ -2044,6 +2087,7 @@ sub plt {
 			die "the max \"shared.colorbar\" index $max_subplot_idx > than the max index of plots";
 		}
 	}
+
 	if ( defined $args->{fh} ) {
 		if (ref $args->{fh} ne 'File::Temp') {
 			p $args;
@@ -2051,7 +2095,7 @@ sub plt {
 		}
 		$fh = $args->{fh};# open $fh, '>>', $args->{fh};
 	} else {
-		$fh = File::Temp->new( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
+		$fh = File::Temp->new(DIR => '/tmp', SUFFIX => '.py', UNLINK => 0);
 	}
 	say 'temp file is ' . $fh->filename;
 	say $fh 'import matplotlib.pyplot as plt';

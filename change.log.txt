@@ -1,1 +1,5 @@
-0.20: better warnings for incomplete data in "plot"
+0.20
+---
+better warnings for incomplete data in "plot"
+"plot" can plot with "twinx" when data is given in arrays
+"tick_params" is removed from plt methods
