@@ -1,0 +1,1 @@
+0.20: better warnings for incomplete data in "plot"

@@ -192,6 +192,18 @@ dies_ok {
 		'output.file' => '/tmp/dies_ok.svg',
 	});
 } '"plt" dies when a single plot is given an empty data hash';
+dies_ok {
+	plt({
+		data => [
+			[
+				[0,1,'c'],
+				[2,3,'x']
+			]
+		],
+		'plot.type' => 'plot',
+		'output.file' => '/tmp/dies_ok.svg'
+	});
+} '"plt" dies when non-numeric values are given to "plot"';
 my ($tfh, $tfname) = tempfile(DIR => '/tmp', UNLINK => 1);
 dies_ok {
 	plt({
@@ -1861,7 +1873,6 @@ foreach my $file (@output_files) {
 	} else {
 		ok(is_valid_svg($file), "$file is likely a valid SVG file");
 	}
-#	unlink $file;
+	unlink $file;
 }
 done_testing();
-say 'Now removing test files and directory to save space.';

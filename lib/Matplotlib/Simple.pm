@@ -9,7 +9,7 @@ use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.19;
+our $VERSION = 0.20;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
@@ -357,7 +357,7 @@ my %opt = (
 sub plot_args {    # this is a helper function to other matplotlib subroutines
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
@@ -429,7 +429,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 	  die
 	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
@@ -613,7 +613,7 @@ sub boxplot_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
@@ -708,7 +708,7 @@ sub boxplot_helper {
 sub colored_table_helper {
 	my ($args) = @_;
 	my $current_sub = (split(/::/,(caller(0))[3]))[-1]; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless (ref $args eq 'HASH') {
+	if (ref $args ne 'HASH') {
 		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
@@ -817,7 +817,7 @@ sub hexbin_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
@@ -946,7 +946,7 @@ sub hist_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 		die
 	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
@@ -1013,7 +1013,7 @@ sub hist2d_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
@@ -1158,7 +1158,7 @@ sub imshow_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 	  die
 	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
@@ -1184,7 +1184,7 @@ sub imshow_helper {
 	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
 	my $data_ref = ref $plot->{data};
-	unless ($data_ref eq 'ARRAY') {
+	if ($data_ref ne 'ARRAY') {
 		p $args;
 		die "$current_sub can only accept 2-D arrays as input in \"data\", but received $data_ref";
 	}
@@ -1270,7 +1270,7 @@ sub pie_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 	  die
 	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
@@ -1322,7 +1322,7 @@ sub plot_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
@@ -1352,7 +1352,7 @@ sub plot_helper {
 	if (ref $plot->{data} eq 'ARRAY') {
 		if (defined $plot->{'set.options'}) {
 			my $ref_type = ref $plot->{'set.options'};
-			unless ($ref_type eq 'ARRAY') {
+			if ($ref_type ne 'ARRAY') {
 				p $args;
 				die "\"set.options\" must also be an array when the data is an array, but \"$ref_type\" was given." ;
 			}
@@ -1365,6 +1365,33 @@ sub plot_helper {
 		}
 		my $arr_i = 0;
 		foreach my $arr (@{ $plot->{data} }) {
+			my $ref = ref $arr;
+			if ($ref ne 'ARRAY') {
+				p $plot->{data}[$arr_i];
+				die "index $arr_i is \"$ref\" but must be \"ARRAY\"";
+			}
+			my $n_elem = scalar @{ $arr };
+			if ($n_elem != 2) {
+				p $arr;
+				die "there must be 2 array references (x, y) but index $arr_i has $n_elem";
+			}
+			my @n = map { scalar @{ $arr->[$_] } } (0,1);
+			if ($n[0] != $n[1]) {
+				say STDERR "index $arr_i must have arrays/array refs of equal length, but these lengths were given:";
+				p @n;
+				die 'the array/array ref lengths must be equal';
+			}
+			foreach my $i (0,1) {
+				my $max_i = scalar @{ $arr->[$i] } - 1;
+				my @non_numeric_i = grep {not looks_like_number($arr->[$i][$_])} 0..$max_i;
+				next if scalar @non_numeric_i == 0; # it's fine, don't worry
+				p $plot->{data}[$arr_i];
+				p @non_numeric_i;
+				@n = @{ $arr->[$i] }[@non_numeric_i];
+				say STDERR 'have these non-numeric values:';
+				p @n;
+				die "Array index $arr_i/axis $i has non-numeric values (above)";
+			}
 			my $options = '';
 			say { $args->{fh} } 'x = [' . join( ',', @{ $arr->[0] } ) . ']';
 			say { $args->{fh} } 'y = [' . join( ',', @{ $arr->[1] } ) . ']';
@@ -1449,7 +1476,7 @@ sub scatter_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 	  die
 	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
@@ -1474,7 +1501,7 @@ sub scatter_helper {
 		die	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
 	my $overall_ref = ref $plot->{data};
-	unless ( $overall_ref eq 'HASH' ) {
+	if ( $overall_ref ne 'HASH' ) {
 		die
 	"scatter only takes 1) hashes of arrays (single or 2) hash of hash of arrays; but $overall_ref was entered";
 	}
@@ -1516,7 +1543,7 @@ sub scatter_helper {
 			my $i = 0;
 			foreach my $key (@keys) {
 		#            while ( my ( $i, $key ) = each @keys ) {
-				 next unless $key eq $plot->{color_key};
+				 next if $key ne $plot->{color_key};
 				 splice @keys, $i, 1;    # remove the color key from @keys
 				 $i++;
 			}
@@ -1599,46 +1626,11 @@ sub scatter_helper {
 	}
 }
 
-sub venn_helper {
-	my ($args) = @_;
-	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
-	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
-		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
-	}
-	my @reqd_args = (
-	  'fh',      # e.g. $py, $fh, which will be passed by the subroutine
-	  'plot',    # args to original function
-	);
-	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
-	if ( scalar @undef_args > 0 ) {
-	  p @undef_args;
-	  die 'the above args are necessary, but were not defined.';
-	}
-	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
-	my $plot      = $args->{plot};
-	my @undef_opt = grep {
-	  my $key = $_;
-	  not grep { $_ eq $key } @opt
-	} keys %{$plot};
-	if ( scalar @undef_opt > 0 ) {
-		p @undef_opt;
-		die "The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
-	}
-	my $data_ref = ref $plot->{data};
-	unless ($data_ref eq 'HASH') {
-		p $args;
-		die "Data ref to $current_sub is \"$data_ref\", but must be \"HASH\"";
-	}
-	my $n_keys = scalar keys %{ $plot->{data} };
-	
-}
-
 sub violin_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
@@ -1790,7 +1782,7 @@ sub wide_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 	  die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
@@ -1901,7 +1893,7 @@ sub plt {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	unless ( ref $args eq 'HASH' ) {
+	if ( ref $args ne 'HASH' ) {
 	  die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = ('output.file'); # e.g. "my_image.svg"
@@ -2042,7 +2034,7 @@ sub plt {
 	}
 	if (defined $args->{'shared.colorbar'}) {
 		my $ref = ref $args->{'shared.colorbar'};
-		unless ($ref eq 'ARRAY') {
+		if ($ref ne 'ARRAY') {
 			p $args;
 			die '"shared.colobar" must be an array reference';
 		}
@@ -2725,7 +2717,7 @@ Simplest use case:
     }
  });
 
-A nore complete (and slightly faster execution):
+A more complete (and slightly faster execution):
 
  use Matplotlib::Simple;
  plt({
