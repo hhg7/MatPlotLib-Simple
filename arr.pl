@@ -41,6 +41,7 @@ plt({
 	},
 });
 plt({
+	show          => 'True',
 	execute       => 1,
 	fh            => $fh,
 	data          => {

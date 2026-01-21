@@ -9,7 +9,7 @@ use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.20;
+our $VERSION = 0.21;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
@@ -177,7 +177,7 @@ my @plt_methods = (
 #	'xlim','xticks','yticks'
 );
 
-my @arg = ('add', 'cmap', 'data', 'execute', 'fh','ncols', 'plot.type',  'plots', 'plot', 'output.file', 'nrows', 'scale', 'scalex', 'scaley', 'shared.colorbar', 'twinx');
+my @arg = ('add', 'cmap', 'data', 'execute', 'fh','ncols', 'plot.type',  'plots', 'plot', 'output.file', 'nrows', 'scale', 'scalex', 'scaley', 'shared.colorbar', 'show', 'twinx');
 my @cb_arg = (
 'cbdrawedges', # for colarbar: Whether to draw lines at color boundaries
 'cblabel',		# The label on the colorbar's long axis
@@ -359,10 +359,14 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 		foreach my $method ( grep { defined $args->{args}{$_} } @{ $args[$i] } ) {
 			my $ref = ref $args->{args}{$method};
 			if ( ( $ref ne 'ARRAY' ) && ( $ref ne '' ) ) {
-				die "$current_sub only accepts scalar or array types, but $ref was entered.";
+				die "$current_sub only accepts scalar or array types, but \"$ref\" was entered.";
 			}
 			if ( $ref eq '' ) {
-				say {$args->{fh}} "$obj[$i].$method($args->{args}{$method}) #line" . __LINE__;
+				if ($method eq 'show') {
+					say {$args->{fh}} "$obj[$i].$method()" . '#line' . __LINE__;
+				} else {
+					say {$args->{fh}} "$obj[$i].$method($args->{args}{$method}) #line" . __LINE__;
+				}
 				next;
 			}
 			# can only be ARRAY
@@ -1935,6 +1939,10 @@ sub plt {
 	if ( ref $args ne 'HASH' ) {
 	  die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
+	if ((scalar grep {$args->{$_}} ('output.file', 'show')) == 0) {
+		p $args;
+		die 'either "show" or "output.file" must be defined';
+	}
 	my @reqd_args = ('output.file'); # e.g. "my_image.svg"
 	my $single_example = 'plt({
 	\'output.file\' => \'/tmp/gospel.word.counts.svg\',
@@ -2495,7 +2503,11 @@ sub plt {
 		if ( $ref eq '' ) {
 			my $type = print_type($args->{$plt_method});
 			if ($type eq 'single quotes') {
-				say $fh "plt.$plt_method('$args->{$plt_method}')#" . __LINE__;
+				if ($plt_method eq 'show') {
+					say $fh "plt.$plt_method()#" . __LINE__;
+				} else {
+					say $fh "plt.$plt_method('$args->{$plt_method}')#" . __LINE__;
+				}
 			} elsif ($type eq 'no quotes') {
 				say $fh "plt.$plt_method($args->{$plt_method})#" . __LINE__;
 			}

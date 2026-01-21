@@ -1,3 +1,7 @@
+0.21
+---
+"show" now works; files are still output if specified
+---
 0.20
 ---
 better warnings for incomplete data in "plot"
