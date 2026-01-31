@@ -9,7 +9,7 @@ use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.21;
+our $VERSION = 0.22;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
@@ -29,7 +29,7 @@ sub execute {
 	my ( $cmd, $return, $die ) = @_;
 	$return = $return // 'exit';
 	$die    = $die    // 1;
-	if ( $return !~ m/^(exit|stdout|stderr|all)$/ ) {
+	if ( $return !~ m/^(?:exit|stdout|stderr|all)$/ ) {
 	  die
 	"you gave \$return = \"$return\", while this subroutine only accepts ^(exit|stdout|stderr)\$";
 	}
@@ -2116,11 +2116,11 @@ sub plt {
 	}
 	if ( defined $args->{plots} ) {
 		my @undef_plot_types;
-		my $i = 0;
+		my $j = 0;
 		foreach my $plot (@{ $args->{plots} }) {
 			next if defined $plot->{'plot.type'};
-			push @undef_plot_types, $i;
-			$i++;
+			push @undef_plot_types, $j;
+			$j++;
 		}
 		if ( scalar @undef_plot_types > 0 ) {
 			p $args;
