@@ -25,44 +25,7 @@ our @EXPORT_OK = @EXPORT;
 
 my @prop_cycle = ('#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2',
  '#7f7f7f', '#bcbd22', '#17becf'); #plt.rcParams['axes.prop_cycle']
-sub execute {
-	my ( $cmd, $return, $die ) = @_;
-	$return = $return // 'exit';
-	$die    = $die    // 1;
-	if ( $return !~ m/^(?:exit|stdout|stderr|all)$/ ) {
-	  die
-	"you gave \$return = \"$return\", while this subroutine only accepts ^(exit|stdout|stderr)\$";
-	}
-	my ( $stdout, $stderr, $exit ) = capture {
-	  system($cmd)
-	};
-	if ( ( $die == 1 ) && ( $exit != 0 ) ) {
-	  say STDERR "exit = $exit";
-	  say STDERR "STDOUT = $stdout";
-	  say STDERR "STDERR = $stderr";
-	  die "$cmd\n failed";
-	}
-	if ( $return eq 'exit' ) {
-		return $exit;
-	} elsif ( $return eq 'stderr' ) {
-		chomp $stderr;
-		return $stderr;
-	} elsif ( $return eq 'stdout' ) {
-		chomp $stdout;
-		return $stdout;
-	} elsif ( $return eq 'all' ) {
-		chomp $stdout;
-		chomp $stderr;
-		return {
-			exit   => $exit,
-			stdout => $stdout,
-			stderr => $stderr
-		};
-	} else {
-		die "$return broke pigeonholes";
-	}
-	return $stdout;
-}
+
 my @ax_methods = (
  'ArtistList',     'add_child_axes', 'add_collection', 'add_container',
  'add_image',      'add_line', 'add_patch', 'add_table', 'apply_aspect',
@@ -2556,10 +2519,16 @@ sub plt {
 	$args->{execute} = $args->{execute} // 1;
 	say $fh 'plt.close()' if $args->{execute} == 0;
 	if ( $args->{execute} ) {
-		my $r = execute( 'python3 ' . $fh->filename, 'all' );
+		my ($stdout, $stderr, $exit) = capture {
+			system( 'python3 ' . $fh->filename )
+		};
+		if ($exit != 0) {
+			say STDERR "STDOUT = $stdout";
+			say STDERR "STDERR = $stderr";
+			die 'python3 ' . $fh->filename . ' failed';
+		}
 		say 'wrote '		
 		 . colored( ['cyan on_bright_yellow'], "$args->{'output.file'}" );
-		p $r;
 	} else {    # not running yet
 		say 'will write '
 		 . colored( ['cyan on_bright_yellow'], "$args->{'output.file'}" );
