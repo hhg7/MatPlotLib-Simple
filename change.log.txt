@@ -1,3 +1,7 @@
+0.22
+---
+minor under-the-hood changes; "execute" subroutine, which was only called once, is now built into "plt" to save a function call; execution should be slightly faster/more efficient
+---
 0.21
 ---
 "show" now works; files are still output if specified
