@@ -150,7 +150,7 @@ Plot a hash or a hash of arrays as a boxplot
 
 | Option | Description | Example |
 | -------- | ------- | ------- 
-|color| :mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed|`color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],` or a single color for all bars `color => 'red'`
+|color| :mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed; as of version 0.23, colors can be given as a hash |`color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],` or a single color for all bars `color => 'red'`, or as of version 0.23 `color => {A => 'red', B => 'green'}`
 |edgecolor| :mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar edges|`edgecolor		=> 'black'`
 |key.order|  define the keys in an order (an array reference)|`'key.order'		=> ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],`
 |linewidth| float or array, optional; Width of the bar edge(s). If 0, don't draw edges. Only does anything with defined `edgecolor`|`linewidth => 2,`
@@ -351,6 +351,37 @@ where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `
 which produces the plot:
 
 <img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/6d87d13b-dabd-485d-92f7-1418f4acc65b" />
+
+### colors for each hash key defined by hash
+
+    plt({
+    	plots => [
+    		{
+    			color        => {
+    				A => 'red', B => 'green', C => 'blue'
+    			},
+    			data => {
+    				A => 1, B => 2, C => 3
+    			},
+    			'plot.type'   => 'bar'
+    		},
+    		{
+    			color        => {
+    				A => 'red', B => 'green', C => 'blue'
+    			},
+    			data => {
+    				A => 1, B => 2, C => 3
+    			},
+    			'plot.type'   => 'barh'
+    		},
+    	],
+    	ncols         => 2,
+    	'output.file' => '/tmp/key.colors.bar.svg',
+    });
+
+which produces the plot
+
+
 
 ## boxplot
 
