@@ -36,26 +36,6 @@ sub list_regex_files ($regex, $directory = '.', $case_sensitive = 'yes') {
 	}
 	@files
 }
-#sub compare_2_files ($f1, $f2) {
-#	my @str = (file2string($f1), file2string($f2));
-#	my @lines;
-#	foreach my $t (@str) {
-#		my @text = split /\n/, $t;
-#		printf("Starting with %u lines\n", scalar @text);
-#		@text = grep {$_ !~ m/^\h*\<dc:title\>made.+\/Simple\.pm\<\/dc:title\>$/} @text;
-#		@text = grep {$_ !~ m/^\h*\<dc:date\>/}        @text;
-#		@text = grep {$_ !~ m/^\h*\<path\h+id="/}      @text;
-#		@text = grep {$_ !~ m/^\h*\<use\h*xlink:href="/} @text;
-#		@text = grep {$_ !~ m/clipPath/}           @text;
-#		@text = grep {$_ !~ m/^\h*clip\-path="/}       @text;
-#		printf("Ending with %u lines\n", scalar @text);
-#		push @lines, [@text];
-#	}
-#	my @different_i = grep { $lines[0][$_] ne $lines[1][$_] } 0..scalar @{ $lines[0] } - 1;
-#	@{ $lines[0] } = @{ $lines[0] }[@different_i];
-#	@{ $lines[1] } = @{ $lines[1] }[@different_i];
-#	p @lines;
-#}
 
 #compare_2_files('output.images/add.single.svg', '/tmp/add.single.svg');
 my $filename = 'sha.sums.tsv';

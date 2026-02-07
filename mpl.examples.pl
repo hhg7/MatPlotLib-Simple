@@ -1571,6 +1571,32 @@ plt({
 });
 plt({
 	fh                => $fh,
+	execute           => 0,
+	plots => [
+		{
+			color        => {
+				A => 'red', B => 'green', C => 'blue'
+			},
+			data => {
+				A => 1, B => 2, C => 3
+			},
+			'plot.type'   => 'bar'
+		},
+		{
+			color        => {
+				A => 'red', B => 'green', C => 'blue'
+			},
+			data => {
+				A => 1, B => 2, C => 3
+			},
+			'plot.type'   => 'barh'
+		},
+	],
+	ncols         => 2,
+	'output.file' => '/tmp/key.colors.bar.png',
+});
+plt({
+	fh                => $fh,
 	execute           => 1,
 	ncols             => 3,
 	nrows             => 3,

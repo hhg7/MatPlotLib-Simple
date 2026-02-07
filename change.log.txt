@@ -1,3 +1,7 @@
+0.23
+---
+colors for bar plots can be defined by hashes; e.g. colors => {A => 'red', B => 'green'}, etc
+---
 0.22
 ---
 minor under-the-hood changes; "execute" subroutine, which was only called once, is now built into "plt" to save a function call; execution should be slightly faster/more efficient

@@ -9,7 +9,7 @@ use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.22;
+our $VERSION = 0.23;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
@@ -434,14 +434,18 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 	  $options .= ", log = $plot->{log}";
 	}    # args that can be either arrays or strings below; STRINGS:
 	foreach my $c ( grep { defined $plot->{$_} } ( 'color', 'edgecolor' ) ) {
-	  next if ( ( $c eq 'color' ) && ( $plot_type eq 'grouped' ) );
-	  my $ref = ref $plot->{$c};
-	  if ( $ref eq '' ) {    # single color
-		   $options .= ", $c = '$plot->{$c}'";
-	  } elsif ( $ref eq 'ARRAY' ) {
-		   $options .= ", $c = [\"" . join( '","', @{ $plot->{$c} } ) . '"]';
-	  }
-	}    # args that can be either arrays or strings below; NUMERIC:
+		next if ( ( $c eq 'color' ) && ( $plot_type eq 'grouped' ) );
+		my $ref = ref $plot->{$c};
+		if ( $ref eq '' ) {    # single color
+			$options .= ", $c = '$plot->{$c}'";
+		} elsif ( $ref eq 'ARRAY' ) {
+			$options .= ", $c = [\"" . join( '","', @{ $plot->{$c} } ) . '"]';
+		} elsif ( $ref eq 'HASH') {
+			
+		} else {
+			die "ref \"$ref\" isn't defined";
+		}
+	} # args that can be either arrays or strings below; NUMERIC:
 	foreach my $c ( grep { defined $plot->{$_} } ('linewidth') ) {
 		my $ref = ref $plot->{$c};
 		if ( $ref eq '' ) {    # single color
@@ -477,10 +481,18 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 		}
 	}
 	if ( $plot_type eq 'simple' ) {    # a simple hash -> simple bar plot
-	  say { $args->{fh} } 'labels = ["' . join( '","', @key_order ) . '"]';
-	  say { $args->{fh} } 'vals = ['
+		say { $args->{fh} } 'labels = ["' . join( '","', @key_order ) . '"]';
+		say { $args->{fh} } 'vals = ['
 		 . join( ',', @{ $plot->{data} }{@key_order} ) . ']';
-	  say { $args->{fh} } "ax$ax.$plot->{'plot.type'}(labels, vals $options)";
+		if ((defined $plot->{color}) && (ref $plot->{color} eq 'HASH')) {
+			@undef_args = grep {not defined $plot->{color}{$_}} @key_order;
+			if (scalar @undef_args > 0) {
+				p @undef_args;
+				die 'the above keys were not defined in the colors hash';
+			}
+			$options .= ',color = ["' . join ('","', @{ $plot->{color} }{@key_order} ) . '"]';
+		}
+		say { $args->{fh} } "ax$ax.$plot->{'plot.type'}(labels, vals $options)";
 	} elsif ( $plot_type eq 'grouped' ) {    # grouped bar plot; hash of array
 	  my @val;
 	  foreach my $k (@key_order) {
@@ -2117,7 +2129,7 @@ sub plt {
 					ax   => 0,
 					plot => $graph
 				});
-			} elsif ( $args->{'plot.type'} eq 'hist' ) {    # histogram
+			} elsif ( $args->{'plot.type'} eq 'hist' ) { # histogram
 				hist_helper({
 					fh   => $fh,
 					ax   => 0,
@@ -2892,7 +2904,7 @@ Plot a hash or a hash of arrays as a boxplot
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>------- </td></tr>
-<tr><td>color</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed</td><td><code>color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],</code> or a single color for all bars <code>color => 'red'</code></td></tr>
+<tr><td>color</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed; as of version 0.23, colors can be given as a hash</td><td><code>color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],</code> or a single color for all bars <code>color => 'red'</code>, or as of version 0.23 <code>color => {A => 'red', B => 'green'}</code></td></tr>
 <tr><td>edgecolor</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar edges</td><td><code>edgecolor     => 'black'</code></td></tr>
 <tr><td>key.order</td><td>define the keys in an order (an array reference)</td><td><code>'key.order'        => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],</code></td></tr>
 <tr><td>linewidth</td><td>float or array, optional; Width of the bar edge(s). If 0, don't draw edges. Only does anything with defined <code>edgecolor</code></td><td><code>linewidth => 2,</code></td></tr>
@@ -3103,6 +3115,42 @@ which produces the plot:
 =for html
 <p>
 <img width="2678" height="849" alt="barplots" src="https://github.com/user-attachments/assets/6d87d13b-dabd-485d-92f7-1418f4acc65b" />
+<p>
+
+
+=head3 colors for each hash key defined by hash
+
+ plt({
+     plots => [
+         {
+             color        => {
+                 A => 'red', B => 'green', C => 'blue'
+             },
+             data => {
+                 A => 1, B => 2, C => 3
+             },
+             'plot.type'   => 'bar'
+         },
+         {
+             color        => {
+                 A => 'red', B => 'green', C => 'blue'
+             },
+             data => {
+                 A => 1, B => 2, C => 3
+             },
+             'plot.type'   => 'barh'
+         },
+     ],
+     ncols         => 2,
+     'output.file' => '/tmp/key.colors.bar.svg',
+ });
+
+which produces the plot
+
+
+=for html
+<p>
+<img width="651" height="491" alt="key colors bar" src="https://github.com/user-attachments/assets/0eab9c75-7e87-4297-b45d-86e5d7ffc550" />
 <p>
 
 
