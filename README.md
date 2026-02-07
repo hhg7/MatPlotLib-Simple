@@ -381,7 +381,7 @@ which produces the plot:
 
 which produces the plot
 
-
+file:///tmp/key.colors.bar.png
 
 ## boxplot
 
