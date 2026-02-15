@@ -1960,6 +1960,6 @@ foreach my $file (@output_files) {
 	} else {
 		ok(is_valid_svg($file), "$file is likely a valid SVG file");
 	}
-	unlink $file;
+#	unlink $file;
 }
 done_testing();

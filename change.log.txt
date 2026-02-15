@@ -1,3 +1,13 @@
+0.24
+---
+Newlines are now possible in key names for barplot and pie; other characters may be fixed too
+@prop_cycle is only now taking RAM/valid where it's needed
+new dependencies in JSON::MaybeXS and MIME::Base64 to prevent errors in key names
+slight improvement in violinplot: "print" changed to "say" (1 less concatenation)
+dynamic method wrappers are used, which save ~120 lines of code
+re-used error array in "plt"
+better warning for non-File::Temp objects
+---
 0.23
 ---
 colors for bar plots can be defined by hashes; e.g. colors => {A => 'red', B => 'green'}, etc

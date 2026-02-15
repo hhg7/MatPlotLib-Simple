@@ -1593,8 +1593,77 @@ plt({
 		},
 	],
 	ncols         => 2,
-	'output.file' => '/tmp/key.colors.bar.png',
+	'output.file' => '/tmp/key.colors.bar.svg',
 });
+bar({
+	execute => 0,
+	fh      => $fh,
+	data => {
+		A => 1, B => 2,
+	},
+	'output.file' => '/tmp/bar.sub.svg'
+});
+barh({
+	execute => 0,
+	fh      => $fh,
+	data => {
+		A => 1, B => 2,
+	},
+	'output.file' => '/tmp/barh.sub.svg'
+});
+boxplot({
+	execute => 0,
+	fh      => $fh,
+	data => {
+		A => [0..9]
+	},
+	'output.file' => '/tmp/boxplot.sub.svg'
+});
+hexbin({
+	execute => 0,
+	fh      => $fh,
+	data => {
+		A => [0..9],
+		B => [0..9]
+	},
+	'output.file' => '/tmp/hexbin.sub.svg'
+});
+hist({
+	execute => 0,
+	fh      => $fh,
+	data => {
+		A => [0..9]
+	},
+	'output.file' => '/tmp/hist.sub.svg'
+});
+hist2d({
+	execute => 0,
+	fh      => $fh,
+	data => {
+		A => [0..9],
+		B => [0..9]
+	},
+	'output.file' => '/tmp/hist2d.sub.svg'
+});
+plot({
+	execute => 0,
+	fh      => $fh,
+	data => [
+		[
+			[0,1],
+			[2,3]
+		]
+	],
+	'output.file' => '/tmp/plot.sub.svg'
+});
+#violinplot({
+#	execute => 0,
+#	fh      => $fh,
+#	data => {
+#		A => [0,1],
+#	},
+#	'output.file' => '/tmp/violin.sub.svg'
+#});
 plt({
 	fh                => $fh,
 	execute           => 1,
