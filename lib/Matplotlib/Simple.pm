@@ -1,5 +1,4 @@
 # ABSTRACT: Access Matplotlib from Perl; providing consistent user interface between different plot types
-#!/usr/bin/env perl
 use strict;
 use feature 'say';
 use warnings FATAL => 'all';
@@ -22,7 +21,7 @@ use Exporter 'import';
 use Capture::Tiny 'capture';
 use JSON::MaybeXS;
 use MIME::Base64;
-our @EXPORT = qw(plt bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter violinplot wide);
+our @EXPORT = qw(plt bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter violinplot violin wide);
 our @EXPORT_OK = @EXPORT;
 
 my @ax_methods = (
@@ -165,11 +164,10 @@ my %opt = (
 	 'color', # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
 	 'colors', 'key.order',
 	 'notch', # Whether to draw a notched boxplot (`True`), or a rectangular boxplot (`False`)
-	 'orientation',    # {'vertical', 'horizontal'}, default: 'vertical'
-	 'showcaps',    # bool: Show the caps on the ends of whiskers; default "True"
-	 'showfliers',
-	 'showmeans',
-	 'whiskers',    # 0 or 1
+	 'orientation',# {'vertical', 'horizontal'}, default: 'vertical'
+	 'showcaps',   # bool: Show the caps on the ends of whiskers; default "True"
+	 'showfliers', #bool, default: :rc:`boxplot.showfliers`; Show the outliers beyond the caps.
+	 'showmeans'   #bool, default: :rc:`boxplot.showmeans`
 	],
 	colored_table_helper => [@cb_arg,
 		'col.labels',
@@ -302,7 +300,7 @@ sub write_data {
 	# We encode the STRING, not the reference.
 	my $b64_data = encode_base64($json_string, ''); 
 	# 4. Generate Python Code
-	say {$args->{fh}} 'import base64, json';
+#	say {$args->{fh}} 'import base64, json';
 	# Assign the b64 string to a temp python variable
 	say {$args->{fh}} "$args->{name}_b64 = '$b64_data'";
 	# Decode b64 -> bytes -> utf8 string -> json load -> python object
@@ -416,7 +414,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 	foreach my $set ( keys %{ $plot->{data} } ) {
 	  $ref_counts{ ref $plot->{data}{$set} }++;
 	}
-	if ( scalar %ref_counts > 1 ) {
+	if ( scalar keys %ref_counts > 1 ) {
 		p $plot->{data};
 		p %ref_counts;
 		die
@@ -529,52 +527,52 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 		}
 		say { $args->{fh} } "ax$ax.$plot->{'plot.type'}(labels, vals $options)";
 	} elsif ( $plot_type eq 'grouped' ) {    # grouped bar plot; hash of array
-	  my @val;
-	  foreach my $k (@key_order) {
-		   foreach my $i ( 0 .. scalar @{ $plot->{data}{$k} } - 1 ) {
-		       push @{ $val[$i] }, $plot->{data}{$k}[$i];
-		   }
-	  }
-	  my $barwidth = $plot->{width} // 0.8;
-	  $plot->{stacked} = $plot->{stacked} // 0;
-	  if ( $plot->{stacked} == 0 ) {
-		   $barwidth /= ( scalar %ref_counts + 3 );
-	  }
-	  my @xticks   = 0 .. scalar @{ $val[0] } - 1;
-	  my @mean_pos = map { 0 } 0 .. scalar @{ $val[0] } - 1;    # initialize
-	  my $hw       = 'height';
-	  $hw = 'width' if $plot->{'plot.type'} eq 'bar';
-	  my @bottom = map { 0 } 0 .. scalar @{ $val[0] } - 1;      # initialize
-	  my $i = 0;
-	  foreach my $arr (@val) {
-		   my $x = '[' . join( ',', @xticks ) . ']';
-		   foreach my $p ( 0 .. $#mean_pos ) {
-		       $mean_pos[$p] += $xticks[$p];
-		   }
-		   my $set_options = '';
-		   foreach
-		     my $f ( grep { defined $plot->{$_}[$i] } ( 'color', 'label' ) )
-		   {
-		       $set_options .= ", $f = '$plot->{$f}[$i]'";
-		   }
-		   if ( $plot->{stacked} > 0 ) {
-		       $set_options .= ', bottom = [' . join( ',', @bottom ) . ']';
-		   }
-		   say { $args->{fh} } "ax$ax.$plot->{'plot.type'}($x, ["
-		     . join( ',', @{$arr} )
-		     . "], $hw = $barwidth $options $set_options)";
-		   @bottom =
-		     map { $bottom[$_] + $arr->[$_] } 0 .. scalar @{ $val[0] } - 1
-		     if $plot->{stacked} > 0;
-		   @xticks = map { $_ + $barwidth } @xticks
-		     if $plot->{stacked} <= 0;    # for next iteration
-		     $i++;
-	  }
-	  my $xticks = '["' . join( '","', @key_order ) . '"]';
-	  my $ticks  = 'yticks';
-	  $ticks = 'xticks' if $plot->{'plot.type'} eq 'bar';
-	  $_ /= scalar @val for @mean_pos;
-	  say { $args->{fh} } "ax$ax.set_$ticks(["
+		my @val;
+		foreach my $k (@key_order) {
+			foreach my $i ( 0 .. scalar @{ $plot->{data}{$k} } - 1 ) {
+				push @{ $val[$i] }, $plot->{data}{$k}[$i];
+			}
+		}
+		my $barwidth = $plot->{width} // 0.8;
+		$plot->{stacked} = $plot->{stacked} // 0;
+		if ( $plot->{stacked} == 0 ) {
+			$barwidth /= ( (scalar keys %ref_counts) + 3 );
+		}
+		my @xticks   = 0 .. scalar @{ $val[0] } - 1;
+		my @mean_pos = map { 0 } 0 .. scalar @{ $val[0] } - 1;    # initialize
+		my $hw       = 'height';
+		$hw = 'width' if $plot->{'plot.type'} eq 'bar';
+		my @bottom = map { 0 } 0 .. scalar @{ $val[0] } - 1;      # initialize
+		my $i = 0;
+		foreach my $arr (@val) {
+			my $x = '[' . join( ',', @xticks ) . ']';
+			foreach my $p ( 0 .. $#mean_pos ) {
+				$mean_pos[$p] += $xticks[$p];
+			}
+			my $set_options = '';
+			foreach
+			  my $f ( grep { defined $plot->{$_}[$i] } ( 'color', 'label' ) )
+			{
+				 $set_options .= ", $f = '$plot->{$f}[$i]'";
+			}
+			if ( $plot->{stacked} > 0 ) {
+				$set_options .= ', bottom = [' . join( ',', @bottom ) . ']';
+			}
+			say { $args->{fh} } "ax$ax.$plot->{'plot.type'}($x, ["
+			 . join( ',', @{$arr} )
+			 . "], $hw = $barwidth $options $set_options)";
+			@bottom =
+			  map { $bottom[$_] + $arr->[$_] } 0 .. scalar @{ $val[0] } - 1
+			  if $plot->{stacked} > 0;
+			@xticks = map { $_ + $barwidth } @xticks
+			  if $plot->{stacked} <= 0;    # for next iteration
+			  $i++;
+		}
+		my $xticks = '["' . join( '","', @key_order ) . '"]';
+		my $ticks  = 'yticks';
+		$ticks = 'xticks' if $plot->{'plot.type'} eq 'bar';
+		$_ /= scalar @val for @mean_pos;
+		say { $args->{fh} } "ax$ax.set_$ticks(["
 		 . join( ',', @mean_pos )
 		 . "], $xticks)";
 	} else {
@@ -616,7 +614,6 @@ sub boxplot_helper {
 	  die
 	"$current_sub needs either \"horizontal\" or \"vertical\", not \"$plot->{orientation}\"";
 	}
-	$args->{whiskers} = $args->{whiskers} // 1;    # by default, make whiskers
 	my ( @xticks, @key_order );
 	if ( defined $plot->{'key.order'} ) {
 	  @key_order = @{ $plot->{'key.order'} };
@@ -630,7 +627,7 @@ sub boxplot_helper {
 	$plot->{showfliers} = $plot->{showfliers} // 'True';
 	$plot->{showmeans}  = $plot->{showmeans}  // 'True';
 	my $options = "orientation = '$plot->{orientation}'";
-	foreach my $arg ( 'showcaps', 'showfliers', 'showmeans', 'notch' ) {
+	foreach my $arg ( 'showcaps', 'showfliers', 'showmeans', 'notch') {
 	  $options .= ", $arg = $plot->{$arg}";
 	}
 	say { $args->{fh} } 'd = []';
@@ -826,10 +823,6 @@ sub hexbin_helper {
 	  p $plot;
 	  die "# of bins cannot be 0 in $current_sub";
 	}
-	if ( ( $plot->{xbins} == 0 ) || ( $plot->{ybins} == 0 ) ) {
-	  p $args;
-	  die '# of bins cannot be 0';
-	}
 	my @keys;
 	if ( defined $plot->{'key.order'} ) {
 		@keys = @{ $plot->{'key.order'} };
@@ -898,11 +891,15 @@ sub hexbin_helper {
 		my @ax = map {"ax$_"} @{ $plot->{'shared.colorbar'} };
 		$opts .= ', ax = [' . join (',', @ax) . '] ';
 	}
-#	say { $args->{fh} } "cbar = fig.colorbar(im$ax $opts)" if $plot->{'colorbar.on'};
 	if ( defined $plot->{cblabel} ) {
-	  say { $args->{fh} } "plt.colorbar(im$ax, label = '$plot->{cblabel}' $opts)";
+		write_data({
+			data => $plot->{cblabel},
+			fh   => $args->{fh},
+			name => 'cblabel',
+		});
+		say { $args->{fh} } "plt.colorbar(im$ax, label = cblabel $opts)";
 	} else {
-	  say { $args->{fh} } "plt.colorbar(im$ax, label = 'Density' $opts)";
+		say { $args->{fh} } "plt.colorbar(im$ax, label = 'Density' $opts)";
 	}
 }
 
@@ -2155,7 +2152,8 @@ sub plt {
 		hexbin       => \&hexbin_helper,  hist         => \&hist_helper,
 		hist2d       => \&hist2d_helper,  imshow       => \&imshow_helper,
 		pie          => \&pie_helper,	    plot         => \&plot_helper,
-		scatter      => \&scatter_helper, violinplot   => \&violin_helper,
+		scatter      => \&scatter_helper, violin   => \&violin_helper,
+		violinplot   => \&violin_helper,
 		wide         => \&wide_helper
 	);
 	if ($single_plot == 1) {
@@ -2306,7 +2304,7 @@ sub plt {
 	}
 	write_data({
 		data => $args->{'output.file'},
-		fh   => $args->{fh},
+		fh   => $fh,
 		name => 'output_file'
 	});
 	say $fh "plt.savefig(output_file, bbox_inches = 'tight', metadata={'Creator': 'made/written by "
@@ -2331,7 +2329,7 @@ sub plt {
 	}
 }
 # Generate wrappers dynamically
-my @wrappers = qw(bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter violin wide);
+my @wrappers = qw(bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter violin  wide);
 
 foreach my $sub_name (@wrappers) {
 	no strict 'refs'; # Gemini helped

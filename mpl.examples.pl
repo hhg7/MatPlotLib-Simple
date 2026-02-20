@@ -1603,6 +1603,12 @@ bar({
 	},
 	'output.file' => '/tmp/bar.sub.svg'
 });
+bar({
+	data => {
+		C => 3, D => 4
+	},
+	'output.file' => '/tmp/bar.sub.self.svg'
+});
 barh({
 	execute => 0,
 	fh      => $fh,
@@ -1656,14 +1662,15 @@ plot({
 	],
 	'output.file' => '/tmp/plot.sub.svg'
 });
-#violinplot({
-#	execute => 0,
-#	fh      => $fh,
-#	data => {
-#		A => [0,1],
-#	},
-#	'output.file' => '/tmp/violin.sub.svg'
-#});
+bar({
+	'output.file' => '/tmp/newline_fail.svg',
+	execute       => 0,
+	fh            => $fh,
+	data          => {
+		'P A'  => 10,
+		"P\nB" => 20, # <--- This newline breaks the Python script
+	},
+});
 plt({
 	fh                => $fh,
 	execute           => 1,
