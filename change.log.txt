@@ -11,6 +11,7 @@ more tests for wrapper subroutines
 duplicate check removed from hexbin_helper
 removed whiskers option from boxplot_helper, which didn't work the way that I thought that it did
 removed shebang, which isn't necessary in .pm files
+hist2d was missing an option for logscale on the axes, which it now has
 ---
 0.23
 ---

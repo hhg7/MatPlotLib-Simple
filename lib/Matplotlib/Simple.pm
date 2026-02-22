@@ -1092,12 +1092,36 @@ sub hist2d_helper {
 	$plot->{ymin} = $plot->{ymin} // min( @{ $plot->{data}{ $keys[1] } } );
 	$plot->{ymax} = $plot->{ymax} // max( @{ $plot->{data}{ $keys[1] } } );
 	my $ax = $args->{ax} // '';
-
 	# the range argument ensures that there are no empty parts of the plot
-	my $range =
-	", range = [($plot->{xmin}, $plot->{xmax}), ($plot->{ymin}, $plot->{ymax})]";
-	say {$args->{fh}}
-	"hist2d_n, hist2d_xedges, hist2d_yedges, im$ax = ax$ax.hist2d(x, y, ($plot->{xbins}, $plot->{ybins}) $options $range)";
+	my %bins = ('x' => $plot->{xbins}, 'y' => $plot->{ybins});
+	my $range =	", range = [($plot->{xmin}, $plot->{xmax}), ($plot->{ymin}, $plot->{ymax})]";
+	# logscale complications
+	say {$args->{fh}} 'import numpy as np' if $plot->{logscale};
+	my %linear_axes = ('x' => 1, 'y' => 1);
+	my $logscale_defined = 0;
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y 
+		$logscale_defined = 1;
+		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
+		my $min = $plot->{$axis . 'min'};
+		my $max = $plot->{$axis . 'max'};
+		my $key = "${axis}bins";
+		say {$args->{fh}} "${axis}bins = np.logspace(np.log10($min), np.log10($max), $plot->{$key})";
+		$bins{$axis} = $key;
+		delete $linear_axes{$axis}; # so that I don't make a linear space for it
+	}
+	foreach my $axis ( keys %linear_axes ) {
+		my $min = $plot->{$axis . 'min'};
+		my $max = $plot->{$axis . 'max'};
+		my $key = "${axis}bins";
+		say {$args->{fh}} "${axis}bins = np.linspace($min, $max, $plot->{$key})";
+		$bins{$axis} = $key;
+	}
+	if ($logscale_defined) {
+		$options = ", bins = [xbins, ybins] $options";
+	} else {
+		$options = ", ($plot->{xbins}, $plot->{ybins}) $options";
+	}
+	say {$args->{fh}}	"hist2d_n, hist2d_xedges, hist2d_yedges, im$ax = ax$ax.hist2d(x, y $options $range)";
 	say {$args->{fh}} 'import numpy as np';
 	say {$args->{fh}} 'max_hist2d_box = np.max(hist2d_n)';
 	say {$args->{fh}} 'min_hist2d_box = np.min(hist2d_n)';
