@@ -1095,8 +1095,8 @@ sub hist2d_helper {
 	# the range argument ensures that there are no empty parts of the plot
 	my $range =	", range = [($plot->{xmin}, $plot->{xmax}), ($plot->{ymin}, $plot->{ymax})]";
 	# logscale complications
+	say {$args->{fh}} 'import numpy as np';
 	if ($plot->{logscale}) {
-		say {$args->{fh}} 'import numpy as np';
 		my %linear_axes = ('x' => 1, 'y' => 1);
 		foreach my $axis (@{ $plot->{logscale} }) { # x, y 
 			say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
@@ -1117,7 +1117,6 @@ sub hist2d_helper {
 		$options = ", ($plot->{xbins}, $plot->{ybins}) $options";
 	}
 	say {$args->{fh}}	"hist2d_n, hist2d_xedges, hist2d_yedges, im$ax = ax$ax.hist2d(x, y $options $range)";
-	say {$args->{fh}} 'import numpy as np';
 	say {$args->{fh}} 'max_hist2d_box = np.max(hist2d_n)';
 	say {$args->{fh}} 'min_hist2d_box = np.min(hist2d_n)';
 	say {$args->{fh}} "print(f'plot $ax hist2d density range = [{min_hist2d_box}, {max_hist2d_box}]')";
