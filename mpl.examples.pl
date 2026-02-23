@@ -1672,6 +1672,17 @@ bar({
 	},
 });
 plt({
+	data          => {
+		A => [1..9],
+		B => [1..9]
+	},
+	execute       => 0,
+	fh            => $fh,
+	logscale      => ['x'],
+	'output.file' => '/tmp/hist2d.logscale.svg',
+	'plot.type'   => 'hist2d',
+});
+plt({
 	fh                => $fh,
 	execute           => 1,
 	ncols             => 3,

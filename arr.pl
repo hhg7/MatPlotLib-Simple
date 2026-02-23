@@ -5,12 +5,12 @@ no source::encoding;
 use warnings FATAL => 'all';
 use autodie ':default';
 use Matplotlib::Simple;
-use File::Temp;
 
-plt({
-	'plot.type' => 'boxplot',
+hist2d({
+	'output.file' => '/tmp/hist2d.logscale.svg',
 	data        => {
-		A => [0..9]
+		A => [1..9],
+		B => [1..9]
 	},
-	'output.file' => '/tmp/whiskers.svg',
+	logscale => ['x']
 });
