@@ -8,7 +8,7 @@ use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.24;
+our $VERSION = 0.25;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
@@ -255,8 +255,8 @@ my %opt = (
 	 'color_key',    # which of data keys is the color key
 	 'cmap',         # for 3-set scatterplots; default "gist_rainbow"
 	 'colorbar.on',  # only draw colorbar if colorbar is on
-	 'keys'
-	  , # specify the order, otherwise alphabetical #'log', # if set to > 1, the y-axis will be logarithmic # 's', # float or array-like, shape (n, ), optional. The marker size in points**2 (typographic points are 1/72 in.).
+	 'keys', # specify the order, otherwise alphabetical #'log', # if set to > 1, the y-axis will be logarithmic # 's', # float or array-like, shape (n, ), optional. The marker size in points**2 (typographic points are 1/72 in.).
+	  'logscale', # "x" and/or "y" as an aray
 	 'shared.colorbar', # array of 0-based indices for sharing a colorbar
 	 'set.options'    # color = 'red', marker = 'v', etc.
 	],
@@ -1040,6 +1040,9 @@ sub hist2d_helper {
 		 . " points.";
 	  die 'The length of both keys must be equal.';
 	}
+	if ($plot->{xlabel}) {
+		
+	}
 	$plot->{xlabel} = $plot->{xlabel} // $keys[0];
 	$plot->{ylabel} = $plot->{ylabel} // $keys[1];
 	$plot->{cmap}   = $plot->{cmap}   // 'gist_rainbow';
@@ -1057,8 +1060,7 @@ sub hist2d_helper {
 		}
 		$options .= ', norm = LogNorm(' . join (',', @logNorm_opt) . ')';
 	}
-	foreach my $opt ( grep { defined $plot->{$_} }
-	  ( 'cmin', 'cmax', 'density', 'vmin', 'vmax' ) )
+	foreach my $opt ( grep { defined $plot->{$_} } ( 'cmin', 'cmax', 'density', 'vmin', 'vmax' ) )
 	{
 		$options .= ", $opt = $plot->{$opt}";
 	}
@@ -1602,6 +1604,9 @@ sub scatter_helper {
 	}
 	$plot->{cmap} = $plot->{cmap} // 'gist_rainbow';
 	my $options = '';
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y 
+		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
+	}
 	if ( $plot_type eq 'single' ) { # only a single set of data
 		my ( $color_key, @keys );
 		if ( defined $plot->{'keys'} ) {
@@ -1619,10 +1624,9 @@ sub scatter_helper {
 			$color_key = $plot->{color_key};
 			my $i = 0;
 			foreach my $key (@keys) {
-		#            while ( my ( $i, $key ) = each @keys ) {
-				 next if $key ne $plot->{color_key};
-				 splice @keys, $i, 1;    # remove the color key from @keys
-				 $i++;
+				next if $key ne $plot->{color_key};
+				splice @keys, $i, 1;    # remove the color key from @keys
+				$i++;
 			}
 		} elsif ( scalar @keys == 3 ) {
 			$color_key = pop @keys;
@@ -1670,31 +1674,26 @@ sub scatter_helper {
 			}
 			my $n_keys = scalar keys %{ $plot->{data}{$set} };
 			if ( ( $n_keys != 2 ) && ( $n_keys != 3 ) ) {
-				 p $plot->{data}{$set};
-				 die
-			"scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
+				p $plot->{data}{$set};
+				die "scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
 			}
 			if ( ( not defined $color_key ) && ( $n_keys == 3 ) ) {
-				 $color_key = pop @keys;
+				$color_key = pop @keys;
 			}
 			if ( defined $plot->{'set.options'}{$set} ) {
-				 $options = ", $plot->{'set.options'}{$set}";
+				$options = ", $plot->{'set.options'}{$set}";
 			}
-			say { $args->{fh} } 'x = ['
-			  . join( ',', @{ $plot->{data}{$set}{ $keys[0] } } ) . ']';
-			say { $args->{fh} } 'y = ['
-			  . join( ',', @{ $plot->{data}{$set}{ $keys[1] } } ) . ']';
+			say { $args->{fh} } 'x = [' . join( ',', @{ $plot->{data}{$set}{ $keys[0] } } ) . ']';
+			say { $args->{fh} } 'y = [' . join( ',', @{ $plot->{data}{$set}{ $keys[1] } } ) . ']';
 			if ( defined $color_key ) {
-				 say { $args->{fh} } 'z = ['
-					. join( ',', @{ $plot->{data}{$set}{$color_key} } ) . ']';
-				 unless ( $options =~ m/label\s*=/ ) {
-					  $options .= ", label = '$set'";
-				 }
-				 say { $args->{fh} }
-			"im = ax$ax.scatter(x, y, c = z, cmap = '$plot->{cmap}' $options)";
+				say { $args->{fh} } 'z = [' . join( ',', @{ $plot->{data}{$set}{$color_key} } ) . ']';
+				unless ( $options =~ m/label\s*=/ ) {
+					$options .= ", label = '$set'";
+				}
+				say { $args->{fh} }
+				"im = ax$ax.scatter(x, y, c = z, cmap = '$plot->{cmap}' $options)";
 			} else {
-				 say { $args->{fh} }
-					"ax$ax.scatter(x, y, label = '$set' $options)";
+				say { $args->{fh} }	"ax$ax.scatter(x, y, label = '$set' $options)";
 			}
 			$plot->{xlabel} = $plot->{xlabel} // $keys[0];
 			$plot->{ylabel} = $plot->{ylabel} // $keys[1];

@@ -1,0 +1,34 @@
+0.24
+---
+Newlines are now possible in key names for barplot and pie; other characters may be fixed too
+@prop_cycle is only now taking RAM/valid where it's needed
+new dependencies in JSON::MaybeXS and MIME::Base64 to prevent errors in key names
+slight improvement in violinplot: "print" changed to "say" (1 less concatenation)
+dynamic method wrappers are used, which save ~120 lines of code
+re-used error array in "plt" to save RAM
+better warning for non-File::Temp objects
+more tests for wrapper subroutines
+duplicate check removed from hexbin_helper
+removed whiskers option from boxplot_helper, which didn't work the way that I thought that it did
+removed shebang, which isn't necessary in .pm files
+hist2d was missing an option for logscale on the axes, which it now has
+---
+0.23
+---
+colors for bar plots can be defined by hashes; e.g. colors => {A => 'red', B => 'green'}, etc
+---
+0.22
+---
+minor under-the-hood changes; "execute" subroutine, which was only called once, is now built into "plt" to save a function call; execution should be slightly faster/more efficient
+---
+0.21
+---
+"show" now works; files are still output if specified
+---
+0.20
+---
+better warnings for incomplete data in "plot"
+"plot" can plot with "twinx" when data is given in array or hash form
+"tick_params" is removed from plt methods
+fewer "my" for error arrays, using empty arrays from earlier; should increase efficiency slightly
+added tests for twinx in plot for both array and hash variants

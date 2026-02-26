@@ -1,3 +1,7 @@
+0.25
+---
+logscale is now available for scatter type, which was easier to implement than for hist2d
+---
 0.24
 ---
 Newlines are now possible in key names for barplot and pie; other characters may be fixed too
