@@ -1,6 +1,9 @@
+---
 0.25
 ---
 logscale is now available for scatter type, which was easier to implement than for hist2d
+re-used error array in scatter_helper
+better warnings for undefined values in multiple-set scatterplots
 ---
 0.24
 ---

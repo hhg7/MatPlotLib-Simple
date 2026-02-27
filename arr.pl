@@ -7,7 +7,19 @@ use autodie ':default';
 use Matplotlib::Simple;
 
 scatter({
-	'output.file' => '/tmp/hist2d.logscale.svg',
+	add           => [
+	{
+		'plot.type' => 'plot',
+		'show.legend' => 0,
+		data        => {
+			A => [
+				[1..9],
+				[1..9]
+			]
+		}
+	}
+	],
+	'output.file' => '/tmp/scatter.logscale.svg',
 	data        => {
 		A => [1..9],
 		B => [1..9]

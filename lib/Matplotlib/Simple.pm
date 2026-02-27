@@ -515,8 +515,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 			fh   => $args->{fh},
 			name => 'labels'
 		});
-		say { $args->{fh} } 'vals = ['
-		 . join( ',', @{ $plot->{data} }{@key_order} ) . ']';
+		say { $args->{fh} } 'vals = [' . join( ',', @{ $plot->{data} }{@key_order} ) . ']';
 		if ((defined $plot->{color}) && (ref $plot->{color} eq 'HASH')) {
 			@undef_args = grep {not defined $plot->{color}{$_}} @key_order;
 			if (scalar @undef_args > 0) {
@@ -1571,12 +1570,12 @@ sub scatter_helper {
 	}
 	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
 	my $plot      = $args->{plot};
-	my @undef_opt = grep {
+	@undef_args = grep {
 	  my $key = $_;
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
-	if ( scalar @undef_opt > 0 ) {
-		p @undef_opt;
+	if ( scalar @undef_args > 0 ) {
+		p @undef_args;
 		die	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
 	my $overall_ref = ref $plot->{data};
@@ -1603,11 +1602,11 @@ sub scatter_helper {
 		die 'Could not determine scatter type for the above data.';
 	}
 	$plot->{cmap} = $plot->{cmap} // 'gist_rainbow';
-	my $options = '';
 	foreach my $axis (@{ $plot->{logscale} }) { # x, y 
 		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
 	}
 	if ( $plot_type eq 'single' ) { # only a single set of data
+		my $options = '';
 		my ( $color_key, @keys );
 		if ( defined $plot->{'keys'} ) {
 		@keys = @{ $plot->{'keys'} };
@@ -1630,7 +1629,7 @@ sub scatter_helper {
 			}
 		} elsif ( scalar @keys == 3 ) {
 			$color_key = pop @keys;
-		}    #			my $options = '';# these args go to the plt.hist call
+		}
 		say { $args->{fh} } 'x = ['
 		 . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
 		say { $args->{fh} } 'y = ['
@@ -1666,6 +1665,7 @@ sub scatter_helper {
 		}
 		my $color_key;
 		foreach my $set ( sort keys %{ $plot->{data} } ) {
+			my $options = '';
 			my @keys;
 			if ( defined $plot->{'keys'} ) {
 				 @keys = @{ $plot->{'keys'} };
@@ -1676,6 +1676,13 @@ sub scatter_helper {
 			if ( ( $n_keys != 2 ) && ( $n_keys != 3 ) ) {
 				p $plot->{data}{$set};
 				die "scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
+			}
+			foreach my $key (@keys) {
+				@undef_args = grep {!defined $plot->{data}{$set}{$key}[$_]} 0..scalar @{ $plot->{data}{$set}{$key} } - 1;
+				if (scalar @undef_args > 0) {
+					p @undef_args;
+					die "the above indices for \"$key\" are undefined in $current_sub";
+				}
 			}
 			if ( ( not defined $color_key ) && ( $n_keys == 3 ) ) {
 				$color_key = pop @keys;

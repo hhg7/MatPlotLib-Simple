@@ -1682,6 +1682,28 @@ plt({
 	'output.file' => '/tmp/hist2d.logscale.svg',
 	'plot.type'   => 'hist2d',
 });
+scatter({
+	add           => [
+	{
+		'plot.type' => 'plot',
+		'show.legend' => 0,
+		data        => {
+			A => [
+				[1..9],
+				[1..9]
+			]
+		}
+	}
+	],
+	execute       => 0,
+	fh            => $fh,
+	'output.file' => '/tmp/scatter.logscale.svg',
+	data        => {
+		A => [1..9],
+		B => [1..9]
+	},
+	logscale => ['x', 'y']
+});
 plt({
 	fh                => $fh,
 	execute           => 1,
