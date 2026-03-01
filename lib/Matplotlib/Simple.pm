@@ -163,6 +163,7 @@ my %opt = (
 	boxplot_helper => [
 	 'color', # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
 	 'colors', 'key.order',
+	 'logscale', # array of "x" and/or "y"
 	 'notch', # Whether to draw a notched boxplot (`True`), or a rectangular boxplot (`False`)
 	 'orientation',# {'vertical', 'horizontal'}, default: 'vertical'
 	 'showcaps',   # bool: Show the caps on the ends of whiskers; default "True"
@@ -204,9 +205,9 @@ my %opt = (
 	  , # nt or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open
 	  'color', # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
 	  'colorbar.on',  # only draw colorbar if colorbar is on
-	  'log',            # if set to > 1, the y-axis will be logarithmic
+	  'logscale',       # if set to > 1, the y-axis will be logarithmic
 	  'orientation',    # {'vertical', 'horizontal'}, default: 'vertical'
-		'shared.colorbar', # array of 0-based indices for sharing a colorbar
+	  'shared.colorbar', # array of 0-based indices for sharing a colorbar
 	],
 	hist2d_helper => [@cb_arg,
 	  'cb_logscale',
@@ -247,6 +248,7 @@ my %opt = (
    ],
 	plot_helper => [
 	 'key.order',   # an array of key strings (which are defined in data)
+	 'logscale',    # an array of "x" and/or "y"
 	 'show.legend', # be default on; should be 0 if off
 	 'set.options',
 	 'twinx.args'
@@ -261,12 +263,12 @@ my %opt = (
 	 'set.options'    # color = 'red', marker = 'v', etc.
 	],
 	violin_helper => [
-	 'color', # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
-	 'colorbar.on',  # only draw colorbar if colorbar is on
+	 'color',      # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
+	 'colorbar.on',# only draw colorbar if colorbar is on
 	 'colors',
 	 'key.order',
-	 'log',            # if set to > 1, the y-axis will be logarithmic
-	 'orientation',    # {'vertical', 'horizontal'}, default: 'vertical'
+	 'logscale',   # array: "x" and/or "y"
+	 'orientation',# {'vertical', 'horizontal'}, default: 'vertical'
 	 'whiskers'
 	],
 	wide_helper => [
@@ -629,6 +631,13 @@ sub boxplot_helper {
 	foreach my $arg ( 'showcaps', 'showfliers', 'showmeans', 'notch') {
 	  $options .= ", $arg = $plot->{$arg}";
 	}
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y
+		if ($axis =~ m/^([^xy])$/) {
+			p $plot->{logscale};
+			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
+		}
+		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
+	}
 	say { $args->{fh} } 'd = []';
 	foreach my $key (@key_order) {
 	  @{ $plot->{data}{$key} } = grep { defined } @{ $plot->{data}{$key} };
@@ -770,10 +779,12 @@ sub colored_table_helper {
 	foreach my $arg (grep {defined $plot->{$_}} ('title')) {
 		say {$args->{fh}} "ax$ax.$arg('$plot->{$arg}')";
 	}
-	if (defined $plot->{logscale}) {
-		foreach my $axis (@{ $plot->{logscale} }) { # x, y 
-			say {$args->{fh}} "ax$ax.$axis" . 'scale("log")';
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y
+		if ($axis =~ m/^([^xy])$/) {
+			p $plot->{logscale};
+			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
 		}
+		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
 	}
 	say {$args->{fh}} "plt.clim(vmin = $plot->{cb_min})" if defined $plot->{cb_min};
 	say {$args->{fh}} "plt.clim(vmax = $plot->{cb_max})" if defined $plot->{cb_max};
@@ -941,9 +952,6 @@ sub hist_helper {
 		die "The above arguments aren't defined for $plot->{'plot.type'}";
 	}
 	my $options = '';    # these args go to the plt.hist call
-	if ( ( defined $plot->{'log'} ) && ( $plot->{'log'} > 0 ) ) {
-	  $options .= ', log = True';
-	}
 	$plot->{alpha} = $plot->{alpha} // 0.5;
 	foreach my $arg ( grep { defined $plot->{$_} } ( 'bins', 'orientation' ) ) {
 		next if ref $plot->{$arg} eq 'HASH';    # set-specific setting exists
@@ -960,6 +968,13 @@ sub hist_helper {
 			p $plot;
 			die "$ref for $arg isn't acceptable";
 		}
+	}
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y
+		if ($axis =~ m/^([^xy])$/) {
+			p $plot->{logscale};
+			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
+		}
+		say {$args->{fh}} "ax$args->{ax}.set_$axis" . 'scale("log")';
 	}
 	foreach my $set ( sort keys %{ $plot->{data} } ) {
 		my $set_options = '';
@@ -1099,7 +1114,11 @@ sub hist2d_helper {
 	say {$args->{fh}} 'import numpy as np';
 	if ($plot->{logscale}) {
 		my %linear_axes = ('x' => 1, 'y' => 1);
-		foreach my $axis (@{ $plot->{logscale} }) { # x, y 
+		foreach my $axis (@{ $plot->{logscale} }) { # x, y
+			if ($axis =~ m/^([^xy])$/) {
+				p $plot->{logscale};
+				die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
+			}
 			say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
 			my $min = $plot->{$axis . 'min'};
 			my $max = $plot->{$axis . 'max'};
@@ -1327,8 +1346,7 @@ sub plot_helper {
 		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
-		'ax',
-		'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+		'ax',	'fh',# e.g. $py, $fh, which will be passed by the subroutine
 		'plot',    # args to original function
 	);
 	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
@@ -1348,6 +1366,13 @@ sub plot_helper {
 	  die	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
 	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y
+		if ($axis =~ m/^([^xy])$/) {
+			p $plot->{logscale};
+			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
+		}
+		say {$args->{fh}} "ax$args->{ax}.set_$axis" . 'scale("log")';
+	}
 	my @twinx;
 	if (ref $plot->{data} eq 'ARRAY') {
 		if (defined $plot->{'set.options'}) {
@@ -1555,13 +1580,11 @@ sub scatter_helper {
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
 	if ( ref $args ne 'HASH' ) {
-	  die
-	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
 	}
 	my @reqd_args = (
-	  'ax',
-	  'fh',      # e.g. $py, $fh, which will be passed by the subroutine
-	  'plot',    # args to original function
+	  'ax',  'fh', # e.g. $py, $fh, which will be passed by the subroutine
+	  'plot',      # args to original function
 	);
 	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
 	if ( scalar @undef_args > 0 ) {
@@ -1762,8 +1785,14 @@ sub violin_helper {
 		 . join( ',', @{ $plot->{data}{$key} } ) . '])';
 	  $min_n_points = min( scalar @{ $plot->{data}{$key} }, $min_n_points );
 	}
-	say { $args->{fh} }
-	"vp = ax$ax.violinplot(d, showmeans=False, points = $min_n_points, orientation = '$plot->{orientation}', showmedians = $plot->{medians})";
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y
+		if ($axis =~ m/^([^xy])$/) {
+			p $plot->{logscale};
+			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
+		}
+		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
+	}
+	say { $args->{fh} } "vp = ax$ax.violinplot(d, showmeans=False, points = $min_n_points, orientation = '$plot->{orientation}', showmedians = $plot->{medians})";
 	if ( defined $plot->{colors} ) { # every hash key should have its own color defined
 		# the below code helps to provide better error messages in case I make an error in calling the sub
 		my @wrong_keys = grep { not defined $plot->{colors}{$_} } keys %{ $plot->{data} };

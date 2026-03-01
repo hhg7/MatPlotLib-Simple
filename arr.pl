@@ -6,23 +6,52 @@ use warnings FATAL => 'all';
 use autodie ':default';
 use Matplotlib::Simple;
 
-scatter({
-	add           => [
-	{
-		'plot.type' => 'plot',
-		'show.legend' => 0,
-		data        => {
-			A => [
-				[1..9],
-				[1..9]
-			]
-		}
-	}
+plt({
+	ncols         => 2,
+	nrows         => 2,
+	'output.file' => '/tmp/logscale.svg',
+	plots       => [
+		{
+			data        => {
+				A => [
+					[1..9],
+					[1..9]
+				]
+			},
+			logscale      => ['x', 'y'],
+			'plot.type'   => 'plot',
+			'show.legend' => 0,
+			title         => 'plot'
+		},
+		{
+			data        => {
+				A => [1..9],
+			},
+			logscale      => ['x', 'y'],
+			'plot.type'   => 'boxplot',
+#			'show.legend' => 0,
+			title         => 'boxplot'
+		},
+		{
+			data        => {
+				A => [1..9],
+				B => [2..13,4,5,6,6,7,7]
+			},
+			logscale      => ['x', 'y'],
+			'plot.type'   => 'hist',
+#			'show.legend' => 0,
+			title         => 'hist'
+		},
+		{
+			data        => {
+				A => [1..9],
+				B => [2..13,4,5,6,6,7,7]
+			},
+			logscale      => ['y'],
+			'plot.type'   => 'violin',
+#			'show.legend' => 0,
+			title         => 'violin'
+		},
 	],
-	'output.file' => '/tmp/scatter.logscale.svg',
-	data        => {
-		A => [1..9],
-		B => [1..9]
-	},
-	logscale => ['x', 'y']
+	suptitle => 'Logscale uses'
 });
