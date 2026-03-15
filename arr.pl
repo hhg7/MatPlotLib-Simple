@@ -7,7 +7,7 @@ use autodie ':default';
 use Matplotlib::Simple;
 
 plt({
-	ncols         => 2,
+	ncols         => 3,
 	nrows         => 2,
 	'output.file' => '/tmp/logscale.svg',
 	plots       => [
@@ -51,6 +51,16 @@ plt({
 			'plot.type'   => 'violin',
 #			'show.legend' => 0,
 			title         => 'violin'
+		},
+		{
+			data        => {
+				A => 59,
+				B => 4
+			},
+			logscale      => 1,
+			'plot.type'   => 'bar',
+#			'show.legend' => 0,
+			title         => 'bar'
 		},
 	],
 	suptitle => 'Logscale uses'

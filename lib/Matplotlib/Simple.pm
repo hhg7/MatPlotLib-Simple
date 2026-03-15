@@ -155,6 +155,7 @@ my %opt = (
 	'label',        # an array of labels for grouped bar plots
 	'linewidth', # float or array, optional; Width of the bar edge(s). If 0, don't draw edges
 	'log'	,   # bool, default: False; If *True*, set the y-axis to be log scale.
+	'logscale', # equivalent to "log"
 	'stacked',    # stack the groups on top of one another; default 0 = off
 	'width',      # float or array, default: 0.8; The width(s) of the bars.
 	'xerr', # float or array-like of shape(N,) or shape(2, N), optional. If not *None*, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - *None*: No errorbar. (Default)
@@ -292,17 +293,12 @@ sub write_data {
 		p @undef_args;
 		die "the above args are required for $current_sub, but weren't defined";
 	}
-	# 1. Create the JSON Encoder
-	# allow_nonref: allows scalars (strings/numbers) to be encoded
+	# 1. Create the JSON Encoder; allow_nonref: allows scalars (strings/numbers) to be encoded
 	my $json_encoder = JSON::MaybeXS->new->utf8->allow_nonref;
-	# 2. Serialize Perl Data -> JSON String
-	# We pass the data directly. JSON::MaybeXS handles refs and scalars automatically.
+	# 2. Serialize Perl Data -> JSON String; Passing data directly. JSON::MaybeXS handles refs + scalars automatically.
 	my $json_string = $json_encoder->encode($args->{data});
-	# 3. Base64 Encode the JSON String
-	# We encode the STRING, not the reference.
+	# 3. Base64 Encode the JSON String, not the reference
 	my $b64_data = encode_base64($json_string, ''); 
-	# 4. Generate Python Code
-#	say {$args->{fh}} 'import base64, json';
 	# Assign the b64 string to a temp python variable
 	say {$args->{fh}} "$args->{name}_b64 = '$b64_data'";
 	# Decode b64 -> bytes -> utf8 string -> json load -> python object
@@ -461,8 +457,8 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 	  @key_order = sort keys %{ $plot->{data} };
 	}
 	my $options = '';    # these args go to the plt.bar call
-	if ( defined $plot->{'log'} ) {
-	  $options .= ", log = $plot->{log}";
+	if ( $plot->{'log'} || $plot->{logscale}) {
+	  $options .= ', log = True';
 	}    # args that can be either arrays or strings below; STRINGS:
 	foreach my $c ( grep { defined $plot->{$_} } ( 'color', 'edgecolor' ) ) {
 		next if ( ( $c eq 'color' ) && ( $plot_type eq 'grouped' ) );
@@ -1032,10 +1028,6 @@ sub hist2d_helper {
 	  p $plot;
 	  die "# of bins cannot be 0 in $current_sub";
 	}
-	if ( ( $plot->{xbins} == 0 ) || ( $plot->{ybins} == 0 ) ) {
-	  p $args;
-	  die '# of bins cannot be 0';
-	}
 	my @keys;
 	if ( defined $plot->{'key.order'} ) {
 		@keys = @{ $plot->{'key.order'} };
@@ -1322,9 +1314,7 @@ sub pie_helper {
 	if ( $plot->{autopct} ne '' ) {
 	$opt .= ", autopct = '$plot->{autopct}'";
 	}
-	foreach
-	my $arg ( grep { defined $plot->{$_} } 'labeldistance', 'pctdistance' )
-	{
+	foreach my $arg ( grep { defined $plot->{$_} } 'labeldistance', 'pctdistance' ) {
 	  $opt .= ", $arg = $plot->{$arg}";
 	}
 	write_data({
@@ -1533,17 +1523,15 @@ sub plot_helper {
 			my $n = scalar @{ $plot->{data}{$set}[$ax] };
 			my @undef_i = grep {not defined $plot->{data}{$set}[$ax][$_]} 0..$n-1;
 			if (scalar @undef_i > 0) {
-				p $plot->{data}{$set}[$ax];
+				p $plot;
 				p @undef_i;
-				my $n_undef = scalar @undef_i;
-				die "set $set axis $ax has $n_undef undefined values, of $n total values";
+				my $max_i = scalar @{ $plot->{data}{$set}[$ax] };
+				die "set $set axis $ax has undefined indices, of max index $max_i in $current_sub";
 			}
 		}
 		my $options = '';
-		say { $args->{fh} } 'x = ['
-		 . join( ',', @{ $plot->{data}{$set}[0] } ) . ']';
-		say { $args->{fh} } 'y = ['
-		 . join( ',', @{ $plot->{data}{$set}[1] } ) . ']';
+		say { $args->{fh} } 'x = [' . join( ',', @{ $plot->{data}{$set}[0] } ) . ']';
+		say { $args->{fh} } 'y = [' . join( ',', @{ $plot->{data}{$set}[1] } ) . ']';
 		if (   ( defined $plot->{'set.options'} )
 			&& ( ref $plot->{'set.options'} eq '' ) )
 		{
@@ -1639,24 +1627,16 @@ sub scatter_helper {
 		my $n_keys = scalar keys %{ $plot->{data} };
 		if ( ( $n_keys != 2 ) && ( $n_keys != 3 ) ) {
 			p $plot->{data};
-			die
-		"scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
+			die "scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
 		}
 		if ( defined $plot->{color_key} ) {
 			$color_key = $plot->{color_key};
-			my $i = 0;
-			foreach my $key (@keys) {
-				next if $key ne $plot->{color_key};
-				splice @keys, $i, 1;    # remove the color key from @keys
-				$i++;
-			}
+			@keys = grep {$_ ne $plot->{color_key}} @keys;
 		} elsif ( scalar @keys == 3 ) {
 			$color_key = pop @keys;
 		}
-		say { $args->{fh} } 'x = ['
-		 . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
-		say { $args->{fh} } 'y = ['
-		 . join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']';
+		say { $args->{fh} } 'x = [' . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
+		say { $args->{fh} } 'y = [' . join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']';
 		if (   ( defined $plot->{'set.options'} )
 			&& ( ref $plot->{'set.options'} eq '' ) )
 		{
@@ -2112,9 +2092,11 @@ sub plt {
 		my @hash_ref_i = grep { ref $args->{plots}[$_]{data} eq 'HASH' } 0..$max_i;
 		@bad_args = grep { scalar keys %{ $args->{plots}[$_]{data} } == 0} @hash_ref_i;
 		if (scalar @bad_args > 0) {
-			p $args;
-			p @bad_args;
-			die 'the above hash ref indices have empty data hashes';
+			foreach my $i (@bad_args) {
+				say STDERR "plot index $i:";
+				p $args->{plots}[$i];
+			}
+			die "the above hash ref indices have empty data hashes for $current_sub";
 		}
 		my @output_file = grep {defined $args->{plots}[$_]{'output.file'}} 0..$max_i;
 		if (scalar @output_file > 0) {
@@ -2159,6 +2141,12 @@ sub plt {
 		if ($max_subplot_idx > ($args->{nrows} * $args->{ncols} - 1)) {
 			p $args;
 			die "the max \"shared.colorbar\" index $max_subplot_idx > than the max index of plots";
+		}
+	}
+	if (defined $args->{add}) {
+		my $ref = ref $args->{add};
+		if ($ref ne 'ARRAY') {
+			die "\"add\" must be an array (of anonymous hashes), but you entered a $ref reference";
 		}
 	}
 	if ( defined $args->{fh} ) {
@@ -2259,6 +2247,12 @@ sub plt {
 				$plot->{cbpad} = $args->{cbpad};
 			} else {
 				$plot->{'colorbar.on'} = 0; # turn off, its colorbar will be shared later
+			}
+		}
+		if (defined $plot->{add}) {
+			my $ref = ref $plot->{add};
+			if ($ref ne 'ARRAY') {
+				die "\"add\" must be an array (of anonymous hashes), but you entered a $ref reference at ax = $ax";
 			}
 		}
 		foreach my $graph (@{ $plot->{add} }) {
@@ -2362,7 +2356,7 @@ sub plt {
 	});
 	say $fh "plt.savefig(output_file, bbox_inches = 'tight', metadata={'Creator': 'made/written by "
 	. getcwd()
-	. "/$RealScript called using \"$current_sub\" in " . __FILE__ . "'})";
+	. "/$RealScript called using \"$current_sub\" in " . __FILE__ . " version $VERSION'})";
 	$args->{execute} = $args->{execute} // 1;
 	say $fh 'plt.close()' if $args->{execute} == 0;
 	if ( $args->{execute} ) {
@@ -2380,6 +2374,7 @@ sub plt {
 		say 'will write '
 		 . colored( ['cyan on_bright_yellow'], "$args->{'output.file'}" );
 	}
+	return $fh->filename;
 }
 # Generate wrappers dynamically
 my @wrappers = qw(bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter violin  wide);

@@ -107,7 +107,7 @@ sub is_valid_svg { # mostly written by Gemini
 	unless ($content =~ /<\/svg>$/) {
 		return 0;
 	}
-	unless ($content =~ m/\<dc:title\>made\/written by .+Matplotlib\/Simple\.pm\<\/dc\:title\>/) {
+	unless ($content =~ m/\<dc:title\>.+<\/dc\:title\>/) {
 		die "comment line not found for $filepath";
 	}
 	return 1;# All basic checks passed
@@ -2041,7 +2041,7 @@ sub check_SHA_sum {
 	die "$file has no defined sum" unless defined $sum;
 	my $text = file2string($file);
 	my @text = split /\n/, $text;
-	@text = grep {$_ !~ m/^\h*\<dc:title\>made.+\/Simple\.pm\<\/dc:title\>$/} @text;
+	@text = grep {$_ !~ m/^\h*\<dc:title\>.+\<\/dc:title\>$/} @text;
 	@text = grep {$_ !~ m/^\h*\<dc:date\>/}          @text;
 	@text = grep {$_ !~ m/^\h*\<path\h+id="/}        @text;
 	@text = grep {$_ !~ m/^\h*\<use\h*xlink:href="/} @text;
@@ -2063,6 +2063,7 @@ my %check_files = map {'/tmp/' . "$_.svg" => 1} ('add.single', 'barplots',
 'imshow.multiple','imshow.single', 'plot.single', 'plots',
 'single.bonds', 'single.tab', 'barplots', 'single.barplot', 'hlines',
 'dssp.single', 'dssp.multiple', 'plot.single.arr', 'hist2d.pads', 'twinx.arr', 'twinx.hash', 'key.colors.bar', 'newline_fail', 'barh.sub', 'bar.sub', 'bar.sub.self', 'boxplot.sub', 'hexbin.sub', 'hist2d.sub', 'hist.sub', 'plot.sub', 'hist2d.logscale', 'scatter.logscale');
+p %check_files;
 foreach my $file (@output_files) {
 	if (defined $check_files{$file}) {
 		ok(check_SHA_sum($file2SHA{$file}, $file), "$file matches verified file SHA sum");

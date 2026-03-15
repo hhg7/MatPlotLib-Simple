@@ -1128,7 +1128,7 @@ plt({
 		    orientation  => 'horizontal',    # assign x and y labels smartly
 		    title        => 'Horizontal orientation',
 		    ylabel       => 'Value',
-		    xlabel       => 'Frequency',                #				'log'					=> 1,
+		    xlabel       => 'Frequency',
 		},
 	],
 	ncols => 3,
