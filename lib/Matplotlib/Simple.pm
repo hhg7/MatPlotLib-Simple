@@ -743,23 +743,32 @@ sub colored_table_helper {
 	$min = $args->{cb_min} // $min;
 	$max = $args->{cb_max} // $max;
 	$plot->{cmap} = $plot->{cmap} // 'gist_rainbow';
-	$plot->{cblogscale} = $plot->{cblogscale} // 0;
+	$plot->{cb_logscale} = $plot->{cb_logscale} // 0;
 	my $ax = $args->{ax} // '';
-	say {$args->{fh}} 'from matplotlib import colors' if $plot->{cblogscale} > 0;
+	say {$args->{fh}} 'from matplotlib import colors' if $plot->{cb_logscale} > 0;
 	$plot->{'undef.color'} = $plot->{'undef.color'} // 'gray';
 	say {$args->{fh}} 'plt.cm.gist_rainbow.set_bad("' . $plot->{'undef.color'} . '")';
 	say {$args->{fh}} "norm = plt.Normalize($min, $max)";
 	say {$args->{fh}} 'datacolors = plt.cm.gist_rainbow(norm(d))';
-	if ($plot->{cblogscale} > 0) {
-		say {$args->{fh}} "img = ax$ax.imshow(d, cmap='$plot->{cmap}', norm=colors.LogNorm())";
+	my @options;
+	my %translate = (cb_min => 'vmin', cb_max => 'vmax');
+	foreach my $opt (grep {defined $plot->{$_}} 'cb_min', 'cb_max'){
+		unless (looks_like_number( $plot->{$opt} )) {
+			die "\"$opt\" = $plot->{$opt} must be a number";
+		}
+		push @options, "$translate{$opt} = $plot->{$opt}";
+	}
+	my $opt = join (',', @options);
+	if ($plot->{cb_logscale}) {
+		say {$args->{fh}} "img = ax$ax.imshow(d, cmap='$plot->{cmap}', norm=colors.LogNorm($opt))";
 	} else {
-		say {$args->{fh}} "img = ax$ax.imshow(d, cmap='$plot->{cmap}')";
+		say {$args->{fh}} "img = ax$ax.imshow(d, cmap='$plot->{cmap}' $opt)";
 	}
 	$plot->{'colorbar.on'} = $plot->{'colorbar.on'} // 1;
 	if (defined $plot->{cblabel}) {
 		say {$args->{fh}} "fig.colorbar(img, label = '$plot->{cblabel}')";
 	} else {
-		say {$args->{fh}} 'fig.colorbar(img)' if $plot->{'colorbar.on'};
+		say {$args->{fh}} "fig.colorbar(img)" if $plot->{'colorbar.on'};
 	}
 	say {$args->{fh}} 'img.set_visible(False)';
 	$plot->{'show.numbers'} = $plot->{'show.numbers'} // 0;
@@ -782,8 +791,8 @@ sub colored_table_helper {
 		}
 		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
 	}
-	say {$args->{fh}} "plt.clim(vmin = $plot->{cb_min})" if defined $plot->{cb_min};
-	say {$args->{fh}} "plt.clim(vmax = $plot->{cb_max})" if defined $plot->{cb_max};
+#	say {$args->{fh}} "fig.clim(vmin = $plot->{cb_min})" if defined $plot->{cb_min};
+#	say {$args->{fh}} "fig.clim(vmax = $plot->{cb_max})" if defined $plot->{cb_max};
 	foreach my $axis ('x','y') {
 		say {$args->{fh}} "ax$ax.set_${axis}ticks" . '([])';
 		say {$args->{fh}} "ax$ax.set_${axis}ticklabels" . '([])';
@@ -2062,12 +2071,12 @@ sub plt {
 		die "$current_sub: single plots need \"data\" and \"plot.type\", see example above";
 	}
 	if ( ( $single_plot == 0 ) && ( ref $args->{plots} ne 'ARRAY' ) ) {
-	  p $args;
-	  die "$current_sub \"plots\" must have an array entered into it";
+		p $args;
+		die "$current_sub \"plots\" must have an array entered into it";
 	}
 	if ( ( $single_plot == 0 ) && ( scalar @{ $args->{plots} } == 0 ) ) {
-	  p $args;
-	  die "$current_sub \"plots\" has 0 plots entered.";
+		p $args;
+		die "$current_sub \"plots\" has 0 plots entered.";
 	}
 	if ($single_plot == 1) {
 		foreach my $arg (grep {defined $args->{$_} && $args->{$_} > 1} ('ncols', 'nrows')) {
