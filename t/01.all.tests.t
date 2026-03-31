@@ -2056,14 +2056,14 @@ sub check_SHA_sum {
 	if ($sum eq $test_sum) {
 		return 1;
 	} else {
-		die "$file: $test_sum doesn't equal $sum";
+		die "$file:\ntest:\t$test_sum\n!=\n$sum";
 	}
 }
 my %check_files = map {'/tmp/' . "$_.svg" => 1} ('add.single', 'barplots',
 'imshow.multiple','imshow.single', 'plot.single', 'plots',
 'single.bonds', 'single.tab', 'barplots', 'single.barplot', 'hlines',
-'dssp.single', 'dssp.multiple', 'plot.single.arr', 'hist2d.pads', 'twinx.arr', 'twinx.hash', 'key.colors.bar', 'newline_fail', 'barh.sub', 'bar.sub', 'bar.sub.self', 'boxplot.sub', 'hexbin.sub', 'hist2d.sub', 'hist.sub', 'plot.sub', 'hist2d.logscale', 'scatter.logscale');
-p %check_files;
+'dssp.single', 'dssp.multiple', 'plot.single.arr', 'hist2d.pads', 'twinx.arr', 'twinx.hash', 'key.colors.bar', 'newline_fail', 'barh.sub', 'bar.sub', 'bar.sub.self', 'boxplot.sub', 'hexbin.sub', 'hist2d.sub', 'plot.sub', 'hist2d.logscale', 'scatter.logscale');
+
 foreach my $file (@output_files) {
 	if (defined $check_files{$file}) {
 		ok(check_SHA_sum($file2SHA{$file}, $file), "$file matches verified file SHA sum");

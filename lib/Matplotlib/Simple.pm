@@ -3,12 +3,10 @@ use strict;
 use feature 'say';
 use warnings FATAL => 'all';
 use autodie ':all';
-use DDP { output => 'STDOUT', array_max => 10, show_memsize => 1 };
-use Devel::Confess 'color';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.25;
+our $VERSION = 0.26;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
@@ -209,6 +207,7 @@ my %opt = (
 	  'logscale',       # if set to > 1, the y-axis will be logarithmic
 	  'orientation',    # {'vertical', 'horizontal'}, default: 'vertical'
 	  'shared.colorbar', # array of 0-based indices for sharing a colorbar
+	  'show.legend'
 	],
 	hist2d_helper => [@cb_arg,
 	  'cb_logscale',
@@ -981,6 +980,11 @@ sub hist_helper {
 		}
 		say {$args->{fh}} "ax$args->{ax}.set_$axis" . 'scale("log")';
 	}
+	if (scalar keys %{ $plot->{data} } > 1) {
+		$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
+	} else {
+		$plot->{'show.legend'} = $plot->{'show.legend'} // 0;
+	}
 	foreach my $set ( sort keys %{ $plot->{data} } ) {
 		my $set_options = '';
 		foreach
@@ -998,7 +1002,11 @@ sub hist_helper {
 			fh   => $args->{fh},
 			name => 'd'
 		});
-		say { $args->{fh} } "ax$args->{ax}.hist(d, alpha = $plot->{alpha}, label = '$set' $options $set_options)";
+		if ($plot->{'show.legend'}) {
+			say { $args->{fh} } "ax$args->{ax}.hist(d, alpha = $plot->{alpha}, label = '$set' $options $set_options)";
+		} else {
+			say { $args->{fh} } "ax$args->{ax}.hist(d, alpha = $plot->{alpha}, $options $set_options)";
+		}
 	}
 }
 
