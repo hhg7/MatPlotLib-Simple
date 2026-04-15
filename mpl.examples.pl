@@ -1704,6 +1704,12 @@ scatter({
 	},
 	logscale => ['x', 'y']
 });
+hist({
+	execute       => 0,
+	fh            => $fh,
+	data          => [0..9],
+	'output.file' => '/tmp/hist.arr.svg',
+});
 plt({
 	fh                => $fh,
 	execute           => 1,

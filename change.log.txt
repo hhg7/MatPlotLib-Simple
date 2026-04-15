@@ -1,10 +1,15 @@
 ---# planned for 0.26
 "p" option: all plots are a 2D array, where each plot method/hash goes into a certain plot
-"ncol" & "nrow" are synonymous with "ncols" and "nrows"
-"hist" can take a single array, simplifying calls without requiring useless single keys when calling a single distribution
 # end planned
+"ncol" & "nrow" are synonymous with "ncols" and "nrows"; testing now reflects these two specifically numeric options
 no longer exports Data::Printer and Devel::Confess with the module, but is still used inside the module
 'show.legend' option added to "hist", which is automatically turned off if there is only 1 group
+"add" group is no longer deleted
+"hist" can take a single array, simplifying calls without requiring useless single keys when calling a single distribution
+"cb_min" and "cb_max" now work for colored_table
+"write_data" can write numbers as floats (python3 needs improvement); now converts to floats in "hist"
+Because of this, all values are checked in hist for being numeric before being sent to "write_data"
+re-use undefined error array in hist_helper (slightly less RAM use)
 ---
 0.25
 ---

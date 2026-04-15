@@ -141,8 +141,6 @@ my @cb_arg = (
 'cbdrawedges', # for colarbar: Whether to draw lines at color boundaries
 'cblabel',		# The label on the colorbar's long axis
 'cblocation', # of the colorbar None or {'left', 'right', 'top', 'bottom'}
-'cb_min',
-'cb_max',
 'cborientation', # None or {'vertical', 'horizontal'}
 'cbpad',         # pad : float, default: 0.05 if vertical, 0.15 if horizontal; Fraction of original Axes between colorbar and new image Axes
 'cb_logscale');
@@ -760,9 +758,6 @@ sub colored_table_helper {
 		push @options, "$translate{$opt} = $plot->{$opt}";
 	}
 	my $opt = join (',', @options);
-	if (scalar @options > 0) {
-		$opt = ", $opt";
-	}
 	if ($plot->{cb_logscale}) {
 		say {$args->{fh}} "img = ax$ax.imshow(d, cmap='$plot->{cmap}', norm=colors.LogNorm($opt))";
 	} else {
@@ -945,19 +940,19 @@ sub hist_helper {
 		'fh',   # e.g. $py, $fh, which will be passed by the subroutine
 		'plot', # args to original function
 	);
-	my @undef = grep { !defined $args->{$_} } @reqd_args;
-	if ( scalar @undef > 0 ) {
-		p @undef;
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+		p @undef_args;
 		die 'the above args are necessary, but were not defined.';
 	}
 	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
 	my $plot      = $args->{plot};
-	@undef = grep {
+	my @undef_opt = grep {
 		my $key = $_;
 		not grep { $_ eq $key } @opt
 	} keys %{$plot};
-	if ( scalar @undef > 0 ) {
-		p @undef;
+	if ( scalar @undef_opt > 0 ) {
+		p @undef_opt;
 		die "The above arguments aren't defined for $plot->{'plot.type'}";
 	}
 	my $options = '';    # these args go to the plt.hist call
@@ -995,11 +990,6 @@ sub hist_helper {
 		$plot->{'show.legend'} = $plot->{'show.legend'} // 0;
 	}
 	foreach my $set ( sort keys %{ $plot->{data} } ) {
-		my @non_numeric = grep {not looks_like_number($_)} @{ $plot->{data}{$set} };
-		if (scalar @non_numeric > 0) {
-			p @non_numeric;
-			die "$set has non-numeric values; which for hist must be numeric";
-		}
 		my $set_options = '';
 		foreach
 		 my $arg ( grep { ref $plot->{$_} eq 'HASH' } ( 'bins', 'color' ) )
@@ -1016,7 +1006,6 @@ sub hist_helper {
 			fh   => $args->{fh},
 			name => 'd'
 		});
-		say { $args->{fh} } 'd = [float(x) for x in d]'; # Convert strings to floats
 		if ($plot->{'show.legend'}) {
 			say { $args->{fh} } "ax$args->{ax}.hist(d, alpha = $plot->{alpha}, label = '$set' $options $set_options)";
 		} else {
@@ -1874,12 +1863,16 @@ sub violin_helper {
 		if ( $plot->{orientation} eq 'vertical' ) {
 			say { $args->{fh} } "ax$ax.plot("
 			  . scalar @xticks . ', '
-			  . ( sum( @{ $plot->{data}{$key} } ) / scalar @{ $plot->{data}{$key} } )
+			  . ( sum( @{ $plot->{data}{$key} } ) /
+				   scalar @{ $plot->{data}{$key} } )
 			  . ', "ro")';    # plot mean point, which is red
 		} else {                # orientation = horizontal
 			say { $args->{fh} } "ax$ax.plot("
-			 . ( sum( @{ $plot->{data}{$key} } ) / scalar @{ $plot->{data}{$key} } )
-			 . ', ' . scalar @xticks . ', "ro")';    # plot mean point, which is red
+			 . ( sum( @{ $plot->{data}{$key} } ) /
+				   scalar @{ $plot->{data}{$key} } )
+			 . ', '
+			 . scalar @xticks
+			 . ', "ro")';    # plot mean point, which is red
 		}
 	}
 	if ( $plot->{orientation} eq 'vertical' ) {
@@ -2078,10 +2071,6 @@ sub plt {
 	  say STDERR 'the 2nd group of arguments are not recognized, while the 1st is the defined list';
 	  die "The above args are accepted by \"$current_sub\"";
 	}
-	$args->{nrows} = $args->{nrow} if defined $args->{nrow}; # allow synonyms
-	$args->{ncols} = $args->{ncol} if defined $args->{ncol}; # allow synonyms
-	$args->{nrows} = $args->{nrows} // 1;
-	$args->{ncols} = $args->{ncols} // 1;
 	my $single_plot = 0; # false
 	if ( ( defined $args->{'plot.type'} ) && ( defined $args->{data} ) ) {
 	  $single_plot = 1; # true
@@ -2109,6 +2098,10 @@ sub plt {
 			$args->{$arg} = 1;
 		}
 	}
+	$args->{nrows} = $args->{nrow} if defined $args->{nrow}; # allow synonyms
+	$args->{ncols}  = $args->{ncol} if defined $args->{ncol}; # allow synonyms
+	$args->{nrows} = $args->{nrows} // 1;
+	$args->{ncols} = $args->{ncols} // 1;
 	if (   ( $single_plot == 0 )
 	  && ( ( $args->{nrows} * $args->{ncols} ) < scalar @{ $args->{plots} } )
 	)
@@ -2158,9 +2151,6 @@ sub plt {
 	}
 	foreach my $y (@y) {
 		push @py, '(' . join( ',', @{$y} ) . ')';
-	}
-	if ($args->{arr}) {
-		
 	}
 	if ((defined $args->{'shared.colorbar'}) && ($single_plot == 1)) {
 		warn 'There is only 1 plot/subplot, shared colorbars make no sense... deleting';
@@ -2298,8 +2288,8 @@ sub plt {
 			});
 		}
 		my @reqd_keys = (
-			'data',      # data type, of which several are available
-			'plot.type', # "bar", "barh", "hist", etc.
+			'data',         # data type, of which several are available
+			'plot.type',    # "bar", "barh", "hist", etc.
 		);
 		my @undef_keys = grep { !defined $plot->{$_} } @reqd_keys;
 		if ( scalar @undef_keys > 0 ) {
