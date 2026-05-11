@@ -1711,6 +1711,26 @@ hist({
 	'output.file' => '/tmp/hist.arr.svg',
 });
 plt({
+	execute => 0,
+	fh      => $fh,
+	ncol    => 3,
+	plots   => [
+		{
+			'plot.type' => 'violin',
+			data        => [0..3]
+		},
+		{
+			'plot.type' => 'hist',
+			data        => [0..3]
+		},
+		{
+			'plot.type' => 'boxplot',
+			data        => [0..3]
+		},
+	],
+	'output.file' => '/tmp/simple.arr.not.hash.svg'
+});
+plt({
 	fh                => $fh,
 	execute           => 1,
 	ncols             => 3,

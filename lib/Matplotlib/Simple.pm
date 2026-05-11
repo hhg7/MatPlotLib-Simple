@@ -612,6 +612,10 @@ sub boxplot_helper {
 	  die
 	"$current_sub needs either \"horizontal\" or \"vertical\", not \"$plot->{orientation}\"";
 	}
+	if (ref $plot->{data} eq 'ARRAY') {
+		my $tmp = delete $plot->{data};
+		$plot->{data}{''} = $tmp;
+	}
 	my ( @xticks, @key_order );
 	if ( defined $plot->{'key.order'} ) {
 	  @key_order = @{ $plot->{'key.order'} };
@@ -637,9 +641,13 @@ sub boxplot_helper {
 	}
 	say { $args->{fh} } 'd = []';
 	foreach my $key (@key_order) {
-	  @{ $plot->{data}{$key} } = grep { defined } @{ $plot->{data}{$key} };
-	  say { $args->{fh} } 'd.append(['
-		 . join( ',', @{ $plot->{data}{$key} } ) . '])';
+		@{ $plot->{data}{$key} } = grep { defined } @{ $plot->{data}{$key} };
+		my @non_numeric = grep {!looks_like_number($_)} @{ $plot->{data}{$key} };
+		if (scalar @non_numeric > 0) {
+			p @non_numeric;
+			die "$key has non-numeric values";
+		}
+		say { $args->{fh} } 'd.append([' . join( ',', @{ $plot->{data}{$key} } ) . '])';
 	}
 	say { $args->{fh} } "bp = ax$ax.boxplot(d, patch_artist = True, $options)";
 	if ( defined $plot->{colors} ){ # every hash key should have its own color defined
@@ -1011,12 +1019,7 @@ sub hist_helper {
 				$set_options .= ", $arg = $plot->{$arg}{$set}";
 			}
 		}
-		write_data({
-			data => $plot->{data}{$set},
-			fh   => $args->{fh},
-			name => 'd'
-		});
-		say { $args->{fh} } 'd = [float(x) for x in d]'; # Convert strings to floats
+		say {$args->{fh}} 'd = [' . join (',', @{ $plot->{data}{$set} }) . ']';
 		if ($plot->{'show.legend'}) {
 			say { $args->{fh} } "ax$args->{ax}.hist(d, alpha = $plot->{alpha}, label = '$set' $options $set_options)";
 		} else {
@@ -1775,6 +1778,10 @@ sub violin_helper {
 		die "$current_sub needs either \"horizontal\" or \"vertical\", not \"$plot->{orientation}\"";
 	}
 	$args->{whiskers} = $args->{whiskers} // 1;    # by default, make whiskers
+	if (ref $plot->{data} eq 'ARRAY') {
+		my $tmp = delete $plot->{data};
+		$plot->{data}{''} = $tmp;
+	}
 	my ( @xticks, @key_order );
 	if ( defined $plot->{'key.order'} ) {
 		@key_order = @{ $plot->{'key.order'} };

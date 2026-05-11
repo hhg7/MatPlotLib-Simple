@@ -6,7 +6,12 @@ use warnings FATAL => 'all';
 use autodie ':default';
 use Matplotlib::Simple;
 
-my @arr = (
+plt({
+	data => [0..7],
+	'plot.type' => 'violin',
+	'output.file' => '/tmp/single.arr.violin.svg'
+});
+=my @arr = (
 	{
 		'plot.type' => 'plot',
 		data        => {
