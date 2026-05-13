@@ -1935,6 +1935,26 @@ hist({
 	'output.file' => '/tmp/hist.arr.svg',
 });
 plt({
+	execute => 0,
+	fh      => $fh,
+	ncol    => 3,
+	plots   => [
+		{
+			'plot.type' => 'violin',
+			data        => [0..3]
+		},
+		{
+			'plot.type' => 'hist',
+			data        => [0..3]
+		},
+		{
+			'plot.type' => 'boxplot',
+			data        => [0..3]
+		},
+	],
+	'output.file' => '/tmp/simple.arr.not.hash.svg'
+});
+plt({
 	fh                => $fh,
 	execute           => 1,
 	ncols             => 3,
@@ -2032,7 +2052,7 @@ plt({
 	'output.file' => '/tmp/hist2d.svg',
 });
 # σὺ δὲ τῇ πίστει ἕστηκας. μὴ ὑψηλὰ φρόνει, ἀλλὰ φοβοῦ
-my @output_files = ('/tmp/add.single.svg', '/tmp/single.wide.svg', '/tmp/single.array.svg', '/tmp/wide.subplots.svg', '/tmp/single.pie.svg', '/tmp/pie.svg', '/tmp/single.boxplot.svg', '/tmp/boxplot.svg', '/tmp/single.violinplot.svg', '/tmp/violin.svg', '/tmp/single.barplot.svg', '/tmp/single.hexbin.svg', '/tmp/single.hist2d.svg', '/tmp/hexbin.svg', '/tmp/plots.svg', '/tmp/plot.single.svg', '/tmp/plot.single.arr.svg', '/tmp/barplots.svg', '/tmp/single.hist.svg', '/tmp/histogram.svg', '/tmp/single.scatter.svg', '/tmp/scatterplots.svg', '/tmp/imshow.single.svg', '/tmp/imshow.multiple.svg', '/tmp/single.tab.svg', '/tmp/single.bonds.svg', '/tmp/hlines.svg', '/tmp/dssp.single.svg', '/tmp/dssp.multiple.svg', '/tmp/hist2d.pads.svg', '/tmp/twinx.arr.svg', '/tmp/twinx.hash.svg', '/tmp/key.colors.bar.svg', '/tmp/bar.sub.svg', '/tmp/bar.sub.self.svg', '/tmp/barh.sub.svg', '/tmp/boxplot.sub.svg', '/tmp/hexbin.sub.svg', '/tmp/hist.sub.svg', '/tmp/hist2d.sub.svg', '/tmp/plot.sub.svg', '/tmp/newline_fail.svg', '/tmp/hist2d.logscale.svg', '/tmp/scatter.logscale.svg', '/tmp/hist.arr.svg', '/tmp/hist2d.svg');
+my @output_files = ('/tmp/add.single.svg', '/tmp/single.wide.svg', '/tmp/single.array.svg', '/tmp/wide.subplots.svg', '/tmp/single.pie.svg', '/tmp/pie.svg', '/tmp/single.boxplot.svg', '/tmp/boxplot.svg', '/tmp/single.violinplot.svg', '/tmp/violin.svg', '/tmp/single.barplot.svg', '/tmp/single.hexbin.svg', '/tmp/single.hist2d.svg', '/tmp/hexbin.svg', '/tmp/plots.svg', '/tmp/plot.single.svg', '/tmp/plot.single.arr.svg', '/tmp/barplots.svg', '/tmp/single.hist.svg', '/tmp/histogram.svg', '/tmp/single.scatter.svg', '/tmp/scatterplots.svg', '/tmp/imshow.single.svg', '/tmp/imshow.multiple.svg', '/tmp/single.tab.svg', '/tmp/single.bonds.svg', '/tmp/hlines.svg', '/tmp/dssp.single.svg', '/tmp/dssp.multiple.svg', '/tmp/hist2d.pads.svg', '/tmp/twinx.arr.svg', '/tmp/twinx.hash.svg', '/tmp/key.colors.bar.svg', '/tmp/bar.sub.svg', '/tmp/bar.sub.self.svg', '/tmp/barh.sub.svg', '/tmp/boxplot.sub.svg', '/tmp/hexbin.sub.svg', '/tmp/hist.sub.svg', '/tmp/hist2d.sub.svg', '/tmp/plot.sub.svg', '/tmp/newline_fail.svg', '/tmp/hist2d.logscale.svg', '/tmp/scatter.logscale.svg', '/tmp/hist.arr.svg', '/tmp/simple.arr.not.hash.svg', '/tmp/hist2d.svg');
 my %file2SHA;
 open my $tsv, '<', $sha_sum_filename;
 while (<$tsv>) {
