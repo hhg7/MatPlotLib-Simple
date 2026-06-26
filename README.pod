@@ -2106,44 +2106,150 @@ all files will be written to C<< $fh-E<gt>filename >>; be sure to put C<< execut
 
 =head1 Change log
 
+=head2 0.28
+
+colorbar options now work better in C<scatter>.
+
+Better warning when color key isn't defined for C<scatter>
+
+When giving two hash of hashes for a barplot, if one second key is defined in one subplot, but not the other, that subkey is initialized to 0.
+
+=head3 Cross-platform support
+
+The module now should run on Windows in addition to Linux and macOS.
+
+The generated Python script is written to the system temporary directory (via C<< File::Spec-E<gt>tmpdir() >>) instead of a hard-coded C</tmp>, which does not exist on Windows.
+
+The Python interpreter is now discovered automatically by probing, in order, C<python3>, C<python>, and the Windows C<py> launcher, accepting the first that reports Python 3. This fixes Windows, where the interpreter is typically named C<python> (not C<python3>), and correctly rejects the Microsoft Store C<python3> stub and any Python 2. Set the C<MPLS_PYTHON> (or C<PYTHON>) environment variable to override the interpreter with a specific name or full path.
+
+The Python script is now executed with the list form of C<system> rather than a single shell string, so script paths containing spaces (common on Windows, e.g. C<C:\Users\First Last\AppData\Local\Temp>) no longer break execution.
+
+The C<Creator> metadata embedded in the output file is now passed through C<write_data> (base64), so Windows paths containing backslashes no longer produce invalid escape sequences (e.g. C<\U> in C<C:\Users>) in the generated Python string literal.
+
+On Windows, C<Win32::Console::ANSI> is loaded if available (it is optional, not a hard dependency) so colored status messages render on legacy consoles.
+
+=head3 Crashes / generated-code fixes
+
+C<violinplot> is now a callable wrapper; it was exported and dispatched but never defined, so calling it died with "Undefined subroutine".
+
+C<hist> with an array of C<bins> no longer emits a stray double-quote (e.g. C<[0,2,4"]>) that caused a Python C<SyntaxError>.
+
+C<hexbin> and C<hist2d> no longer pass C<cblabel> twice (once inside the option string and again as C<< label =E<gt> ... >>), which previously caused a duplicate-keyword C<SyntaxError>.
+
+C<scatter> with a scalar C<set.options> no longer emits a doubled comma (C<scatter(x, y, , ...)>), which was a C<SyntaxError>.
+
+Stacked C<barh> now uses the C<left> keyword for stacking instead of C<bottom>, which collided with C<barh>'s own C<bottom> (y-position) parameter and raised "got multiple values for keyword argument 'bottom'".
+
+C<colored_table> with C<cb_logscale> together with C<cb_min>/C<cb_max> no longer emits C<LogNorm(, vmin=...)> with a leading comma (a C<SyntaxError>).
+
+C<plot> with a hash of data and a scalar C<set.options> no longer crashes by dereferencing a string as a hash under C<strict refs>.
+
+C<plot> with a hash of data now accepts a scalar C<twinx> naming a data key (e.g. C<< twinx =E<gt> 'pressure' >>); previously the value was wrongly required to be a digit string, making key-named C<twinx> impossible.
+
+Grouped bar plots with a single scalar C<color> (e.g. C<< color =E<gt> 'green' >>) no longer crash trying to dereference the string as an array; the color is applied to all series.
+
+=head3 Incorrect-output fixes
+
+C<colored_table> no longer clobbers asymmetric data: filling undefined cells with C<np.nan> previously also overwrote the mirror cell, destroying defined values (if C<< A-E<gt>B >> was defined but C<< B-E<gt>A >> was not, both became C<NaN>).
+
+C<colored_table> now honors C<cb_min> and C<cb_max>; they were read from the wrong hash (C<$args> instead of the plot options) and so were silently ignored.
+
+C<colored_table> now honors the C<cmap> option; the color map and C<set_bad> color were hard-coded to C<gist_rainbow> regardless of the C<cmap> given. The colormap is copied before calling C<set_bad>, as registered colormaps are immutable in current matplotlib.
+
+C<colored_table> default row labels now mirror the column labels, matching the matrix that is actually built; with asymmetric data the old default could produce a row-label count mismatch ("'rowLabels' must be of length N").
+
+C<scatter> (single set, three keys) now honors the C<cmap> option instead of always using C<gist_rainbow>.
+
+C<scatter> now validates undefined values in I<both> coordinate keys; the undefined-data check previously inspected only the first key.
+
+Grouped, non-stacked bar widths are now divided by the number of bar series (plus one), not by a constant; the old divisor came from a hash that always held exactly one key, so groups with more than a few series overlapped their neighbors.
+
+The C<wide> plot no longer clamps the upper standard-deviation band at C<1>; that clamp assumed data in the range C<[0, 1]> and clipped ordinary data (the documented example reaches roughly C<1.9>).
+
+Numeric arguments to C<plt> methods (e.g. C<< margins =E<gt> 0.2 >>) are no longer quoted into strings; C<print_type> now recognizes numbers.
+
+C<plt.show()> is now emitted after C<plt.savefig()> (and only once), so using C<show> no longer writes the file only after the interactive window is closed; C<output.file> is no longer required when C<show> is requested.
+
+The C<add> overlay's C<plot.type> now correctly falls back to the parent plot's type when omitted, in both single- and multi-plot calls; the fallback was previously unreachable dead code, and an undefined type could be dispatched on.
+
+=head3 Cleanups
+
+Removed corrupted entries from the method whitelists (C<'set_mouseover( '> and a leading-space C<' FixedFormatter'>) that made those options unusable.
+
+Removed a stray default applied to the wrong hash in C<violin>, two empty dead C<if> blocks, and a duplicated C<die>.
+
+=head2 0.27
+
+Better warnings for undefined data in C<scatter>
+
+C<color_key> didn't work properly for multiple sets of data in C<scatter>, which has now been fixed
+
 =head2 0.26
 
 C<ncol> & C<nrow> are synonymous with C<ncols> and C<nrows> respectively; testing now reflects these two specifically numeric options
-no longer exports Data::Printer and Devel::Confess with the module, but is still used inside the module
-'show.legend' option added to "hist", which is automatically turned off if there is only 1 group
-"add" group is no longer deleted
-"boxplot", "hist", and "violin" can take a single array, simplifying calls without requiring useless single keys when calling a single distribution
-C<cb_min> and C<cb_max> now work for colored_table
-"write_data" is no longer used in hist, as it prints numbers as strings (python3's types are a headache)
-Instead, all values are checked in hist for being numeric before being sent to "write_data"
-=head2 re-use undefined error array in hist_helper (slightly less RAM use)
 
-=head2 ## 0.25
+no longer exports Data::Printer and Devel::Confess with the module, but is still used inside the module
+
+'show.legend' option added to "hist", which is automatically turned off if there is only 1 group
+
+"add" group is no longer deleted
+
+"boxplot", "hist", and "violin" can take a single array, simplifying calls without requiring useless single keys when calling a single distribution
+
+C<cb_min> and C<cb_max> now work for colored_table
+
+"write_data" is no longer used in hist, as it prints numbers as strings (python3's types are a headache)
+
+Instead, all values are checked in hist for being numeric before being sent to "write_data"
+
+re-use undefined error array in hist_helper (slightly less RAM use)
+
+=head2 0.25
 
 re-used error array in scatter_helper
+
 better warnings for undefined values in multiple-set scatterplots
+
 fixed bug in scatterplot, where different sets would have the same label
+
 "logscale" now available with "boxplot, "hist", "plot", "scatter"
+
 $VERSION now prints with metadata for SVG output files, which required minor changes to testing
+
 slightly better warnings in plot_helper
+
 removed duplicate check from hist2d_helper
+
 better warnings if wrong data types are given to "add"
+
 Fixed bug in scatterplot, where color key could repeat on axes
+
 =head2 colorbar can now be in logscale for colored_table
 
 =head2 ## 0.24
 
 Newlines are now possible in key names for barplot and pie; other characters may be fixed too
+
 @prop_cycle is only now taking RAM/valid where it's needed
+
 new dependencies in JSON::MaybeXS and MIME::Base64 to prevent errors in key names
+
 slight improvement in violinplot: "print" changed to "say" (1 less concatenation)
+
 dynamic method wrappers are used, which save ~120 lines of code
+
 re-used error array in "plt" to save RAM
+
 better warning for non-File::Temp objects
+
 more tests for wrapper subroutines
+
 duplicate check removed from hexbin_helper
+
 removed whiskers option from boxplot_helper, which didn't work the way that I thought that it did
+
 removed shebang, which isn't necessary in .pm files
+
 =head2 hist2d was missing an option for logscale on the axes, which it now has
 
 =head2 ## 0.23

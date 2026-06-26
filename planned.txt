@@ -1,0 +1,27 @@
+new argument to `plt`: `p`, like `add`, where each plot can be a single hash, entered in as either a 1D array of plot hashes (single plot, with many additions), or a 2D plot, which would have lots of subplots, with ncol and nrow.  Adding `p` means that there is no longer a 'plot.type' needed
+
+#-----
+
+'plot' subtype should accept 2 array references, not needing a hash key "A", so the current form:
+
+	{
+		'plot.type' => 'plot',
+		data        => {
+			A => [
+				[min(vals( $df, 'experiment'))..max(vals( $df, 'experiment'))],
+				[min(vals( $df, 'experiment'))..max(vals( $df, 'experiment'))]
+			]
+		}
+	}
+
+can have an addition data entry type:
+
+	{
+		'plot.type' => 'plot',
+		data        => [
+			[min(vals( $df, 'experiment'))..max(vals( $df, 'experiment'))],
+			[min(vals( $df, 'experiment'))..max(vals( $df, 'experiment'))]
+		]
+	}
+
+which simplifies data entry
