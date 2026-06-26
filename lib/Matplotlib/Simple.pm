@@ -136,7 +136,7 @@ my @plt_methods = (
 #	'xlim','xticks','yticks'
 );
 
-my @arg = ('add', 'cmap', 'data', 'execute', 'fh', 'ncol', 'ncols', 'nrow', 'nrows', 'plot.type',  'plots', 'plot', 'output.file', 'scale', 'scalex', 'scaley', 'shared.colorbar', 'show', 'twinx');
+my @arg = ('add', 'cmap', 'data', 'execute', 'fh', 'ncol', 'ncols', 'nrow', 'nrows', 'p', 'plot.type',  'plots', 'plot', 'output.file', 'scale', 'scalex', 'scaley', 'shared.colorbar', 'show', 'twinx');
 my @cb_arg = (
 'cbdrawedges', # for colarbar: Whether to draw lines at color boundaries
 'cblabel',		# The label on the colorbar's long axis
@@ -1400,18 +1400,37 @@ sub plot_helper {
 		say {$args->{fh}} "ax$args->{ax}.set_$axis" . 'scale("log")';
 	}
 	my @twinx;
+	# Allow a single line entered as two bare array refs, with no enclosing
+	# pair-array and no hash key:
+	#     data => [ \@x, \@y ]
+	# Promote it to the canonical array-of-pairs form so the array path below
+	# handles it unchanged:
+	#     data => [ [ \@x, \@y ] ]
+	# The discriminator vs. the multi-line form (data => [ [\@x,\@y], ... ]) is
+	# data->[0][0]: a number here, an ARRAY ref in the multi-line form.
+	if (   ( ref $plot->{data} eq 'ARRAY' )
+		&& ( scalar @{ $plot->{data} } == 2 )
+		&& ( ref $plot->{data}[0] eq 'ARRAY' )
+		&& ( ref $plot->{data}[1] eq 'ARRAY' )
+		&& ( ref $plot->{data}[0][0] ne 'ARRAY' ) )
+	{
+		$plot->{data} = [ $plot->{data} ];
+	}
 	if (ref $plot->{data} eq 'ARRAY') {
 		if (defined $plot->{'set.options'}) {
 			my $ref_type = ref $plot->{'set.options'};
-			if ($ref_type ne 'ARRAY') {
+			# a scalar applies to every line (handy for the single-line form);
+			# an array gives one option string per line (positional)
+			if ($ref_type eq 'ARRAY') {
+				my $n_set_opt = scalar @{ $plot->{'set.options'} };
+				my $n_data = scalar @{ $plot->{data} };
+				if ($n_set_opt > $n_data) {
+					p $args;
+					die "there are $n_set_opt sets for options, but only $n_data data points.";
+				}
+			} elsif ($ref_type ne '') {
 				p $args;
-				die "\"set.options\" must also be an array when the data is an array, but \"$ref_type\" was given." ;
-			}
-			my $n_set_opt = scalar @{ $plot->{'set.options'} };
-			my $n_data = scalar @{ $plot->{data} };
-			if ($n_set_opt > $n_data) {
-				p $args;
-				die "there are $n_set_opt sets for options, but only $n_data data points.";
+				die "\"set.options\" must be a scalar (applied to every line) or an array (one per line) when data is an array, but \"$ref_type\" was given.";
 			}
 		}
 		if (defined $plot->{twinx}) {
@@ -1472,13 +1491,14 @@ sub plot_helper {
 			my $options = '';
 			say { $args->{fh} } 'x = [' . join( ',', @{ $arr->[0] } ) . ']';
 			say { $args->{fh} } 'y = [' . join( ',', @{ $arr->[1] } ) . ']';
-			if (   ( defined $plot->{'set.options'} )
-				&& ( ref $plot->{'set.options'} eq '' ) )
-			{
-				$options = ", $plot->{'set.options'}";
-			}
-			if ( defined $plot->{'set.options'}[$arr_i] ) {
-				$options = ", $plot->{'set.options'}[$arr_i]";
+			if ( defined $plot->{'set.options'} ) {
+				my $so_ref = ref $plot->{'set.options'};
+				if ( $so_ref eq '' ) {    # scalar: same options for every line
+					$options = ", $plot->{'set.options'}";
+				} elsif (   ( $so_ref eq 'ARRAY' )
+						&& ( defined $plot->{'set.options'}[$arr_i] ) ) {
+					$options = ", $plot->{'set.options'}[$arr_i]";    # one per line
+				}
 			}
 			my $ax = "ax$args->{ax}";
 			if (grep {$arr_i == $_} @twinx) {
@@ -2040,13 +2060,81 @@ my @all_opt;
 foreach my $type (keys %opt) {
 	push @all_opt, @{ $opt{$type} };
 }
+sub normalise_p {
+	# Translate the "p" interface into the engine's existing internal model.
+	#   p => [ \%h, \%h, ... ]              1D: ONE subplot; 1st hash is the plot,
+	#                                           any further hashes are "add"itions
+	#                                           drawn on the same axes (like "add").
+	#   p => [ [\%h,...], [\%h,...], ... ]  2D: ONE subplot per inner array; within
+	#                                           each inner array the 1st hash is the
+	#                                           plot and the rest are "add"itions.
+	# Using "p" means "plot.type" is no longer needed at the top level.
+	my ( $args, $current_sub ) = @_;
+	$current_sub = $current_sub // 'plt';
+	my $p = delete $args->{p};
+	if ( ref $p ne 'ARRAY' ) {
+		die "$current_sub: \"p\" must be an ARRAY reference";
+	}
+	if ( scalar @{$p} == 0 ) {
+		die "$current_sub: \"p\" is empty";
+	}
+	# "p" supersedes the older interface; forbid mixing to avoid ambiguity
+	foreach my $clash ( grep { defined $args->{$_} } ( 'plot.type', 'data', 'plots', 'add' ) ) {
+		die "$current_sub: \"$clash\" cannot be combined with \"p\"";
+	}
+	# every element must be the same kind: all HASH (1D) or all ARRAY (2D)
+	my %kind;
+	$kind{ ref $_ }++ foreach @{$p};
+	if ( ( scalar keys %kind ) != 1 ) {
+		die "$current_sub: \"p\" must be EITHER an array of hashes (one subplot) OR an array of arrays (subplots), not a mix";
+	}
+	my ($kind) = keys %kind;
+	if ( $kind eq 'HASH' ) {    # 1D: single subplot, 1st plot + "add"itions
+		my @group = @{$p};
+		my $main  = shift @group;    # 1st hash becomes the (single) plot
+		foreach my $k ( keys %{$main} ) {    # its keys move to the top level
+			$args->{$k} = $main->{$k};
+		}
+		push @{ $args->{add} }, @group if scalar @group;    # remainder are additions
+	} elsif ( $kind eq 'ARRAY' ) {    # 2D: one subplot per inner array
+		my @plots;
+		my $i = 0;
+		foreach my $group ( @{$p} ) {
+			if ( scalar @{$group} == 0 ) {
+				die "$current_sub: subplot $i in \"p\" is an empty array";
+			}
+			my @g       = @{$group};
+			my $main    = shift @g;            # 1st hash is this subplot's plot
+			if ( ref $main ne 'HASH' ) {
+				die "$current_sub: subplot $i in \"p\": each plot must be a HASH reference";
+			}
+			my %subplot = %{$main};            # shallow copy; don't mutate caller's data
+			push @{ $subplot{add} }, @g if scalar @g;    # the rest are additions
+			push @plots, \%subplot;
+			$i++;
+		}
+		$args->{plots} = \@plots;
+	} else {
+		die "$current_sub: \"p\" must contain only hashes (one subplot) or only arrays (subplots), but found a \"$kind\" reference";
+	}
+	return $args;
+}
 sub plt {
-	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
-	if ( ref $args ne 'HASH' ) {
-	  die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	# Accept BOTH calling conventions:
+	#   new style:       plt( key => value, ... )
+	#   back-compatible: plt({ key => value, ... })
+	my $args;
+	if ( ( scalar @_ == 1 ) && ( ref $_[0] eq 'HASH' ) ) {
+		$args = $_[0];      # plt({ ... })
+	} elsif ( ( scalar @_ % 2 ) == 0 ) {
+		$args = { @_ };     # plt( ... )
+	} else {
+		die "$current_sub: odd number of arguments; call as $current_sub( key => value, ... ) or $current_sub({ key => value, ... })";
 	}
+	# fold the "p" interface into the engine's internal plot model
+	normalise_p( $args, $current_sub ) if defined $args->{p};
 	if ((scalar grep {$args->{$_}} ('output.file', 'show')) == 0) {
 		p $args;
 		die 'either "show" or "output.file" must be defined';
@@ -2451,13 +2539,24 @@ my @wrappers = qw(bar barh boxplot colored_table hexbin hist hist2d imshow pie p
 foreach my $sub_name (@wrappers) {
 	no strict 'refs'; # Gemini helped
 	*$sub_name = sub {
-		my ($args) = @_;
+		# accept both bar({ ... }) and bar( ... )
+		my $args;
+		if ( ( scalar @_ == 1 ) && ( ref $_[0] eq 'HASH' ) ) {
+			$args = $_[0];
+		} elsif ( ( scalar @_ % 2 ) == 0 ) {
+			$args = { @_ };
+		} else {
+			die "$sub_name: odd number of arguments; call as $sub_name( key => value, ... ) or $sub_name({ key => value, ... })";
+		}
 		# Check for conflicts
 		if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $sub_name)) {
 			warn "$args->{'plot.type'} will be ignored for $sub_name";
 		}
 		if (defined $args->{plots}) {
 			die "\"plots\" is meant for the subroutine \"plt\"; $sub_name is single-only";
+		}
+		if (defined $args->{p}) {
+			die "\"p\" is meant for the subroutine \"plt\"; $sub_name is single-only";
 		}
 		# Call plt
 		plt({ %{ $args }, 'plot.type' => $sub_name });
