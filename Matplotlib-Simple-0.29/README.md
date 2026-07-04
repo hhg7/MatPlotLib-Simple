@@ -72,36 +72,62 @@ which produces the following subplots image:
 
 ## The `p` argument
 
-`p` is a single, uniform way to describe one *or* many subplots, so you no
-longer need a top-level `plot.type` (or the older `plots` array). Each plot is a
-hash, exactly like a single-plot call, and `p` collects the subplots into one
-array.
+`p` is a single, uniform way to describe one *or* many plots, so you no longer
+need a top-level `plot.type` (or the older `plots` array). Each plot is a hash,
+exactly like a single-plot call, and `p` collects them.
 
-The rule is simple: **one element of `p` is one subplot.**
+`p` comes in two shapes:
 
-- A **hash** element is a subplot containing a single plot.
-- An **array of hashes** element is a single subplot whose plots are drawn on
-  the **same** axes: the first hash is the base plot and the rest are
-  *additions* (overlays), exactly like `add`.
+- **1‑D — an array of hashes:** one subplot. The first hash is the plot; any
+  further hashes are *additions* drawn on the **same** axes (the same behaviour
+  as `add`).
+- **2‑D — an array of arrays:** one subplot **per inner array**. Within each
+  inner array the first hash is that subplot's plot and the rest are additions
+  on it. Lay the subplots out with `ncol`/`nrow` (aliases for `ncols`/`nrows`).
 
-The two forms may be **mixed freely** in the same `p`. The first (or only) hash
-of a subplot supplies that subplot's axes-level options (`title`, `xlabel`,
-`ylabel`, `legend`, …).
+The first hash of a group supplies the axes-level options (`title`, `xlabel`,
+`ylabel`, `legend`, …) for that subplot.
 
-If you don't give a grid, the subplots are laid out automatically on a
-near-square grid. Give `ncol`/`nrow` (aliases for `ncols`/`nrows`) to control
-it; supplying only one dimension derives the other (so `ncols => 1` stacks the
-subplots in a single column), and supplying both is honored as given.
-
-`p` cannot be combined with `plot.type`, `data`, `plots`, or `add`.
+`p` cannot be combined with `plot.type`, `data`, `plots`, or `add`. Mixing
+hashes and arrays inside one `p` is an error — pick 1‑D *or* 2‑D.
 
 > Arguments are now passed as a plain list — `plt( ... )` — though the older
 > `plt({ ... })` form still works.
 
-### One subplot, several plots overlaid
+### One subplot, several plots overlaid (1‑D)
 
-Wrap the plots in an inner array and they all land on a single subplot (the
-first is the base plot, the rest are additions):
+Because `p` holds two hashes (not two arrays), both plots land on a single
+subplot:
+
+    plt(
+        p => [
+            {
+                data => {
+                    E => [ 55, @{$x}, 160 ],
+                    B => [ @{$y}, 140 ],
+                },
+                'plot.type' => 'boxplot',
+                title       => 'Single Box Plot: Specified Colors',
+                colors      => { E => 'yellow', B => 'purple' },
+            },
+            {
+                data => {
+                    A => [ 55, @{$z} ],
+                    E => [ @{$y} ],
+                    B => [ 122, @{$z} ],
+                },
+                'plot.type' => 'violinplot',
+                title       => 'Single Violin Plot: Specified Colors',
+                colors      => { E => 'yellow', B => 'purple', A => 'green' },
+            },
+        ],
+        'output.file' => '1plot.svg',    # note: no `plot.type` needed
+    );
+
+### Multiple subplots (2‑D)
+
+Wrap each plot in its own inner array and you get one subplot per array. With
+`ncol => 2` the two subplots sit side by side:
 
     plt(
         p => [
@@ -115,6 +141,8 @@ first is the base plot, the rest are additions):
                     title       => 'Single Box Plot: Specified Colors',
                     colors      => { E => 'yellow', B => 'purple' },
                 },
+            ],
+            [
                 {
                     data => {
                         A => [ 55, @{$z} ],
@@ -127,44 +155,12 @@ first is the base plot, the rest are additions):
                 },
             ],
         ],
-        'output.file' => '1plot.svg',    # note: no `plot.type` needed
-    );
-
-### Multiple subplots
-
-Give each subplot as its own element. A bare hash is a one-plot subplot, so two
-hashes make two subplots; with `ncol => 2` they sit side by side:
-
-    plt(
-        p => [
-            {
-                data => {
-                    E => [ 55, @{$x}, 160 ],
-                    B => [ @{$y}, 140 ],
-                },
-                'plot.type' => 'boxplot',
-                title       => 'Box Plot: Specified Colors',
-                colors      => { E => 'yellow', B => 'purple' },
-            },
-            {
-                data => {
-                    A => [ 55, @{$z} ],
-                    E => [ @{$y} ],
-                    B => [ 122, @{$z} ],
-                },
-                'plot.type' => 'violinplot',
-                title       => 'Violin Plot: Specified Colors',
-                colors      => { E => 'yellow', B => 'purple', A => 'green' },
-            },
-        ],
         ncol          => 2,
         'output.file' => '2plots.svg',
     );
 
-To overlay extra plots on any one subplot, make that element an array of hashes
-instead of a bare hash (the first is the plot, the rest are additions). Bare
-hashes and inner arrays may be intermixed in the same `p`, for example
-`p => [ \%single, [ \%base, \%overlay ], \%another ]`.
+To overlay extra plots on a subplot, add more hashes to that subplot's inner
+array (the first is the plot, the rest are additions).
 
 ## Options
 
@@ -2146,15 +2142,9 @@ all files will be written to `$fh->filename`; be sure to put `execute => 0` unle
 
 # Change log
 
-## 0.30
-
-non-ASCII key names (e.g. Greek letters like `ρ`, `τ`) no longer crash the writer. The generated-Python filehandle is now given a UTF-8 encoding layer, fixing a fatal "Wide character in say" that occurred under the module's strict-fatal warnings; the layer is added only when not already present, so a caller-supplied filehandle is never double-encoded.
-
-`p` option: a flat array of subplots where **one element is one subplot** — a hash is a single-plot subplot, and an array of hashes is one subplot with the plots overlaid on the same axes (first hash is the base plot, the rest are additions). The two forms may be mixed in the same `p`. When no grid is given the subplots are laid out on an auto-sized near-square grid; giving only `ncol`/`nrow` (or `ncols`/`nrows`) derives the other dimension.
-
 ## 0.29
 
-addition of the `p` option
+addition of `p` option
 
 removal of SHA testing; changes in Matplotlib version 3.11 mean that SHA sums aren't compatible across different versions of Matplotlib
 

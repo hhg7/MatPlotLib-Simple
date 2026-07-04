@@ -2311,15 +2311,6 @@ sub plt {
 	} else {
 		$fh = File::Temp->new(DIR => '/tmp', SUFFIX => '.py', UNLINK => 0);
 	}
-	# Non-ASCII key names (e.g. Greek letters like ρ, τ) arrive as wide
-	# characters when the caller has "use utf8", so give the output filehandle
-	# a UTF-8 encoding layer. Without it, "say $fh" dies with
-	# "Wide character in say" under this module's "warnings FATAL => 'all'".
-	# Only add the layer if it isn't already present, to avoid double-encoding
-	# a filehandle that was passed in.
-	unless ( grep { /utf-?8/i } PerlIO::get_layers($fh) ) {
-		binmode $fh, ':encoding(UTF-8)';
-	}
 	say 'temp file is ' . $fh->filename;
 	say $fh 'import matplotlib.pyplot as plt';
 	say $fh 'import json, base64';

@@ -1,236 +1,11 @@
 #!/usr/bin/env perl
 
-require 5.010;
 use strict;
 use warnings FATAL => 'all';
 use autodie ':all';
 use feature 'say';
 use File::Temp 'tempfile';
 use Matplotlib::Simple;
-use Test::Exception; # die_ok
-use File::Path 'rmtree';
-use Test::More;
-#use Digest::SHA 'sha512_base64';
-
-#my $sha_sum_filename = 'sha.sums.tsv';
-#die "$sha_sum_filename isn't a file or isn't readable" unless -f -r $sha_sum_filename;
-
-sub file2string {
-	my $file = shift;
-	open my $fh, '<', $file;
-	return do { local $/; <$fh> };
-}
-my $python_version_raw = qx/python3 --version 2>&1/;
-my $python_version = '';
-my $python_available = 0;
-
-if ($? == 0 && $python_version_raw =~ m/Python\s+3\.\d+/i) {
-    # Command succeeded and output looks like a Python 3 version string
-    $python_available = 1;
-    # Capture the version number
-    $python_version = (split(/\s+/, $python_version_raw))[1] // 'Unknown 3.x';
-}
-
-unless ($python_available) {
-    # plan skip_all is the core module way to gracefully skip the entire file
-    plan skip_all => 'SKIP: python3 command not found in PATH or is not Python 3. Matplotlib::Simple requires Python 3.';
-}
-
-# --- Dependency Check 2: Matplotlib ---
-
-# Command to import matplotlib and print its version.
-my $mpl_command = 'python3 -c "import matplotlib; print(matplotlib.__version__)" 2>&1';
-my ($mpl_major, $mpl_minor, $mpl_patch);
-my $mpl_version_raw = qx/$mpl_command/;
-my $mpl_available = 0;
-my $mpl_version = '';
-
-# Check the exit code ($?) and ensure the output looks like a semantic version number
-if ($? == 0 && $mpl_version_raw =~ m/^\s*\d+\.\d+\.\d+(\.\d+)?\s*$/) {
-    $mpl_available = 1;
-    $mpl_version = $mpl_version_raw;
-    # Clean up any potential whitespace
-    $mpl_version =~ s/^\s*|\s*$//g;
-}
-if ($mpl_version =~ m/^(\d+)\.(\d+)\.(\d+)/) {
-	($mpl_major, $mpl_minor, $mpl_patch) = ($1, $2, $3);
-}
-
-my $mpl_version_correct = 0;
-
-unless ($mpl_available) {
-    plan skip_all => 'SKIP: Matplotlib Python package not found or import failed. Please install it with "pip install matplotlib" or "python -m pip install matplotlib" or something similar.';
-}
-
-my $mpl_version_err_msg = "matplotlib major version = $mpl_major; matplotlib minor version = $mpl_minor; minimum is 3.10;\nFix is something like this: \"python -m pip install --upgrade matplotlib\"";
-if (($mpl_major == 3) && ($mpl_minor < 10)) {
-	plan skip_all => $mpl_version_err_msg;
-} elsif ($mpl_major < 3) {
-	plan skip_all => $mpl_version_err_msg;
-} elsif (($mpl_major == 3) && ($mpl_minor >= 10)) {
-	$mpl_version_correct = 1;
-} else {
-	$mpl_version_correct = 1;
-}
-
-# ----------------------------------------------------
-# --- If we reach this point, all dependencies are met ---
-
-# Use Test::More's 'diag' to print the version numbers to the test harness output
-# This is equivalent to Test2's 'note' and works with core modules.
-diag('Dependencies Found:');
-diag("  Python 3 Version: $python_version");
-diag("  Matplotlib Version: $mpl_version");
-mkdir 'output.images' unless -d 'output.images';
-sub is_valid_svg { # mostly written by Gemini
-	my ($filepath) = @_;
-	my $expected_namespace = 'http://www.w3.org/2000/svg';
-	# 1. Ensure the file exists
-	unless (-f $filepath) {
-		die "Error: $filepath either not found or not a file at $filepath\n";
-	}
-	# 2. Slurp the file content (base Perl method)
-	# This reads the entire file into a scalar variable.
-	local $/; 
-	open my $fh, '<', $filepath or return 0;
-	my $content = <$fh>;
-	close $fh;
-	# Pre-process content: Remove leading/trailing whitespace and collapse internal whitespace
-	$content =~ s/^\s+|\s+$//g;
-	$content =~ s/\s+/ /g;
-	# 3. Check for the mandatory SVG root tag and Namespace
-	# We look for: <svg ... xmlns="http://www.w3.org/2000/svg" ... >
-	unless ($content =~ /<svg[^>]*xmlns\s*=\s*['"]$expected_namespace['"]/) {
-		return 0;
-	}
-	# 4. Check for the closing root tag
-	# This check helps catch files that are prematurely truncated (like the invalid example).
-	unless ($content =~ /<\/svg>$/) {
-		return 0;
-	}
-	unless ($content =~ m/\<dc:title\>.+<\/dc\:title\>/) {
-		die "comment line not found for $filepath";
-	}
-	return 1;# All basic checks passed
-}
-dies_ok {
-	plt({
-		data => {
-			A => 1
-		},
-		'plot.type'   => 'bar',
-		'output.file' => '/tmp/dies_ok.svg',
-		orientation   => 'blah' # should cause failure
-	});
-} '"plt" barplot dies when bar gets undefined options';
-dies_ok {
-	plt({
-		'plot.type' => 'bar',
-		'output.file' => '/tmp/dies_ok.svg',
-	});
-} '"plt" barplot dies when no data is defined';
-dies_ok {
-	plt({
-		data => {
-			A => 1
-		},
-		'output.file' => '/tmp/dies_ok.svg',
-	});
-} '"plt" barplot dies when no "plot.type" is defined';
-dies_ok {
-	plt({
-		data => {
-			A => [1,2,3]
-		},
-		'plot.type'   => 'hist',
-		vmax          => 1,
-		'output.file' => '/tmp/dies_ok.svg',
-	});
-} '"plt" hist dies when undefined option is used';
-dies_ok {
-	plt({
-		data => {
-			A => [1,2,3]
-		},
-		'plot.type'   => 'hist',
-	});
-} '"plt" hist dies when "output.file" is omitted';
-dies_ok {
-	plt({
-		data => {
-			A => [1,2,3]
-		},
-		execute       => 0,
-		fh            => $python_available,
-		'plot.type'   => 'hist',
-	});
-} '"plt" dies when it is given a scalar that is not a filehandle';
-dies_ok {
-	plt({
-		plots         => [
-			{
-				'plot.type'   => 'violinplot',
-			},
-		],
-		'output.file' => '/tmp/dies_ok.svg',
-	});
-} '"plt" dies when given a subplot that is missing {data}';
-dies_ok {
-	plt({
-		plots         => [
-			{
-				data          => {},
-				'plot.type'   => 'violinplot',
-			},
-		],
-		'output.file' => '/tmp/dies_ok.svg',
-	});
-} '"plt" dies when a subplot is given an empty data hash';
-dies_ok {
-	plt({
-		data => {},
-		'plot.type' => 'violinplot',
-		'output.file' => '/tmp/dies_ok.svg',
-	});
-} '"plt" dies when a single plot is given an empty data hash';
-dies_ok {
-	plt({
-		data => [
-			[
-				[0,1,'c'],
-				[2,3,'x']
-			]
-		],
-		'plot.type' => 'plot',
-		'output.file' => '/tmp/dies_ok.svg'
-	});
-} '"plt" dies when non-numeric values are given to "plot"';
-my ($tfh, $tfname) = tempfile(DIR => '/tmp', UNLINK => 1);
-dies_ok {
-	plt({
-		data => {A => 1},
-		fh          => $tfh,
-		'plot.type' => 'bar',
-		'output.file' => '/tmp/dies_ok.svg',
-	});
-} '"plt" dies when given a non-File::Temp object';
-foreach my $numeric_arg ('cbpad', 'ncols', 'nrows', 'scale', 'scalex', 'scaley', 'ncol', 'nrow') {
-	dies_ok {
-		plt({
-			$numeric_arg  => 'A',
-			data          => [[0,1], [0,3]],
-			'plot.type'   => 'imshow', # this plot.type actually has all of these options
-			'output.file' => '/tmp/dies_ok.svg',
-		});
-	} '"plt" dies when "' . $numeric_arg . '" is non-numeric';
-}
-dies_ok {
-	plt({
-		data          => {A => [0,1], B => [0,3]},
-		'plot.type'   => 'imshow', # this plot.type actually has all of these options
-		'output.file' => '/tmp/dies_ok.svg',
-	});
-} '"plt" dies when "imshow" gets something besides an array (dies with better error)';
 # Λέγω οὖν, μὴ ἀπώσατο ὁ θεὸς
 sub linspace {    # mostly written by Grok
 	my ( $start, $stop, $num, $endpoint ) = @_;   # endpoint means include $stop
@@ -285,7 +60,7 @@ my $z = generate_normal_dist( 106, 15, 3 * 10 );
 my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
 my $fh = File::Temp->new( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
 plt({
-	'output.file' => '/tmp/add.single.svg',
+	'output.file' => 'output.images/add.single.png',
 	'plot.type'       => 'plot',
 	data              => {
 		'sin(2x)'       => [
@@ -345,7 +120,7 @@ plt({
 		    [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
 		]
 	},
-	'output.file' => '/tmp/single.wide.svg',
+	'output.file' => 'output.images/single.wide.png',
 	'plot.type'       => 'wide',
 	color             => {
 		Clinical => 'blue',
@@ -364,7 +139,7 @@ plt({
 		[ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
 		[ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
 	],
-	'output.file' => '/tmp/single.array.svg',
+	'output.file' => 'output.images/single.array.png',
 	'plot.type'       => 'wide',
 	color             => 'red',
 	title             => 'Visualization of similar lines plotted together',
@@ -387,13 +162,13 @@ plt({
 			title       => 'Visualization of similar lines plotted together'
 		}
 	],
-	'output.file' => '/tmp/wide.subplots.svg',
+	'output.file' => 'output.images/wide.subplots.png',
 	suptitle          => 'SubPlots',
 	fh => $fh,
 	execute           => 0,
 });
 pie({
-	'output.file' => '/tmp/single.pie.svg',
+	'output.file' => 'output.images/single.pie.png',
 	data              => {                                 # simple hash
 		Fri => 76,
 		Mon => 73,
@@ -408,7 +183,7 @@ pie({
 	execute      => 0,
 });
 plt({
-	'output.file' => '/tmp/pie.svg',
+	'output.file' => 'output.images/pie.png',
 	plots             => [
 		{
 		    data => {
@@ -470,7 +245,7 @@ plt({
 
 # single plots are simple
 plt({
-        'output.file' => '/tmp/single.boxplot.svg',
+        'output.file' => 'output.images/single.boxplot.png',
         data              => {                                     # simple hash
             E => [ 55,    @{$x}, 160 ],
             B => [ @{$y}, 140 ],
@@ -484,7 +259,7 @@ plt({
         execute      => 0,
 });
 plt({
-	'output.file' => '/tmp/boxplot.svg',
+	'output.file' => 'output.images/boxplot.png',
 	execute           => 0,
 	fh => $fh,
 	plots             => [
@@ -605,7 +380,7 @@ plt({
    set_figwidth => 12
 });
 plt({
-	'output.file' => '/tmp/single.violinplot.svg',
+	'output.file' => 'output.images/single.violinplot.png',
 	data              => {                                     # simple hash
 		A => [ 55, @{$z} ],
 		E => [ @{$y} ],
@@ -623,7 +398,7 @@ my @a = generate_normal_dist( 105, 15, 3 * 200 );
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/violin.svg',
+	'output.file' => 'output.images/violin.png',
 	plots             => [
 		{
 		    data => {
@@ -699,7 +474,7 @@ plt({
 	},
 	execute      => 0,
 	fh           => $fh,
-	'output.file' => '/tmp/single.barplot.svg',
+	'output.file' => 'output.images/single.barplot.png',
 	'plot.type'  => 'bar',
 	title        => 'Customer Calls by Days',
 	xlabel       => '# of Days',
@@ -712,13 +487,13 @@ plt({
 	},
 	execute           => 0,
 	fh => $fh,
-	'output.file' => '/tmp/single.hexbin.svg',
+	'output.file' => 'output.images/single.hexbin.png',
 	'plot.type'       => 'hexbin',
 	set_figwidth      => 12,
 	title             => 'Simple Hexbin',
 });
 plt({
-	'output.file' => '/tmp/single.hist2d.svg',
+	'output.file' => 'output.images/single.hist2d.png',
 	data              => {
 		E => @e,
 		B => @b
@@ -731,7 +506,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/hexbin.svg',
+	'output.file' => 'output.images/hexbin.png',
 	plots             => [
 		{
 			data => {
@@ -899,7 +674,7 @@ my ($min, $max) = (-9,9);
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/plots.svg',
+	'output.file' => 'output.images/plots.png',
 	plots         => [
 	{ # sin
 		data          => {
@@ -1014,7 +789,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/plot.single.svg',
+	'output.file' => 'output.images/plot.single.png',
 	data              => {
 		'sin(x)' => [
 			[@x],                     # x
@@ -1038,7 +813,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/plot.single.arr.svg',
+	'output.file' => 'output.images/plot.single.arr.png',
 	data              => [
 		[
 			[@x],                     # x
@@ -1062,7 +837,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/barplots.svg',
+	'output.file' => 'output.images/barplots.png',
 	plots             => [
 		{    # simple plot
 			data => {    # simple hash
@@ -1246,7 +1021,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/single.hist.svg',
+	'output.file' => 'output.images/single.hist.png',
 	data              => {
 		E => @e,
 		B => @b,
@@ -1257,7 +1032,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/histogram.svg',
+	'output.file' => 'output.images/histogram.png',
    set_figwidth => 15,
    suptitle          => 'hist Examples',
 	plots             => [
@@ -1366,11 +1141,11 @@ scatter({
 		Y => [map {sin($_)} @x]
 	},
 	execute       => 0,
-	'output.file' => '/tmp/single.scatter.svg',
+	'output.file' => 'output.images/single.scatter.png',
 });
 plt({
 	fh                => $fh,
-	'output.file'     => '/tmp/scatterplots.svg',
+	'output.file'     => 'output.images/scatterplots.png',
 	execute           => 0,
 	nrows             => 2,
 	ncols             => 3,
@@ -1440,7 +1215,7 @@ imshow({
 	data          => \@imshow_data,
 	execute       => 0,
    fh            => $fh,
-	'output.file' => '/tmp/imshow.single.svg',
+	'output.file' => 'output.images/imshow.single.png',
 	set_xlim      => '0, ' . scalar @imshow_data,
 	set_ylim      => '0, ' . scalar @imshow_data,
 });
@@ -1500,7 +1275,7 @@ plt({
 	],
 	execute         => 0,
    fh              => $fh,
-	'output.file'   => '/tmp/imshow.multiple.svg',
+	'output.file'   => 'output.images/imshow.multiple.png',
 	ncols           => 2,
 	nrows           => 2,
 	set_figheight   => 6*3,# 4.8
@@ -1547,7 +1322,7 @@ colored_table({
 	execute       => 0,
 	fh            => $fh,
 	mirror        => 1,
-	'output.file' => '/tmp/single.tab.svg',
+	'output.file' => 'output.images/single.tab.png',
 	'row.labels'  => ['H', 'F', 'Cl', 'Br', 'I'],
 	'show.numbers'=> 1,
 	set_title     => 'Bond Dissociation Energy'
@@ -1555,7 +1330,7 @@ colored_table({
 plt({
 	execute       => 0,
 	fh            => $fh,
-	'output.file' => '/tmp/single.bonds.svg',
+	'output.file' => 'output.images/single.bonds.png',
 	plots         => [
 		{
 			data          => \%bond_dissociation,
@@ -1599,7 +1374,7 @@ plt({
 	execute       => 0,
 	fh            => $fh,
 	hlines        => "1,$x[0],$x[-1], linestyles = 'dashed'",
-	'output.file' => '/tmp/hlines.svg',
+	'output.file' => 'output.images/hlines.png',
 	set_xlim      => "$x[0],$x[-1]",
 	'show.legend' => 0
 });
@@ -1622,7 +1397,7 @@ plt({
 		'S' => 'bend',
 		' ' => 'Loops and irregular elements'
 	},
-	'output.file' => '/tmp/dssp.single.svg',
+	'output.file' => 'output.images/dssp.single.png',
 	scalex        => 2.4,
 	set_ylim      => '0, 1',
 	title         => 'Dictionary of Secondary Structure in Proteins (DSSP)',
@@ -1678,7 +1453,7 @@ plt({
 	execute           => 0,
 	fh                => $fh,
 	nrows             => 2,
-	'output.file'     => '/tmp/dssp.multiple.svg',
+	'output.file'     => 'output.images/dssp.multiple.png',
 	scalex            => 2.4,
 	'shared.colorbar' => [0,1], # plots 0 and 1 share a colorbar
 	suptitle          => 'Dictionary of Secondary Structure in Proteins (DSSP)',
@@ -1706,7 +1481,7 @@ for (my $pad = 0.01; $pad <= 0.09; $pad += 0.03) {
 plt(
 	execute       => 0,
 	fh            => $fh,
-	'output.file' => '/tmp/hist2d.pads.svg',
+	'output.file' => 'output.images/hist2d.pads.png',
 	plots         => \@plots,
 	ncols         => 2,
 	nrows         => 2,
@@ -1730,7 +1505,7 @@ plt(
 			[map {exp($_)} @t]
 		]
 	],
-	'output.file' => '/tmp/twinx.arr.svg',
+	'output.file' => 'output.images/twinx.arr.png',
 	'plot.type'   => 'plot',
 	'set.options' => [
 		'color = "blue"', # plot 0
@@ -1758,7 +1533,7 @@ plt(
 			[map {exp($_)} @t]
 		]
 	},
-	'output.file' => '/tmp/twinx.hash.svg',
+	'output.file' => 'output.images/twinx.hash.png',
 	'plot.type'   => 'plot',
 	'set.options' => {
 		'sin' => 'color = "blue"',
@@ -2098,54 +1873,5 @@ plt({
 			xbins           => 9
 		},
 	],
-	'output.file' => '/tmp/hist2d.svg',
+	'output.file' => 'output.images/hist2d.png',
 });
-# σὺ δὲ τῇ πίστει ἕστηκας. μὴ ὑψηλὰ φρόνει, ἀλλὰ φοβοῦ
-my @output_files = ('/tmp/add.single.svg', '/tmp/single.wide.svg', '/tmp/single.array.svg', '/tmp/wide.subplots.svg', '/tmp/single.pie.svg', '/tmp/pie.svg', '/tmp/single.boxplot.svg', '/tmp/boxplot.svg', '/tmp/single.violinplot.svg', '/tmp/violin.svg', '/tmp/single.barplot.svg', '/tmp/single.hexbin.svg', '/tmp/single.hist2d.svg', '/tmp/hexbin.svg', '/tmp/plots.svg', '/tmp/plot.single.svg', '/tmp/plot.single.arr.svg', '/tmp/barplots.svg', '/tmp/single.hist.svg', '/tmp/histogram.svg', '/tmp/single.scatter.svg', '/tmp/scatterplots.svg', '/tmp/imshow.single.svg', '/tmp/imshow.multiple.svg', '/tmp/single.tab.svg', '/tmp/single.bonds.svg', '/tmp/hlines.svg', '/tmp/dssp.single.svg', '/tmp/dssp.multiple.svg', '/tmp/hist2d.pads.svg', '/tmp/twinx.arr.svg', '/tmp/twinx.hash.svg', '/tmp/key.colors.bar.svg', '/tmp/bar.sub.svg', '/tmp/bar.sub.self.svg', '/tmp/barh.sub.svg', '/tmp/boxplot.sub.svg', '/tmp/hexbin.sub.svg', '/tmp/hist.sub.svg', '/tmp/hist2d.sub.svg', '/tmp/plot.sub.svg', '/tmp/newline_fail.svg', '/tmp/hist2d.logscale.svg', '/tmp/scatter.logscale.svg', '/tmp/hist.arr.svg', '/tmp/simple.arr.not.hash.svg', '/tmp/scatter.multiset.colorkey.svg', '/tmp/p.arg.svg', '/tmp/hist2d.svg');
-#my %file2SHA;
-#open my $tsv, '<', $sha_sum_filename;
-#while (<$tsv>) {
-#	chomp;
-#	my @line = split;
-#	$file2SHA{$line[0]} = $line[1];
-#}
-#close $tsv;
-#sub check_SHA_sum {
-#	my ($sum, $file) = @_;
-##	say "Testing $file";
-#	die "$file has no defined sum" unless defined $sum;
-#	my $text = file2string($file);
-#	my @text = split /\n/, $text;
-#	@text = grep {$_ !~ m/^\h*\<dc:title\>.+\<\/dc:title\>$/} @text;
-#	@text = grep {$_ !~ m/^\h*\<dc:date\>/}          @text;
-#	@text = grep {$_ !~ m/^\h*\<path\h+id="/}        @text;
-#	@text = grep {$_ !~ m/^\h*\<use\h*xlink:href="/} @text;
-#	@text = grep {$_ !~ m/clipPath/}                 @text;
-#	@text = grep {$_ !~ m/clip\-path="/}             @text;
-#	foreach my $line (@text) {
-#		$line =~ s/\h+id="image[a-z\d]+"//;
-#	}
-##	printf("$file has %u lines.\n", scalar @text);
-#	$text = join ("\n", @text);
-#	my $test_sum = sha512_base64($text);
-#	if ($sum eq $test_sum) {
-#		return 1;
-#	} else {
-#		die "$file:\ntest:\t$test_sum\n!=\n$sum";
-#	}
-#}
-#my %check_files = map {'/tmp/' . "$_.svg" => 1} ('imshow.multiple',
-#'imshow.single', 'plot.single', 'plots', 'hlines',
-#'dssp.single', 'dssp.multiple', 'plot.single.arr', 'hist2d.pads',
-#'twinx.arr', 'twinx.hash', 'key.colors.bar', 'newline_fail', 'barh.sub',
-#'bar.sub', 'bar.sub.self', 'boxplot.sub', 'hexbin.sub', 'hist2d.sub', 'plot.sub', 'hist2d.logscale', 'scatter.logscale', );
-
-foreach my $file (@output_files) {
-#	if (defined $check_files{$file}) {
-#		ok(check_SHA_sum($file2SHA{$file}, $file), "$file matches verified file SHA sum");
-#	} else {
-	ok(is_valid_svg($file), "$file is likely a valid SVG file");
-#	}
-#	unlink $file;
-}
-done_testing();

@@ -147,9 +147,9 @@ sub lives_ok_t {
 my $TMP = tempdir( CLEANUP => 1 );
 sub outfile { File::Spec->catfile( $TMP, $_[0] ) }
 
-#
+# ============================================================================
 # LAYER 1 - deterministic generated-python checks (no matplotlib needed)
-#
+# ============================================================================
 
 # --- the "p" argument, 1-D: an array of hashes => ONE subplot with overlays ---
 {

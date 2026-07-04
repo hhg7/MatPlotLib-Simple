@@ -2061,19 +2061,22 @@ foreach my $type (keys %opt) {
 	push @all_opt, @{ $opt{$type} };
 }
 sub normalise_p {
-	# Translate the "p" interface into the engine's existing internal model.
-	#   p => [ \%h, \%h, ... ]              1D: ONE subplot; 1st hash is the plot,
-	#                                           any further hashes are "add"itions
-	#                                           drawn on the same axes (like "add").
-	#   p => [ [\%h,...], [\%h,...], ... ]  2D: ONE subplot per inner array; within
-	#                                           each inner array the 1st hash is the
-	#                                           plot and the rest are "add"itions.
-	# Using "p" means "plot.type" is no longer needed at the top level.
+	# "p" is a flat list of subplots: ONE array element == ONE subplot.
+	#   p => [ \%h, \%h, ... ]                 each hash is its own subplot
+	#   p => [ \%h, [ \%h, \%h ], \%h, ... ]   an inner array of hashes is a
+	#                                          single subplot holding several
+	#                                          plots on the same axes (the 1st
+	#                                          hash is the base plot, the rest
+	#                                          are "add"itions/overlays)
+	# The plain-hash and inner-array forms may be mixed freely in one "p".
+	# Using "p" means top-level "plot.type"/"data" are not used. If no grid is
+	# given, the subplots are laid out on an automatically-sized near-square
+	# grid; pass nrow(s)/ncol(s) to override.
 	my ( $args, $current_sub ) = @_;
 	$current_sub = $current_sub // 'plt';
 	my $p = delete $args->{p};
 	if ( ref $p ne 'ARRAY' ) {
-		die "$current_sub: \"p\" must be an ARRAY reference";
+		die "$current_sub: \"p\" must be an ARRAY reference (one element per subplot)";
 	}
 	if ( scalar @{$p} == 0 ) {
 		die "$current_sub: \"p\" is empty";
@@ -2082,40 +2085,48 @@ sub normalise_p {
 	foreach my $clash ( grep { defined $args->{$_} } ( 'plot.type', 'data', 'plots', 'add' ) ) {
 		die "$current_sub: \"$clash\" cannot be combined with \"p\"";
 	}
-	# every element must be the same kind: all HASH (1D) or all ARRAY (2D)
-	my %kind;
-	$kind{ ref $_ }++ foreach @{$p};
-	if ( ( scalar keys %kind ) != 1 ) {
-		die "$current_sub: \"p\" must be EITHER an array of hashes (one subplot) OR an array of arrays (subplots), not a mix";
-	}
-	my ($kind) = keys %kind;
-	if ( $kind eq 'HASH' ) {    # 1D: single subplot, 1st plot + "add"itions
-		my @group = @{$p};
-		my $main  = shift @group;    # 1st hash becomes the (single) plot
-		foreach my $k ( keys %{$main} ) {    # its keys move to the top level
-			$args->{$k} = $main->{$k};
-		}
-		push @{ $args->{add} }, @group if scalar @group;    # remainder are additions
-	} elsif ( $kind eq 'ARRAY' ) {    # 2D: one subplot per inner array
-		my @plots;
-		my $i = 0;
-		foreach my $group ( @{$p} ) {
-			if ( scalar @{$group} == 0 ) {
+	my @plots;
+	my $i = 0;
+	foreach my $subplot ( @{$p} ) {
+		my $ref = ref $subplot;
+		if ( $ref eq 'HASH' ) {                       # one subplot, one plot
+			push @plots, { %{$subplot} };             # shallow copy; don't mutate caller
+		} elsif ( $ref eq 'ARRAY' ) {                 # one subplot, several overlaid plots
+			if ( scalar @{$subplot} == 0 ) {
 				die "$current_sub: subplot $i in \"p\" is an empty array";
 			}
-			my @g       = @{$group};
-			my $main    = shift @g;            # 1st hash is this subplot's plot
-			if ( ref $main ne 'HASH' ) {
-				die "$current_sub: subplot $i in \"p\": each plot must be a HASH reference";
+			my @g    = @{$subplot};
+			my $main = shift @g;                      # 1st hash is the base plot
+			foreach my $plot ( $main, @g ) {
+				if ( ref $plot ne 'HASH' ) {
+					die "$current_sub: subplot $i in \"p\": every plot must be a HASH reference";
+				}
 			}
-			my %subplot = %{$main};            # shallow copy; don't mutate caller's data
-			push @{ $subplot{add} }, @g if scalar @g;    # the rest are additions
-			push @plots, \%subplot;
-			$i++;
+			my %plot = %{$main};                      # shallow copy of the base plot
+			push @{ $plot{add} }, @g if scalar @g;    # the rest overlay on the same axes
+			push @plots, \%plot;
+		} else {
+			die "$current_sub: subplot $i in \"p\" must be a HASH reference (one plot) or an ARRAY of HASH references (overlaid plots), not a \"$ref\" reference";
 		}
-		$args->{plots} = \@plots;
-	} else {
-		die "$current_sub: \"p\" must contain only hashes (one subplot) or only arrays (subplots), but found a \"$kind\" reference";
+		$i++;
+	}
+	$args->{plots} = \@plots;
+	# convenience: choose a subplot grid. With neither dimension given, use a
+	# near-square grid; with exactly one given (and positive), derive the other
+	# so e.g. "ncols => 1" stacks the subplots in a single column. Empty
+	# trailing cells are pruned later by the engine.
+	my $n     = scalar @plots;
+	my $ncols = $args->{ncols} // $args->{ncol};
+	my $nrows = $args->{nrows} // $args->{nrow};
+	if ( ( not defined $ncols ) && ( not defined $nrows ) ) {
+		$ncols = 1;
+		$ncols++ while ( $ncols * $ncols ) < $n;             # ceil(sqrt $n), no floats
+		$args->{ncols} = $ncols;
+		$args->{nrows} = int( ( $n + $ncols - 1 ) / $ncols );  # ceil($n / $ncols)
+	} elsif ( ( not defined $ncols ) && ( $nrows > 0 ) ) {   # only rows given
+		$args->{ncols} = int( ( $n + $nrows - 1 ) / $nrows );
+	} elsif ( ( not defined $nrows ) && ( $ncols > 0 ) ) {   # only cols given
+		$args->{nrows} = int( ( $n + $ncols - 1 ) / $ncols );
 	}
 	return $args;
 }
@@ -2310,6 +2321,15 @@ sub plt {
 		$fh = $args->{fh};# open $fh, '>>', $args->{fh};
 	} else {
 		$fh = File::Temp->new(DIR => '/tmp', SUFFIX => '.py', UNLINK => 0);
+	}
+	# Non-ASCII key names (e.g. Greek letters like ρ, τ) arrive as wide
+	# characters when the caller has "use utf8", so give the output filehandle
+	# a UTF-8 encoding layer. Without it, "say $fh" dies with
+	# "Wide character in say" under this module's "warnings FATAL => 'all'".
+	# Only add the layer if it isn't already present, to avoid double-encoding
+	# a filehandle that was passed in.
+	unless ( grep { /utf-?8/i } PerlIO::get_layers($fh) ) {
+		binmode $fh, ':encoding(UTF-8)';
 	}
 	say 'temp file is ' . $fh->filename;
 	say $fh 'import matplotlib.pyplot as plt';
@@ -2569,7 +2589,7 @@ foreach my $sub_name (@wrappers) {
 =head1 Synopsis
 
 Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in C</tmp>, to be edited at the user's discretion.
-Requires python3 and matplotlib installations.
+Depends on python3 and matplotlib.
 
 My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib itself.
 
@@ -2578,7 +2598,7 @@ My aim is to simplify the most common tasks as much as possible.  In my opinion,
 Simplest use case:
 
  use Matplotlib::Simple;
- bar({
+ bar(
     'output.file'     => '/tmp/gospel.word.counts.png',
     data              => {
        Matthew => 18345,
@@ -2586,12 +2606,12 @@ Simplest use case:
        Luke    => 19482,
        John    => 15635,
     }
- });
+ );
 
 A more complete (and slightly faster execution):
 
  use Matplotlib::Simple;
- plt({
+ plt(
     'output.file'     => '/tmp/gospel.word.counts.png',
     'plot.type'       => 'bar',
     data              => {
@@ -2600,7 +2620,7 @@ A more complete (and slightly faster execution):
        Luke    => 19482,
        John    => 15635,
     }
- });
+ );
 
 
 =for html
@@ -2614,7 +2634,7 @@ A more complete (and slightly faster execution):
 Having a C<plots> argument as an array lets the module know to create subplots:
 
  use Matplotlib::Simple 'plt';
- plt({
+ plt(
      'output.file'   => 'svg/pies.png',
      plots             => [
      {
@@ -2636,7 +2656,7 @@ Having a C<plots> argument as an array lets the module know to create subplots:
          },
      ],
      ncols    => 2,
- });
+ );
 
 which produces the following subplots image:
 
@@ -2648,6 +2668,103 @@ which produces the following subplots image:
 
 
 C<bar>, C<barh>, C<boxplot>, C<hexbin>, C<hist>, C<hist2d>, C<imshow>, C<pie>, C<plot>, C<scatter>, and C<violinplot> all match the methods in matplotlib itself.
+
+=head2 The C<p> argument
+
+C<p> is a single, uniform way to describe one I<or> many plots, so you no longer
+need a top-level C<plot.type> (or the older C<plots> array). Each plot is a hash,
+exactly like a single-plot call, and C<p> collects them.
+
+C<p> comes in two shapes:
+
+=over
+
+=item * B<1‑D — an array of hashes:> one subplot. The first hash is the plot; any
+further hashes are I<additions> drawn on the B<same> axes (the same behaviour
+as C<add>).
+
+=item * B<2‑D — an array of arrays:> one subplot B<per inner array>. Within each
+inner array the first hash is that subplot's plot and the rest are additions
+on it. Lay the subplots out with C<ncol>/C<nrow> (aliases for C<ncols>/C<nrows>).
+
+=back
+
+The first hash of a group supplies the axes-level options (C<title>, C<xlabel>,
+C<ylabel>, C<legend>, …) for that subplot.
+
+C<p> cannot be combined with C<plot.type>, C<data>, C<plots>, or C<add>. Mixing
+hashes and arrays inside one C<p> is an error — pick 1‑D I<or> 2‑D.
+
+ > Arguments are now passed as a plain list — C<plt( ... )> — though the older
+ > C<plt({ ... })> form still works.
+
+=head3 One subplot, several plots overlaid (1‑D)
+
+Because C<p> holds two hashes (not two arrays), both plots land on a single
+subplot:
+
+ plt(
+     p => [
+         {
+             data => {
+                 E => [ 55, @{$x}, 160 ],
+                 B => [ @{$y}, 140 ],
+             },
+             'plot.type' => 'boxplot',
+             title       => 'Single Box Plot: Specified Colors',
+             colors      => { E => 'yellow', B => 'purple' },
+         },
+         {
+             data => {
+                 A => [ 55, @{$z} ],
+                 E => [ @{$y} ],
+                 B => [ 122, @{$z} ],
+             },
+             'plot.type' => 'violinplot',
+             title       => 'Single Violin Plot: Specified Colors',
+             colors      => { E => 'yellow', B => 'purple', A => 'green' },
+         },
+     ],
+     'output.file' => '1plot.svg',    # note: no C<plot.type> needed
+ );
+
+=head3 Multiple subplots (2‑D)
+
+Wrap each plot in its own inner array and you get one subplot per array. With
+C<< ncol =E<gt> 2 >> the two subplots sit side by side:
+
+ plt(
+     p => [
+         [
+             {
+                 data => {
+                     E => [ 55, @{$x}, 160 ],
+                     B => [ @{$y}, 140 ],
+                 },
+                 'plot.type' => 'boxplot',
+                 title       => 'Single Box Plot: Specified Colors',
+                 colors      => { E => 'yellow', B => 'purple' },
+             },
+         ],
+         [
+             {
+                 data => {
+                     A => [ 55, @{$z} ],
+                     E => [ @{$y} ],
+                     B => [ 122, @{$z} ],
+                 },
+                 'plot.type' => 'violinplot',
+                 title       => 'Single Violin Plot: Specified Colors',
+                 colors      => { E => 'yellow', B => 'purple', A => 'green' },
+             },
+         ],
+     ],
+     ncol          => 2,
+     'output.file' => '2plots.svg',
+ );
+
+To overlay extra plots on a subplot, add more hashes to that subplot's inner
+array (the first is the plot, the rest are additions).
 
 =head2 Options
 
@@ -2759,7 +2876,7 @@ an example of multiple plots, showing many options:
 =head3 single, simple plot
 
  use Matplotlib::Simple 'plt';
- plt({
+ plt(
      'output.file'           => 'output.images/single.barplot.png',
      data    => { # simple hash
          Fri => 76, Mon  => 73, Sat => 26, Sun => 11, Thu    => 94, Tue  => 93, Wed  => 77
@@ -2768,7 +2885,7 @@ an example of multiple plots, showing many options:
      xlabel      => '# of Days',
      ylabel      => 'Count',
      title       => 'Customer Calls by Days'
- });
+ );
 
 where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself. C<plot.type>, C<data>, C<fh> are all specific to C<MatPlotLib::Simple>.
 
@@ -2780,7 +2897,7 @@ where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself
 
 =head3 multiple plots
 
- plt({
+ plt(
      fh                  => $fh,
      execute                => 0,
      'output.file'   => 'output.images/barplots.png',
@@ -2945,7 +3062,7 @@ where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself
      ],
      ncols   => 3,
      nrows   => 4
- });
+ );
 
 which produces the plot:
 
@@ -2958,7 +3075,7 @@ which produces the plot:
 
 =head3 colors for each hash key defined by hash
 
- plt({
+ plt(
      plots => [
          {
              color        => {
@@ -2981,7 +3098,7 @@ which produces the plot:
      ],
      ncols         => 2,
      'output.file' => '/tmp/key.colors.bar.svg',
- });
+ );
 
 which produces the plot
 
@@ -3023,7 +3140,7 @@ Plot a hash of arrays as a series of boxplots
 single plots are simple
 
  use Matplotlib::Simple 'barplot';
- boxplot({
+ boxplot(
      'output.file' => 'output.images/single.boxplot.png',
      data              => {                                     # simple hash
          E => [ 55,    @{$x}, 160 ],
@@ -3035,7 +3152,7 @@ single plots are simple
      colors       => { E => 'yellow', B => 'purple' },
      fh           => $fh,
      execute      => 0,
- });
+ );
 
 which makes the following image:
 
@@ -3048,7 +3165,7 @@ which makes the following image:
 
 =head3 multiple plots
 
- plt({
+ plt(
      'output.file' => 'output.images/boxplot.png',
      execute           => 0,
      fh                => $fh,
@@ -3168,7 +3285,7 @@ which makes the following image:
      ],
      ncols => 3,
      nrows => 3,
- });
+ );
 
 which makes the following plot:
 
@@ -3224,7 +3341,7 @@ the bond dissociation energy table can be plotted:
 
 and the plot itself:
 
- colored_table({
+ colored_table(
      'cblabel'     => 'kJ/mol',
      'col.labels'  => ['H', 'F', 'Cl', 'Br', 'I'],
      data          => \%bond_dissociation,
@@ -3235,7 +3352,7 @@ and the plot itself:
      'row.labels'  => ['H', 'F', 'Cl', 'Br', 'I'],
      'show.numbers'=> 1,
      set_title     => 'Bond Dissociation Energy'
- });
+ );
 
 which makes the following image:
 
@@ -3248,7 +3365,7 @@ which makes the following image:
 
 =head3 Multiple Plots
 
- plt({
+ plt(
      'output.file' => 'output.images/tab.multiple.png',
      execute       => 0,
      fh            => $fh,
@@ -3286,7 +3403,7 @@ which makes the following image:
      ncols         => 3,
      set_figwidth  => 14,
      suptitle      => 'Colored Table options'
- });
+ );
 
 which makes the following plot:
 
@@ -3325,7 +3442,7 @@ see https://matplotlib.org/stable/api/I<as>gen/matplotlib.pyplot.hexbin.html
 
 =head3 single, simple plot
 
- plt({
+ plt(
      data    => {
          E   => generate_normal_dist(100, 15, 3*210),
          B   => generate_normal_dist(85, 15, 3*210)
@@ -3334,7 +3451,7 @@ see https://matplotlib.org/stable/api/I<as>gen/matplotlib.pyplot.hexbin.html
      'plot.type' => 'hexbin',
      set_figwidth => 12,
      title           => 'Simple Hexbin',
- });
+ );
 
 which makes the following plot:
 
@@ -3345,7 +3462,7 @@ which makes the following plot:
 
 =head3 multiple plots
 
- plt({
+ plt(
      fh => $fh,
      execute           => 0,
      'output.file' => 'output.images/hexbin.png',
@@ -3463,7 +3580,7 @@ which makes the following plot:
      nrows        => 3,
      scale        => 5,
      suptitle     => 'Various Changes to Standard Hexbin: All data is the same'
- });
+ );
 
 which produces the following image:
 
@@ -3496,10 +3613,10 @@ Plot a hash of arrays as a series of histograms
 
 as of version 0.26, single arrays can be given to C<hist> instead of a hash, simplifying the call:
 
- hist({
+ hist(
      data          => [0..9],
      'output.file' => '/tmp/hist.arr.svg',
- });
+ );
 
 for slightly more complex data sets, hashes are taken:
 
@@ -3509,7 +3626,7 @@ for slightly more complex data sets, hashes are taken:
  my @b = generate_normal_dist( 85,  15, 3 * 200 );
  my @a = generate_normal_dist( 105, 15, 3 * 200 );
  
- hist({
+ hist(
      fh => $fh,
      execute           => 0,
      'output.file' => 'output.images/single.hist.png',
@@ -3518,7 +3635,7 @@ for slightly more complex data sets, hashes are taken:
          B => @b,
          A => @a,
      }
- });
+ );
 
 which makes the following simple plot:
 
@@ -3531,7 +3648,7 @@ which makes the following simple plot:
 
 =head3 multiple plots
 
- plt({
+ plt(
      fh => $fh,
      execute           => 0,
      'output.file' => 'output.images/histogram.png',
@@ -3635,7 +3752,7 @@ which makes the following simple plot:
      ],
      ncols => 3,
      nrows => 2,
- });
+ );
 
 
 =for html
@@ -3650,7 +3767,7 @@ Make a 2-D histogram from a hash of arrays
 
 =head3 single, simple plot
 
- plt({
+ plt(
      'output.file' => 'output.images/single.hist2d.png',
      data              => {
          E => @e,
@@ -3660,7 +3777,7 @@ Make a 2-D histogram from a hash of arrays
      title        => 'title',
      execute      => 0,
      fh => $fh,
- });
+ );
 
 makes the following image:
 
@@ -3698,7 +3815,7 @@ the range for the density min and max is reported to stdout
 
 =head3 multiple plots
 
- plt({
+ plt(
      fh => $fh,
      execute           => 1,
      ncols             => 3,
@@ -3794,7 +3911,7 @@ the range for the density min and max is reported to stdout
          },
      ],
      'output.file' => 'output.images/hist2d.png',
- });
+ );
 
 makes the following image:
 
@@ -3834,7 +3951,7 @@ Plot 2D array of numbers as an image
          push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
      }
  }
- plt({
+ plt(
      data              => \@imshow_data,
      execute           => 0,
     fh => $fh,
@@ -3842,7 +3959,7 @@ Plot 2D array of numbers as an image
      'plot.type'       => 'imshow',
      set_xlim          => '0, ' . scalar @imshow_data,
      set_ylim          => '0, ' . scalar @imshow_data,
- });
+ );
 
 which makes the following image:
 
@@ -3855,7 +3972,7 @@ which makes the following image:
 
 =head3 multiple plots
 
- plt({
+ plt(
      plots  => [
          {
              data => \@imshow_data,
@@ -3916,7 +4033,7 @@ which makes the following image:
      nrows           => 2,
      set_figheight   => 6*3,# 4.8
      set_figwidth    => 6*4 # 6.4
- });
+ );
 
 which makes the following image:
 
@@ -3932,7 +4049,7 @@ which makes the following image:
 Sometimes strings instead of numbers can be entered into a 2-D array, one example is protein secondary structure.
 Protein secondary structure can be plotted thus, with a key in C<stringmap> to show which strings become which integers in a minimal working example:
 
- plt({
+ plt(
      cbpad       => 0.01,          # default 0.05 is too big
      data        => [              # imshow gets a 2D array
          [' ', ' ', ' ', ' ', 'G'], # bottom
@@ -3955,7 +4072,7 @@ Protein secondary structure can be plotted thus, with a key in C<stringmap> to s
      title         => 'Dictionary of Secondary Structure in Proteins (DSSP)',
      xlabel        => 'xlabel',
      ylabel        => 'ylabel'
- });
+ );
 
 
 =for html
@@ -3966,7 +4083,7 @@ Protein secondary structure can be plotted thus, with a key in C<stringmap> to s
 
 or for multiple plots, where the colorbar can be spread across multiple plots now:
 
- plt({
+ plt(
      cbpad       => 0.01,          # default 0.05 is too big
      plots       => [
          { # 1st plot
@@ -4017,7 +4134,7 @@ or for multiple plots, where the colorbar can be spread across multiple plots no
      scalex            => 2.4,
      'shared.colorbar' => [0,1], # plots 0 and 1 share a colorbar
      suptitle          => 'Dictionary of Secondary Structure in Proteins (DSSP)',
- });
+ );
 
 which makes the following plot:
 
@@ -4034,7 +4151,7 @@ which makes the following plot:
 
 =head3 single, simple plot
 
- plt({
+ plt(
      'output.file' => 'output.images/single.pie.png',
      data              => {                                 # simple hash
          Fri => 76,
@@ -4049,7 +4166,7 @@ which makes the following plot:
      title        => 'Single Simple Pie',
      fh           => $fh,
      execute      => 0,
- });
+ );
 
 which makes the image:
 
@@ -4062,7 +4179,7 @@ which makes the image:
 
 =head3 multiple plots
 
- plt({
+ plt(
      'output.file' => 'output.images/pie.png',
      plots             => [
          {
@@ -4121,7 +4238,7 @@ which makes the image:
      execute      => 0,
     set_figwidth  => 12,
      ncols        => 3,
- });
+ );
 
 
 =for html
@@ -4132,13 +4249,162 @@ which makes the image:
 
 =head2 plot
 
-plot either a hash of arrays or an array of arrays
+A line plot of one or more series of C<(x, y)> points. Each series needs an
+x array and a y array of B<equal length>.
+
+=head3 Entering data
+
+C<data> accepts three shapes:
+
+B<1. Labeled series (hash).> Use this when you want a legend — each key
+becomes a line label. The value is a C<[ \@x, \@y ]> pair:
+
+ {
+     'plot.type' => 'plot',
+     data        => {
+         A => [ [5..9], [5..9] ],
+         B => [ [5..9], [1..5] ],
+     },
+ }
+
+B<2. Several unlabeled series (array of pairs).> A list of C<[ \@x, \@y ]>
+pairs, one per line, with no legend labels:
+
+ {
+     'plot.type' => 'plot',
+     data        => [
+         [ [5..9], [5..9] ],
+         [ [5..9], [1..5] ],
+     ],
+ }
+
+B<3. A single unlabeled series (two bare arrays).> The simplest form: just
+the x array and the y array, with no enclosing pair-array and no key:
+
+ {
+     'plot.type' => 'plot',
+     data        => [
+         [5..9],
+         [5..9],
+     ],
+ }
+
+Form 3 is shorthand for form 2 with a single line — it is promoted internally
+to C<[ [ \@x, \@y ] ]>. Because there is no key, the line is B<unlabeled>; if
+you need a legend entry, use the hash form (1).
+
+ > How the forms are told apart: in the multi-line form (2) C<< data-E<gt>[0] >> is itself
+ > a C<[ \@x, \@y ]> pair, so C<< data-E<gt>[0][0] >> is an array ref; in the single-line
+ > form (3) C<< data-E<gt>[0] >> is the x array, so C<< data-E<gt>[0][0] >> is a number. A 2-element
+ > C<data> whose first element starts with a number is therefore always read as a
+ > single line.
+
+=head3 Setting line options with C<set.options>
+
+C<set.options> is passed straight through to Matplotlib's C<.plot(x, y, ...)>,
+so anything C<plot> accepts works (C<color>, C<linewidth>, C<linestyle>, C<marker>,
+C<alpha>, …). How you supply it depends on the data shape:
+
+B<A scalar applies to every line.> This is the natural partner of the
+single-line data form — the one option string is used for the only series:
+
+ {
+     'plot.type'   => 'plot',
+     'show.legend' => 0,
+     data          => [
+         [ min(vals($df, 'experiment')) .. max(vals($df, 'experiment')) ],
+         [ min(vals($df, 'experiment')) .. max(vals($df, 'experiment')) ],
+     ],
+     'set.options' => 'color = "red"',
+ }
+
+The same scalar also works with the multi-line array form, where it is applied
+to B<all> lines at once:
+
+ {
+     'plot.type'   => 'plot',
+     data          => [
+         [ [5..9], [5..9] ],
+         [ [5..9], [1..5] ],
+     ],
+     'set.options' => 'linewidth = 2',    # both lines
+ }
+
+B<An array sets options per line (positional).> With array data, give one
+string per line; entry C<i> styles line C<i>. You may supply fewer entries than
+lines, but not more:
+
+ {
+     'plot.type'   => 'plot',
+     data          => [
+         [ [5..9], [5..9] ],
+         [ [5..9], [1..5] ],
+     ],
+     'set.options' => [
+         'color = "red"',
+         'color = "blue", linestyle = "--"',
+     ],
+ }
+
+B<A hash sets options per key.> With hash data, key the options by the same
+data keys (any key may be omitted):
+
+ {
+     'plot.type'   => 'plot',
+     data          => {
+         A => [ [5..9], [5..9] ],
+         B => [ [5..9], [1..5] ],
+     },
+     'set.options' => {
+         A => 'color = "red"',
+         B => 'color = "blue", marker = "o"',
+     },
+ }
+
+Note the pairing rule: a scalar C<set.options> goes with B<any> data shape; an
+B<array> C<set.options> goes with B<array> data; a B<hash> C<set.options> goes
+with B<hash> data. Mismatches (for example a hash of options with array data)
+are rejected with an explanatory error.
+
+=head3 Other options
+
+=over
+
+=item * C<show.legend> — on by default (C<1>); set to C<0> to suppress labels. Only the
+hash form produces labels in the first place.
+
+=item * C<key.order> — array of keys (hash form) fixing the draw/legend order; defaults
+to the keys sorted alphabetically.
+
+=item * C<logscale> — array of axes to put on a log scale, e.g. C<[ 'x', 'y' ]>.
+
+=item * C<twinx> — draw selected series against a secondary y-axis.
+=over
+
+=item * hash data: a single key, or a hash whose keys are the series to twin;
+
+=item * array data: an integer index, or an array of indices.
+
+=back
+
+=item * C<twinx.args> — a hash keyed by data key (hash form) or index (array form);
+each value is a hash of axis options (e.g. C<ylabel>, C<set_ylim>) applied to
+that twin axis.
+
+=back
+
+Common axes options such as C<title>, C<xlabel>, C<ylabel>, and C<legend> are
+accepted here too, exactly as for the other plot types.
+
+A C<plot> spec is an ordinary plot hash, so it can be dropped straight into the
+L<#the-p-argument> argument — on its own for a single subplot, or alongside
+other hashes to overlay or to fill a grid of subplots.
 
 =head3 single, simple
 
 data can be given as a hash, where the hash key is the label:
 
- plt({
+ plt(
      fh => $fh,
      execute           => 0,
      'output.file' => 'output.images/plot.single.png',
@@ -4161,11 +4427,11 @@ data can be given as a hash, where the hash key is the label:
          'sin(x)' => 'color="blue", linewidth=2',
          'cos(x)' => 'color="red",  linewidth=2'
      }
- });
+ );
 
 or as an array of arrays:
 
- plt({
+ plt(
      fh => $fh,
      execute           => 0,
      'output.file' => 'output.images/plot.single.arr.png',
@@ -4188,7 +4454,7 @@ or as an array of arrays:
          'color="blue", linewidth=2, label = "sin(x)"', # labels aren't added automatically when using array here
          'color="red",  linewidth=2, label = "cos(x)"'
      ],
- });
+ );
 
 both of which make the following "plot" plot:
 
@@ -4252,7 +4518,7 @@ which makes
  my $xticks = "[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
          . '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']';
  my ($min, $max) = (-9,9);
- plt({
+ plt(
      fh => $fh,
      execute           => 0,
      'output.file' => 'output.images/plots.png',
@@ -4366,7 +4632,7 @@ which makes
      nrows        => 3,
      set_figwidth => 8,
      suptitle     => 'Basic Trigonometric Functions'
- });
+ );
 
 
 =for html
@@ -4379,7 +4645,7 @@ which makes
 
 =head3 single, simple plot
 
- scatter({
+ scatter(
      fh            => $fh,
      data          => {
          X => [@x],
@@ -4387,7 +4653,7 @@ which makes
      },
      execute       => 0,
      'output.file' => 'output.images/single.scatter.png',
- });
+ );
 
 makes the following image:
 
@@ -4402,7 +4668,7 @@ makes the following image:
 
 =head3 multiple plots
 
- plt({
+ plt(
      fh => $fh,
      'output.file' => 'output.images/scatterplots.png',
      execute           => 0,
@@ -4466,7 +4732,7 @@ makes the following image:
              color_key => 'Z',
          }
      ]
- });
+ );
 
 which makes the following figure:
 
@@ -4498,7 +4764,7 @@ plot a hash of array refs as violins
 
 =head3 single, simple plot
 
- plt({
+ plt(
      'output.file' => 'output.images/single.violinplot.png',
      data              => {                                     # simple hash
          A => [ 55, @{$z} ],
@@ -4510,7 +4776,7 @@ plot a hash of array refs as violins
      colors       => { E => 'yellow', B => 'purple', A => 'green' },
      fh => $fh,
      execute      => 0,
- });
+ );
 
 which makes:
 
@@ -4523,7 +4789,7 @@ which makes:
 
 =head3 multiple plots
 
- plt({
+ plt(
      fh                => $fh,
      execute           => 0,
      'output.file'     => 'output.images/violin.png',
@@ -4589,7 +4855,7 @@ which makes:
      ],
      ncols => 3,
      nrows => 2,
- });
+ );
 
 
 =for html
@@ -4623,7 +4889,7 @@ To improve speed, all data can be written into a single temp python3 file thus:
 
 all files will be written to C<< $fh-E<gt>filename >>; be sure to put C<< execute =E<gt> 0 >> unless you want the file to be run, which is the last step.
 
- plt({
+ plt(
      data => {
          Clinical => [
              [
@@ -4651,9 +4917,9 @@ all files will be written to C<< $fh-E<gt>filename >>; be sure to put C<< execut
      title        => 'Visualization of similar lines plotted together',
      fh => $fh,
      execute      => 0,
- });
+ );
  # the last plot should have C<< execute =E<gt> 1 >>
- plt({
+ plt(
      data => [
          [
              [@xw],    # x
@@ -4668,9 +4934,17 @@ all files will be written to C<< $fh-E<gt>filename >>; be sure to put C<< execut
      title             => 'Visualization of similar lines plotted together',
      fh                => $fh,
      execute           => 1,
- });
+ );
 
 =head1 Change log
+
+=head2 0.29
+
+addition of C<p> option
+
+removal of SHA testing; changes in Matplotlib version 3.11 mean that SHA sums aren't compatible across different versions of Matplotlib
+
+arguments can now be given as a flat hash
 
 =head2 0.28
 
