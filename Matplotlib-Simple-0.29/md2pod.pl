@@ -9,6 +9,8 @@ use Devel::Confess 'color';
 use Markdown::To::POD 'markdown_to_pod';
 use HTML::Table;
 use List::MoreUtils 'first_index';
+use Test::More;
+use Test::Pod;
 
 sub file2string ($file) {
 	open my $fh, '<', $file;
@@ -102,6 +104,7 @@ sub insert_file_into_another {
 	say $fh join ("\n", @receiving_file);
 	return 1;
 }
+
 my $md = file2string('README.md');
 my @md = split /\n/, $md;
 my @idx = grep {$md[$_] =~ m/\|.+\|/} 0..$#md; # indices with tables
@@ -133,24 +136,60 @@ say $tmp $pod;
 close $tmp;
 $pod = file2string('README.pod');
 my @pod = split /\n/, $pod;
+
 # get table start and end indices
 foreach my $i ( grep {$pod[$_] =~ /^<img\h/} reverse 0..$#pod) {
 	next if $pod[$i-1] eq '<p>' eq $pod[$i+1]; # html paragraph
-#	my @p = @pod[$i-3..$i+3];
-#	p @p;
 	splice @pod, $i+1, 0, '<p>', ''; # end
 	splice @pod, $i, 0, '', '=for html', '<p>',; # start
-#	@p = @pod[$i-3..$i+3];
-#	p @p;
 }
 foreach my $i (grep {$pod[$_] eq '<table>'} reverse 0..$#pod) {
 	splice @pod, $i, 0, '=for html';
 }
 unshift @pod, "=encoding utf8\n";
-#p @pod;
+
+# --- Robust POD fix with blank line enforcement ---
+my $over_depth = 0;
+my @fixed_pod;
+for my $line (@pod) {
+	# Enforce blank line BEFORE any POD directive so Test::Pod parses it as a command
+	if ($line =~ /^=[a-zA-Z]/) {
+		push @fixed_pod, '' if @fixed_pod > 0 && $fixed_pod[-1] ne '';
+	}
+
+	if ($line =~ /^=over/) {
+		$over_depth++;
+		push @fixed_pod, $line, '';
+	} elsif ($line =~ /^=back/) {
+		if ($over_depth > 0) {
+			$over_depth--;
+			push @fixed_pod, $line, '';
+		}
+	} elsif ($line =~ /^=item/) {
+		if ($over_depth == 0) {
+			# Inject missing =over 4 cleanly separated from surrounding text
+			push @fixed_pod, '=over 4', '';
+			$over_depth++;
+		}
+		push @fixed_pod, $line, '';
+	} else {
+		push @fixed_pod, $line;
+	}
+}
+
+# Close out any remaining blocks that Markdown::To::POD left open
+while ($over_depth > 0) {
+	push @fixed_pod, '' if @fixed_pod > 0 && $fixed_pod[-1] ne '';
+	push @fixed_pod, '=back', '';
+	$over_depth--;
+}
+@pod = @fixed_pod;
+# --------------------------------------------------
+
 open my $fh, '>', 'README.pod';
 say $fh join ("\n", @pod);
 close $fh;
+
 my $lib = file2string('lib/Matplotlib/Simple.pm');
 my @lib = split /\n/, $lib;
 my $line = first_index {$_ eq '# from md2pod.pl πατερ ημων ο εν τοις ουρανοις, ἁγιασθήτω τὸ ὄνομά σου'} @lib;
@@ -162,6 +201,7 @@ push @lib, @pod; # add properly formatted POD text
 open $fh, '>', 'lib/Matplotlib/Simple.pm';
 say $fh join ("\n", @lib);
 close $fh;
+
 insert_file_into_another({
 	'donating.file'       => 'mpl.examples.pl',
 	'donate.start.str'    => '# Λέγω οὖν, μὴ ἀπώσατο ὁ θεὸς',
@@ -169,6 +209,7 @@ insert_file_into_another({
 	'receiving.start.str' => '# Λέγω οὖν, μὴ ἀπώσατο ὁ θεὸς',
 	'receiving.end.str'   => '# σὺ δὲ τῇ πίστει ἕστηκας. μὴ ὑψηλὰ φρόνει, ἀλλὰ φοβοῦ',
 });
+
 my $test = file2string('t/01.all.tests.t');
 my @test = split /\n/, $test;
 my $output_idx = '-inf';
@@ -184,33 +225,13 @@ foreach my ($idx, $line) (indexed @test) {
 		$output_idx = $idx;
 	}
 }
-die 'Could not find @output_files declaration in t/01.all.tests.t' unless $output_idx >= 0;
+die 'Could not find @output_files declaration in t/01.all.tests.t' if $output_idx < 0;
 die 'no output files found' if scalar @output_files == 0;
+
 $test[$output_idx] = 'my @output_files = (\'' . join ("', '", @output_files) . "');";
 open my $t, '>', 't/01.all.tests.t';
 say $t join ("\n", @test);
-#my $txt = file2string('mpl.examples.pl');
-#my @mpl_examples = split /\n/, $txt;
-#my $start_str = '# Λέγω οὖν, μὴ ἀπώσατο ὁ θεὸς';
-#my $end_str   = '# σὺ δὲ τῇ πίστει ἕστηκας. μὴ ὑψηλὰ φρόνει, ἀλλὰ φοβοῦ';
-#my $i1 = first_index {$_ eq $start_str} @mpl_examples;
-#splice @mpl_examples, 0, $i1+1;
-#my @output_files;
-#foreach my $line (grep {/output\.file'\h+=\>\h*.+\.png',?\s*/} @mpl_examples) {
-#	$line =~ s/\.png'(,?)/.svg'$1/;
-#	if ($line =~ m/output.file\'\h*=\>\h+'(.*)\.svg/) {
-#		push @output_files, "$1.svg";
-#	} else {
-#		die "$line failed regex.";
-#	}
-#}
-#p @output_files;
-#$txt = file2string('t/01.all.tests.t');
-#my @test = split /\n/, $txt;
-#$i1 = first_index {$_ eq $start_str}  @test;
-#my $i2 = first_index {$_ eq $end_str} @test;
-#splice @test, $i1+1, $i2-$i1-1; # remove old code
-#splice @test, $i1+1, 0, @mpl_examples; # insert
-#$test[$i2+1] = 'my @output_files = (\'' . join ("','", @output_files) . '\');';
-#open $fh, '>', 't/01.all.tests.t';
-#say $fh join ("\n", @test);
+close $t;
+
+pod_file_ok( 'lib/Matplotlib/Simple.pm' );
+done_testing();
