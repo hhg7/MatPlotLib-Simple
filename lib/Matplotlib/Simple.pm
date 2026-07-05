@@ -6,7 +6,7 @@ use autodie ':all';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.30;
+our $VERSION = 0.301;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Term::ANSIColor;
@@ -1655,7 +1655,7 @@ sub scatter_helper {
 		$ref_counts{ ref $plot->{data}{$set} }++;
 	}
 	my $ax = $args->{ax};
-	if ( scalar %ref_counts > 1 ) {
+	if ( (scalar keys %ref_counts) > 1 ) {
 		p $plot->{data};
 		die "different kinds of data were entered to plot $ax; should be simple hash or hash of arrays.";
 	}
@@ -2583,6 +2583,7 @@ foreach my $sub_name (@wrappers) {
 	};
 }
 1;
+__END__
 # from md2pod.pl πατερ ημων ο εν τοις ουρανοις, ἁγιασθήτω τὸ ὄνομά σου
 =encoding utf8
 
@@ -4961,6 +4962,12 @@ all files will be written to C<< $fh-E<gt>filename >>; be sure to put C<< execut
  );
 
 =head1 Changes
+
+=head2 0.301
+
+Fixes for changes introduced in 0.30 for CPAN testers: https://www.cpantesters.org/cpan/report/143e86c6-77fa-11f1-b73a-21df6d8775ea
+
+Removed files from build directory to shrink tarball
 
 =head2 0.30
 
