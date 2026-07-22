@@ -72,6 +72,13 @@ if (($mpl_major == 3) && ($mpl_minor < 10)) {
 	$mpl_version_correct = 1;
 }
 
+# --- Optional Dependency: matplotlib_venn (only needed by venn_proportional_area) ---
+# This is NOT a hard dependency of the module, so the whole file is not skipped when
+# it is missing; only the venn_proportional_area test below is skipped.
+my $venn_command = 'python3 -c "import matplotlib_venn" 2>&1';
+qx/$venn_command/;
+my $venn_available = ($? == 0) ? 1 : 0;
+
 # ----------------------------------------------------
 # --- If we reach this point, all dependencies are met ---
 
@@ -80,7 +87,8 @@ if (($mpl_major == 3) && ($mpl_minor < 10)) {
 diag('Dependencies Found:');
 diag("  Python 3 Version: $python_version");
 diag("  Matplotlib Version: $mpl_version");
-mkdir 'output.images' unless -d 'output.images';
+diag($venn_available ? '  matplotlib_venn: found'
+	: '  matplotlib_venn: NOT found (venn_proportional_area test skipped; install with "pip install matplotlib-venn")');
 sub is_valid_svg { # mostly written by Gemini
 	my ($filepath) = @_;
 	my $expected_namespace = 'http://www.w3.org/2000/svg';
@@ -891,7 +899,6 @@ foreach my $interval (
 	@{ $d{tan}{$i}[1] } = map { sin($_)/cos($_) } @th;
 	$i++;
 }
-mkdir 'output.images' unless -d 'output.images';
 my $xticks = "[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
 		. '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']';
 my ($min, $max) = (-9,9);
@@ -2146,5 +2153,37 @@ foreach my $file (@output_files) {
 	ok(is_valid_svg($file), "$file is likely a valid SVG file");
 #	}
 #	unlink $file;
+}
+
+# --- venn_proportional_area (requires the optional matplotlib_venn library) ---
+SKIP: {
+	skip 'matplotlib_venn not installed (pip install matplotlib-venn)', 3 unless $venn_available;
+	my $venn2_file = '/tmp/venn2.svg';
+	my $venn3_file = '/tmp/venn3.svg';
+	lives_ok {
+		venn_proportional_area({
+			'output.file' => $venn2_file,
+			title         => 'Two-set proportional-area Venn',
+			data          => {
+				Gospels  => [qw(Matthew Mark Luke John)],
+				Synoptic => [qw(Matthew Mark Luke)],
+			},
+		});
+	} 'venn_proportional_area renders a 2-set diagram';
+	ok(is_valid_svg($venn2_file), "$venn2_file is likely a valid SVG file");
+	lives_ok {
+		venn_proportional_area({
+			'output.file' => $venn3_file,
+			title         => 'Three-set proportional-area Venn',
+			set_colors    => [qw(skyblue lightgreen salmon)],
+			alpha         => 0.5,
+			data          => {
+				A => [qw(1 2 3 4 5)],
+				B => [qw(4 5 6 7)],
+				C => [qw(2 5 8 9)],
+			},
+		});
+	} 'venn_proportional_area renders a 3-set diagram with colors and alpha';
+	unlink $venn2_file, $venn3_file;
 }
 done_testing();

@@ -5,12 +5,14 @@ no source::encoding;
 use warnings FATAL => 'all';
 use autodie ':default';
 use Matplotlib::Simple;
+use DDP;
 
-plt({
+plt(
 	data => [0..7],
 	'plot.type' => 'violin',
 	'output.file' => '/tmp/single.arr.violin.svg'
-});
+);
+p %ENV;
 =my @arr = (
 	{
 		'plot.type' => 'plot',

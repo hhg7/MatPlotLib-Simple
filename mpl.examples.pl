@@ -1211,14 +1211,14 @@ foreach my $i (0..360) {
 		push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
 	}
 }
-imshow({
+imshow(
 	data          => \@imshow_data,
 	execute       => 0,
    fh            => $fh,
 	'output.file' => 'output.images/imshow.single.png',
 	set_xlim      => '0, ' . scalar @imshow_data,
 	set_ylim      => '0, ' . scalar @imshow_data,
-});
+);
 plt({
 	plots  => [
 		{

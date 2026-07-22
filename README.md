@@ -72,7 +72,7 @@ which produces the following subplots image:
 
 <img width="651" height="424" alt="pies" src="https://github.com/user-attachments/assets/49d3e28b-f897-4b01-9e72-38afa12fa538" />
 
-`bar`, `barh`, `boxplot`, `hexbin`, `hist`, `hist2d`, `imshow`, `pie`, `plot`, `scatter`, and `violinplot` all match the methods in matplotlib itself.
+`bar`, `barh`, `boxplot`, `hexbin`, `hist`, `hist2d`, `imshow`, `pie`, `plot`, `scatter`, and `violinplot` all match the methods in matplotlib itself.  `venn_proportional_area` additionally wraps the [`matplotlib_venn`](https://pypi.org/project/matplotlib-venn/) library (see [its section below](#venn_proportional_area)).
 
 ## The `p` argument
 
@@ -1976,6 +1976,86 @@ which makes the following figure:
 
 <img width="1610" height="461" alt="scatterplots" src="https://github.com/user-attachments/assets/b8a90f9f-acb3-4cf2-a423-6ad18686ab8c" />
 
+## venn_proportional_area
+
+Draw an area-proportional Venn diagram, where the size of each region is scaled
+to the number of elements it contains.  This plot type wraps the
+[`matplotlib_venn`](https://pypi.org/project/matplotlib-venn/) library, so that
+library must be installed in addition to `matplotlib`:
+
+    python3 -m pip install matplotlib-venn
+
+`data` is a hash of array references; each key is a **set** and its array is the
+set's members (duplicates within a set are collapsed, exactly like a
+mathematical set).  Because `matplotlib_venn` only draws proportional-area
+diagrams for two or three sets, `data` must contain either **2 or 3** keys.  By
+default the sets are labelled and ordered alphabetically by key; use `key.order`
+to override that.
+
+### options
+
+| Option | Description | Example |
+| -------- | ------- | ------- |
+|`alpha`| opacity of the set regions, `0`–`1` (default `0.4`) | `alpha => 0.5`|
+|`key.order`| array ref giving the order (and hence label positions) of the sets | `'key.order' => ['Right','Left']`|
+|`set_colors`| array ref of colors, one per set | `set_colors => [qw(skyblue lightgreen salmon)]`|
+|`title`| the subplot title | `title => 'Gospels vs. Synoptics'`|
+
+### single, simple plot
+
+`venn_proportional_area` is a single-plot wrapper around `plt`, so it can be
+called directly:
+
+    venn_proportional_area(
+    	'output.file' => 'output.images/single.venn.png',
+    	title         => 'Gospels vs. Synoptics',
+    	data          => {
+    		Gospels  => [qw(Matthew Mark Luke John)],
+    		Synoptic => [qw(Matthew Mark Luke)],
+    	},
+    );
+
+which makes the image:
+
+<img alt="single venn" src="output.images/single.venn.png" />
+
+### multiple plots
+
+Like every other plot type, it can also be one panel among several via `plt`
+and the `plots` array; here a two-set diagram sits beside a colored three-set
+diagram:
+
+    plt(
+    	'output.file' => 'output.images/venn.png',
+    	ncols         => 2,
+    	suptitle      => 'Proportional-area Venn diagrams',
+    	plots => [
+    		{
+    			'plot.type' => 'venn_proportional_area',
+    			title       => 'Two sets',
+    			data        => {
+    				Perl   => [qw(regex hashes CPAN sigils)],
+    				Python => [qw(regex hashes pip indentation)],
+    			},
+    		},
+    		{
+    			'plot.type'  => 'venn_proportional_area',
+    			title        => 'Three sets with colors',
+    			set_colors   => [qw(skyblue lightgreen salmon)],
+    			alpha        => 0.5,
+    			data         => {
+    				Mammals => [qw(bat whale dog cat human platypus)],
+    				Aquatic => [qw(whale shark octopus platypus)],
+    				Legged  => [qw(dog cat human bat platypus shark)],
+    			},
+    		},
+    	],
+    );
+
+which makes the following figure:
+
+<img alt="venn diagrams" src="output.images/venn.png" />
+
 ## violin
 
 plot a hash of array refs as violins
@@ -2149,6 +2229,10 @@ all files will be written to `$fh->filename`; be sure to put `execute => 0` unle
     );
 
 # Changes
+
+## 0.31
+
+Removed `File::Path` and `Term::ANSIColor` as dependencies
 
 ## 0.301
 

@@ -6,10 +6,9 @@ use autodie ':all';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.301;
+our $VERSION = 0.31;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
-use Term::ANSIColor;
 use Cwd 'getcwd';
 use File::Temp;
 use DDP { output => 'STDOUT', array_max => 10, show_memsize => 1 };
@@ -19,7 +18,8 @@ use Exporter 'import';
 use Capture::Tiny 'capture';
 use JSON::MaybeXS;
 use MIME::Base64;
-our @EXPORT = qw(plt bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter violinplot violin wide);
+our @EXPORT = qw(plt bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter venn_proportional_area violinplot violin wide);
+use Encode qw(decode_utf8 is_utf8);
 our @EXPORT_OK = @EXPORT;
 
 my @ax_methods = (
@@ -39,7 +39,7 @@ my @ax_methods = (
  'set_frame_on',     'set_navigate', 'set_navigate_mode',
  'set_position',     'set_prop_cycle',  'set_rasterization_zorder',
  'set_subplotspec',  'set_title',       'set_xbound', 'set_xlabel',
- 'set_xlim',    # ax.set_xlim(left, right), or ax.set_xlim(right = 180)
+ 'set_xlim', # ax.set_xlim(left, right), or ax.set_xlim(right = 180)
  'set_xmargin', 'set_xscale', 'set_xticklabels', 'set_xticks', 'set_ybound',
  'set_ylabel',  'set_ylim',   'set_ymargin', 'set_yscale', 'set_yticklabels',
  'set_yticks',  'sharex',     'sharey',      'spines', 'start_pan', 'tables',
@@ -255,6 +255,11 @@ my %opt = (
 	 'set.options',
 	 'twinx.args'
 	],
+	venn_proportional_area_helper => [
+	 'alpha',       # float, opacity of the set circles (matplotlib_venn default 0.4)
+	 'key.order',   # array ref: the order (and hence the set labels) of the sets
+	 'set_colors',  # array ref of colors, one per set, e.g. ['red','green']
+	],
 	scatter_helper => [
 	 'color_key',    # which of data keys is the color key
 	 'cmap',         # for 3-set scatterplots; default "gist_rainbow"
@@ -341,6 +346,13 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 		)
 		)
 		{
+		
+		# --- FIX: Upgrade raw bytes to UTF-8 characters before formatting ---
+		if ( !Encode::is_utf8( $args->{args}{$item} ) ) {
+			$args->{args}{$item} = Encode::decode_utf8( $args->{args}{$item} );
+		}
+		# --------------------------------------------------------------------
+
 		if ( $args->{args}{$item} =~ m/^([^\"\',]+)$/ ) {
 			$args->{args}{$item} = "'$args->{args}{$item}'";
 		}
@@ -1643,7 +1655,7 @@ sub scatter_helper {
 	} keys %{$plot};
 	if ( scalar @undef_args > 0 ) {
 		p @undef_args;
-		die	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+		die "The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
 	}
 	my $overall_ref = ref $plot->{data};
 	if ( $overall_ref ne 'HASH' ) {
@@ -2366,6 +2378,7 @@ sub plt {
 		hist2d       => \&hist2d_helper,  imshow       => \&imshow_helper,
 		pie          => \&pie_helper,	    plot         => \&plot_helper,
 		scatter      => \&scatter_helper, violin   => \&violin_helper,
+		venn_proportional_area => \&venn_proportional_area_helper,
 		violinplot   => \&violin_helper,
 		wide         => \&wide_helper
 	);
@@ -2545,16 +2558,87 @@ sub plt {
 			say STDERR "STDERR = $stderr";
 			die 'python3 ' . $fh->filename . ' failed';
 		}
-		say 'wrote '		
-		 . colored( ['cyan on_bright_yellow'], "$args->{'output.file'}" ) if defined $args->{'output.file'};
-	} else {    # not running yet
-		say 'will write '
-		 . colored( ['cyan on_bright_yellow'], "$args->{'output.file'}" ) if defined $args->{'output.file'};
+		say 'will write ' . "\e[36;103m$args->{'output.file'}\e[0m" if defined $args->{'output.file'};
+	} else { # not running yet
+		say 'will write ' . "\e[36;103m$args->{'output.file'}\e[0m" if defined $args->{'output.file'};
 	}
 	return $fh->filename;
 }
+sub venn_proportional_area_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+		'ax',   # e.g. 0, 1, 2 ... the subplot index, passed in by plt
+		'fh',   # the File::Temp filehandle, passed in by plt
+		'plot', # the per-plot args from the caller
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+		p @undef_args;
+		die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
+	my $plot      = $args->{plot};
+	my @undef_opt = grep {
+		my $key = $_;
+		not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_opt > 0 ) {
+		p @undef_opt;
+		die "The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+	}
+	# matplotlib_venn only draws area-proportional diagrams for 2 or 3 sets
+	my $n_keys = scalar keys %{ $plot->{data} };
+	if ( ( $n_keys != 2 ) && ( $n_keys != 3 ) ) {
+		p $plot->{data};
+		die "$current_sub only takes 2 or 3 sets of data.";
+	}
+	foreach my $key ( keys %{ $plot->{data} } ) {
+		if ( ref $plot->{data}{$key} ne 'ARRAY' ) {
+			p $plot->{data};
+			die "\"$key\" must be an array reference in $current_sub";
+		}
+		if ( grep { !defined } @{ $plot->{data}{$key} } ) {
+			p $plot->{data}{$key}, array_max => scalar @{ $plot->{data}{$key} };
+			die "\"$key\" has undefined values in $current_sub, there may be undefined values in other keys";
+		}
+	}
+	my @keys;
+	if ( defined $plot->{'key.order'} ) {
+		@keys = @{ $plot->{'key.order'} };
+		if ( scalar @keys != $n_keys ) {
+			p $plot;
+			die "\"key.order\" has " . scalar(@keys) . " keys, but data has $n_keys in $current_sub";
+		}
+	} else {
+		@keys = sort keys %{ $plot->{data} };
+	}
+	# The import is emitted at the point of use; a duplicate "from matplotlib_venn
+	# import ..." across several subplots is harmless in Python.
+	say { $args->{fh} } "from matplotlib_venn import venn$n_keys";
+	my $ax = $args->{ax} // '';
+	my @sets;
+	while ( my ( $i, $key ) = each @keys ) {
+		my $name = "venn_ax${ax}_set$i";
+		say { $args->{fh} } "$name = set([\""
+		. join( '","', @{ $plot->{data}{$key} } ) . '"])';
+		push @sets, $name;
+	}
+	my $opt = '';
+	if ( defined $plot->{set_colors} ) {
+		$opt .= ', set_colors=("' . join( '","', @{ $plot->{set_colors} } ) . '")';
+	}
+	$opt .= ", alpha=$plot->{alpha}" if defined $plot->{alpha};
+	say { $args->{fh} } "venn$n_keys(["
+	. join( ',', @sets ) . '],("'
+	. join( '","', @keys ) . "\"), ax=ax$ax$opt)";
+}
 # Generate wrappers dynamically
-my @wrappers = qw(bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter violin violinplot wide);
+my @wrappers = qw(bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter venn_proportional_area violin violinplot wide);
 
 foreach my $sub_name (@wrappers) {
 	no strict 'refs'; # Gemini helped
