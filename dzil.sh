@@ -1,1 +1,1 @@
-perl md2pod.pl && dzil release && dzil build
+perl md2pod.pl && perl Makefile.PL && dzil release && dzil build

@@ -1,0 +1,54 @@
+{
+   "abstract" : "Access Matplotlib from Perl; providing consistent user interface between different plot types",
+   "author" : [
+      "David E. Condon <dec986@gmail.com>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "ExtUtils::MakeMaker version 7.78, CPAN::Meta::Converter version 2.150013",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : 2
+   },
+   "name" : "Matplotlib-Simple",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "inc"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "Capture::Tiny" : "0",
+            "Data::Printer" : "0",
+            "Devel::Confess" : "0",
+            "Devel::Size" : "0",
+            "File::Path" : "0",
+            "IPC::System::Simple" : "0",
+            "JSON::MaybeXS" : "0",
+            "MIME::Base64" : "0",
+            "Term::ANSIColor" : "0",
+            "Test::Exception" : "0",
+            "Test::More" : "0",
+            "autodie" : "0",
+            "perl" : "5.010"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "version" : "0.301",
+   "x_serialization_backend" : "JSON::PP version 4.16"
+}

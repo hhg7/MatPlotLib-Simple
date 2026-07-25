@@ -11,10 +11,206 @@ use HTML::Table;
 use List::MoreUtils 'first_index';
 use Test::More;
 use Test::Pod;
+use Test::CPAN::Changes;
 
 sub file2string ($file) {
 	open my $fh, '<', $file;
 	return do { local $/; <$fh> };
+}
+
+# Markdown::To::POD's list-detection regex has no blank line requirement before
+# a following heading, so a heading glued straight onto a list (no blank line
+# between them) gets swallowed into the final list item: the "=headN" is then
+# emitted *inside* the "=over", and the list's "=back" lands after it
+# ("You forgot a '=back' before '=headN'", "=back without =over"). This is a
+# parse-time failure, so it must be repaired in the Markdown before conversion.
+#
+# Guarantee a blank line before every heading (ATX "# X" and Setext "X" over a
+# row of "=" or "-"). The "\S" mirrors the converter's own header regex (header
+# text required, so a bare "###" is left alone). Fenced code regions are
+# skipped so "# comment" lines inside them are untouched. GFM table separators
+# never match the Setext underline test because they contain pipes.
+sub ensure_blank_before_headings ($text) {
+	my @lines = split /\n/, $text, -1;
+	my @out;
+	my $in_fence = 0;
+	foreach my $j (0..$#lines) {
+		my $ln = $lines[$j];
+		$in_fence = !$in_fence if $ln =~ m/^[ \t]*(?:```|~~~)/;
+		my $is_atx = !$in_fence && $ln =~ m/^\#{1,6}[ \t]*\S/;
+		my $is_setext = !$in_fence && $ln =~ m/\S/
+			&& $j < $#lines && $lines[$j+1] =~ m/^[ \t]*(?:=+|-+)[ \t]*$/;
+		push @out, ''
+			if ($is_atx || $is_setext) && scalar @out > 0 && $out[-1] ne '';
+		push @out, $ln;
+	}
+	return join "\n", @out;
+}
+
+# Markdown::To::POD emits a nested list's "=over" directly after the parent
+# "=item" line with no blank line between them. POD requires a blank line
+# before every command paragraph, so without it the "=over" is absorbed into
+# the item's text rather than opening a list; the matching inner "=back" then
+# closes the *outer* list, orphaning later "=item"/"=back" directives
+# ("'=item' outside of any '=over'", "=back without =over").
+#
+# Repair by guaranteeing a blank line before every POD command paragraph.
+# "=begin X" / "=end X" data blocks are copied verbatim so their raw contents
+# are never rewritten.
+sub fix_pod_command_spacing ($pod) {
+	my @in = split /\n/, $pod, -1;
+	my @out;
+	my $in_data = 0;
+	foreach my $cmd_line (@in) {
+		if ($in_data) {
+			push @out, $cmd_line;
+			$in_data = 0 if $cmd_line =~ m/^=end\b/;
+			next;
+		}
+		if ($cmd_line =~ m/^=\w+/) {
+			# a command paragraph must be preceded by a blank line
+			push @out, '' if scalar @out > 0 && $out[-1] ne '';
+			push @out, $cmd_line;
+			$in_data = 1 if $cmd_line =~ m/^=begin\b/;
+		} else {
+			push @out, $cmd_line;
+		}
+	}
+	return join "\n", @out;
+}
+
+# Guarantee balanced =over/=back. Even with the blank-line repairs above, the
+# converter can emit a heading while a list is still open (e.g. a Setext-
+# underlined heading, or any heading the pre-processor's normalization missed),
+# leaving the matching =back stranded after the heading. Close any list still
+# open when a heading / =cut / end-of-file is reached, and drop any =back that
+# has no open =over. "=begin X" / "=end X" data blocks are passed through
+# verbatim so their contents are never miscounted.
+sub balance_pod_over_back ($pod) {
+	my @in = split /\n/, $pod, -1;
+	my @out;
+	my $depth = 0;
+	my $in_data = 0;
+	foreach my $bal_line (@in) {
+		if ($in_data) {
+			push @out, $bal_line;
+			$in_data = 0 if $bal_line =~ m/^=end\b/;
+			next;
+		}
+		if ($bal_line =~ m/^=begin\b/) {
+			push @out, $bal_line;
+			$in_data = 1;
+			next;
+		}
+		if ($bal_line =~ m/^=over\b/) {
+			$depth++;
+			push @out, $bal_line;
+			next;
+		}
+		if ($bal_line =~ m/^=back\b/) {
+			# drop a =back that has no matching open =over
+			if ($depth > 0) {
+				$depth--;
+				push @out, $bal_line;
+			}
+			next;
+		}
+		if ($bal_line =~ m/^=(?:head\d+|cut|pod|encoding)\b/) {
+			while ($depth > 0) {
+				push @out, '', '=back';
+				$depth--;
+			}
+			push @out, '' if scalar @out > 0 && $out[-1] ne '';
+			push @out, $bal_line;
+			next;
+		}
+		push @out, $bal_line;
+	}
+	while ($depth > 0) {
+		push @out, '', '=back';
+		$depth--;
+	}
+	return join "\n", @out;
+}
+
+# Write a CPAN::Changes::Spec-conformant "Changes" file from the "# Changes"
+# section of README.md, so that the change log and the documentation can never
+# drift apart.  Returns the number of releases written.
+sub write_changes_file ($md_text, $outfile, $dist) {
+	my @md_lines = split /\n/, $md_text;
+	my $fi = first_index {$_ =~ m/^#\h+Changes\h*$/} @md_lines;
+	if ($fi == -1) {
+		die "Could not find a \"# Changes\" heading in README.md";
+	}
+	open my $out, '>', $outfile;
+	# Write the mandatory CPAN::Changes::Spec header
+	say $out "Revision history for $dist\n";
+	my ($needs_bullet, $in_code_block, $n_releases) = (0, 0, 0);
+	my @undated;
+	foreach my $i ($fi+1..$#md_lines) {
+		my $line = $md_lines[$i];
+		# stop at the next top-level heading, e.g. "# COPYRIGHT AND LICENSE"
+		last if $line =~ m/^#\h+\S/;
+		# Toggle markdown code blocks (```)
+		if ($line =~ m/^```/) {
+			$in_code_block = !$in_code_block;
+			next;
+		}
+		next if !$in_code_block && $line =~ m/^\h*(?:-{3,}|\*{3,}|_{3,})\h*$/; # horizontal rules
+		if ($line =~ m/^##\h+v?([0-9][0-9._]*)\h*(.*)$/) { # Versions, e.g. "## 0.31" or "## 0.31 2026-07-24"
+			my ($version, $date) = ($1, $2);
+			$date =~ s/^\h+|\h+$//g;
+			$version =~ s/\.$//;
+			if ($date eq '') {
+				# CPAN::Changes requires a date on every release; flag the
+				# missing ones rather than writing an unparsable release line
+				$date = 'Unknown Release Date';
+				push @undated, $version;
+			}
+			say $out "$version $date";
+			$n_releases++;
+			$needs_bullet = 1;
+		} elsif ($line =~ m/^###\h+(.+)/) { # Groups, e.g. "### Cross-platform support"
+			say $out " [$1]";
+			$needs_bullet = 1;
+		} elsif ($line =~ m/^####\h+(.+)/) { # Sub-Groups, e.g. "#### Bug fixes"
+			# CPAN Spec doesn't formally have sub-groups, so we format it as a distinct bulleted header
+			say $out " - $1:";
+			$needs_bullet = 1;
+		} elsif ($line =~ m/^\h*[-*]\h+(.+)/) { # explicit Markdown bullets
+			say $out " - $1";
+			$needs_bullet = 0;
+		} elsif ($line =~ m/^\h*$/) { # empty lines
+			say $out '';
+			$needs_bullet = 1; # Reset so the next text block gets a bullet
+		} else { # normal text or indented code
+			# If it's 4-space indented code from Markdown, keep it indented for CPAN
+			if ($in_code_block || $line =~ m/^\h{4,}\S/) {
+				my $code_line = $line;
+				$code_line =~ s/^\h+//; # strip leading space to normalize
+				say $out "     $code_line";
+			} else {
+				# Strip formatting like **bold**, which CPAN::Changes keeps as raw text
+				$line =~ s/\*\*(.+?)\*\*/$1/g;
+				if ($needs_bullet) {
+					say $out " - $line";
+					$needs_bullet = 0;
+				} else {
+					say $out "   $line"; # Continuation of the previous bullet
+				}
+			}
+		}
+	}
+	close $out;
+	if ($n_releases == 0) {
+		die "no releases (\"## <version>\" headings) were found under \"# Changes\" in README.md";
+	}
+	if (scalar @undated > 0) {
+		say STDERR "Warning: no release date in README.md for version(s) " .
+			join (', ', @undated) . '; wrote "Unknown Release Date" for them.';
+		say STDERR 'Add a date after the version, e.g. "## 0.31 2026-07-24", to fix this.';
+	}
+	return $n_releases;
 }
 
 sub insert_file_into_another {
@@ -106,6 +302,10 @@ sub insert_file_into_another {
 }
 
 my $md = file2string('README.md');
+# Ensure headings are separated from preceding blocks so the converter's list
+# detection terminates correctly before them
+$md = ensure_blank_before_headings($md);
+my $md_later = $md; # keep a table-free copy for the "Changes" file
 my @md = split /\n/, $md;
 my @idx = grep {$md[$_] =~ m/\|.+\|/} 0..$#md; # indices with tables
 my @table_end = grep {
@@ -148,43 +348,34 @@ foreach my $i (grep {$pod[$_] eq '<table>'} reverse 0..$#pod) {
 }
 unshift @pod, "=encoding utf8\n";
 
-# --- Robust POD fix with blank line enforcement ---
+# Repair command-paragraph spacing so nested lists stay balanced POD, then
+# close any list left open across a heading and drop stray =back directives
+$pod = fix_pod_command_spacing(join "\n", @pod);
+$pod = balance_pod_over_back($pod);
+@pod = split /\n/, $pod;
+
+# An "=item" outside of any list is a POD error Test::Pod reports, and it can
+# only come from the converter, so wrap any orphan in its own list
 my $over_depth = 0;
 my @fixed_pod;
-for my $line (@pod) {
-	# Enforce blank line BEFORE any POD directive so Test::Pod parses it as a command
-	if ($line =~ /^=[a-zA-Z]/) {
-		push @fixed_pod, '' if @fixed_pod > 0 && $fixed_pod[-1] ne '';
-	}
-
-	if ($line =~ /^=over/) {
+foreach my $line (@pod) {
+	if ($line =~ m/^=over\b/) {
 		$over_depth++;
-		push @fixed_pod, $line, '';
-	} elsif ($line =~ /^=back/) {
-		if ($over_depth > 0) {
-			$over_depth--;
-			push @fixed_pod, $line, '';
-		}
-	} elsif ($line =~ /^=item/) {
-		if ($over_depth == 0) {
-			# Inject missing =over 4 cleanly separated from surrounding text
-			push @fixed_pod, '=over 4', '';
-			$over_depth++;
-		}
-		push @fixed_pod, $line, '';
-	} else {
-		push @fixed_pod, $line;
+	} elsif ($line =~ m/^=back\b/) {
+		$over_depth-- if $over_depth > 0;
+	} elsif (($line =~ m/^=item\b/) && ($over_depth == 0)) {
+		push @fixed_pod, '' if scalar @fixed_pod > 0 && $fixed_pod[-1] ne '';
+		push @fixed_pod, '=over 4', '';
+		$over_depth++;
 	}
+	push @fixed_pod, $line;
 }
-
-# Close out any remaining blocks that Markdown::To::POD left open
-while ($over_depth > 0) {
-	push @fixed_pod, '' if @fixed_pod > 0 && $fixed_pod[-1] ne '';
+while ($over_depth > 0) { # close out any block that the wrapping above opened
+	push @fixed_pod, '' if scalar @fixed_pod > 0 && $fixed_pod[-1] ne '';
 	push @fixed_pod, '=back', '';
 	$over_depth--;
 }
 @pod = @fixed_pod;
-# --------------------------------------------------
 
 open my $fh, '>', 'README.pod';
 say $fh join ("\n", @pod);
@@ -234,4 +425,9 @@ say $t join ("\n", @test);
 close $t;
 
 pod_file_ok( 'lib/Matplotlib/Simple.pm' );
+
+my $outfile = 'Changes';
+my $n_releases = write_changes_file($md_later, $outfile, 'Matplotlib-Simple');
+say "Successfully generated '$outfile' ($n_releases releases) from 'README.md'";
+changes_file_ok($outfile);
 done_testing();

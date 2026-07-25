@@ -1,6 +1,5 @@
 =encoding utf8
 
-
 =head1 Abstract
 
 Access Matplotlib from Perl; providing consistent user interface between different plot types
@@ -86,7 +85,7 @@ which produces the following subplots image:
 <p>
 
 
-C<bar>, C<barh>, C<boxplot>, C<hexbin>, C<hist>, C<hist2d>, C<imshow>, C<pie>, C<plot>, C<scatter>, and C<violinplot> all match the methods in matplotlib itself.
+C<bar>, C<barh>, C<boxplot>, C<hexbin>, C<hist>, C<hist2d>, C<imshow>, C<pie>, C<plot>, C<scatter>, and C<violinplot> all match the methods in matplotlib itself.  C<venn_proportional_area> additionally wraps the LL<https://pypi.org/project/matplotlib-venn/> library (see L<#venn_proportional_area>).
 
 =head2 The C<p> argument
 
@@ -99,17 +98,13 @@ The rule is simple: B<< one element of C<p> is one subplot. >>
 
 =over
 
-
 =item * A B<hash> element is a subplot containing a single plot.
 
-
 =item * An B<array of hashes> element is a single subplot whose plots are drawn on
-
 the B<same> axes: the first hash is the base plot and the rest are
 I<additions> (overlays), exactly like C<add>.
 
 =back
-
 
 The two forms may be B<mixed freely> in the same C<p>. The first (or only) hash
 of a subplot supplies that subplot's axes-level options (C<title>, C<xlabel>,
@@ -886,6 +881,7 @@ which makes the following plot:
 <p>
 <img width="1208" height="491" alt="single hexbin" src="https://github.com/user-attachments/assets/129c41cd-2d7d-43de-978a-2b9c441b8939" />
 <p>
+
 
 =head3 multiple plots
 
@@ -1797,39 +1793,29 @@ are rejected with an explanatory error.
 
 =over
 
-
 =item * C<show.legend> — on by default (C<1>); set to C<0> to suppress labels. Only the
-
 hash form produces labels in the first place.
 
 =item * C<key.order> — array of keys (hash form) fixing the draw/legend order; defaults
-
 to the keys sorted alphabetically.
 
 =item * C<logscale> — array of axes to put on a log scale, e.g. C<[ 'x', 'y' ]>.
-
 
 =item * C<twinx> — draw selected series against a secondary y-axis.
 
 =over
 
-
 =item * hash data: a single key, or a hash whose keys are the series to twin;
-
 
 =item * array data: an integer index, or an array of indices.
 
-
 =back
 
-
 =item * C<twinx.args> — a hash keyed by data key (hash form) or index (array form);
-
 each value is a hash of axis options (e.g. C<ylabel>, C<set_ylim>) applied to
 that twin axis.
 
 =back
-
 
 Common axes options such as C<title>, C<xlabel>, C<ylabel>, and C<legend> are
 accepted here too, exactly as for the other plot types.
@@ -2181,6 +2167,101 @@ which makes the following figure:
 <p>
 
 
+=head2 venn_proportional_area
+
+Draw an area-proportional Venn diagram, where the size of each region is scaled
+to the number of elements it contains.  This plot type wraps the
+LL<https://pypi.org/project/matplotlib-venn/> library, so that
+library must be installed in addition to C<matplotlib>:
+
+ python3 -m pip install matplotlib-venn
+
+C<data> is a hash of array references; each key is a B<set> and its array is the
+set's members (duplicates within a set are collapsed, exactly like a
+mathematical set).  Because C<matplotlib_venn> only draws proportional-area
+diagrams for two or three sets, C<data> must contain either B<2 or 3> keys.  By
+default the sets are labelled and ordered alphabetically by key; use C<key.order>
+to override that.
+
+=head3 options
+
+=for html
+<table>
+<tbody>
+<tr><td>Option</td><td>Description</td><td>Example</td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td></tr>
+<tr><td><code>alpha</code></td><td>opacity of the set regions, <code>0</code>–<code>1</code> (default <code>0.4</code>)</td><td><code>alpha => 0.5</code></td></tr>
+<tr><td><code>key.order</code></td><td>array ref giving the order (and hence label positions) of the sets</td><td><code>'key.order' => ['Right','Left']</code></td></tr>
+<tr><td><code>set_colors</code></td><td>array ref of colors, one per set</td><td><code>set_colors => [qw(skyblue lightgreen salmon)]</code></td></tr>
+<tr><td><code>title</code></td><td>the subplot title</td><td><code>title => 'Gospels vs. Synoptics'</code></td></tr>
+</tbody>
+</table>
+
+=head3 single, simple plot
+
+C<venn_proportional_area> is a single-plot wrapper around C<plt>, so it can be
+called directly:
+
+ venn_proportional_area(
+     'output.file' => 'output.images/single.venn.png',
+     title         => 'Gospels vs. Synoptics',
+     data          => {
+         Gospels  => [qw(Matthew Mark Luke John)],
+         Synoptic => [qw(Matthew Mark Luke)],
+     },
+ );
+
+which makes the image:
+
+
+=for html
+<p>
+<img alt="single venn" src="output.images/single.venn.png" />
+<p>
+
+
+=head3 multiple plots
+
+Like every other plot type, it can also be one panel among several via C<plt>
+and the C<plots> array; here a two-set diagram sits beside a colored three-set
+diagram:
+
+ plt(
+     'output.file' => 'output.images/venn.png',
+     ncols         => 2,
+     suptitle      => 'Proportional-area Venn diagrams',
+     plots => [
+         {
+             'plot.type' => 'venn_proportional_area',
+             title       => 'Two sets',
+             data        => {
+                 Perl   => [qw(regex hashes CPAN sigils)],
+                 Python => [qw(regex hashes pip indentation)],
+             },
+         },
+         {
+             'plot.type'  => 'venn_proportional_area',
+             title        => 'Three sets with colors',
+             set_colors   => [qw(skyblue lightgreen salmon)],
+             alpha        => 0.5,
+             data         => {
+                 Mammals => [qw(bat whale dog cat human platypus)],
+                 Aquatic => [qw(whale shark octopus platypus)],
+                 Legged  => [qw(dog cat human bat platypus shark)],
+             },
+         },
+     ],
+ );
+
+which makes the following figure:
+
+
+=for html
+<p>
+<img alt="venn diagrams" src="output.images/venn.png" />
+<p>
+
+
 =head2 violin
 
 plot a hash of array refs as violins
@@ -2375,6 +2456,12 @@ all files will be written to C<< $fh-E<gt>filename >>; be sure to put C<< execut
  );
 
 =head1 Changes
+
+=head2 0.31
+
+Removed C<File::Path> and C<Term::ANSIColor> as dependencies; added C<Data::Printer>
+
+added C<venn_proportional_area> as a plot helper
 
 =head2 0.301
 

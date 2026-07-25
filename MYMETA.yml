@@ -1,0 +1,35 @@
+---
+abstract: 'Access Matplotlib from Perl; providing consistent user interface between different plot types'
+author:
+  - 'David E. Condon <dec986@gmail.com>'
+build_requires:
+  ExtUtils::MakeMaker: '0'
+configure_requires:
+  ExtUtils::MakeMaker: '0'
+dynamic_config: 0
+generated_by: 'ExtUtils::MakeMaker version 7.78, CPAN::Meta::Converter version 2.150013'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: '1.4'
+name: Matplotlib-Simple
+no_index:
+  directory:
+    - t
+    - inc
+requires:
+  Capture::Tiny: '0'
+  Data::Printer: '0'
+  Devel::Confess: '0'
+  Devel::Size: '0'
+  File::Path: '0'
+  IPC::System::Simple: '0'
+  JSON::MaybeXS: '0'
+  MIME::Base64: '0'
+  Term::ANSIColor: '0'
+  Test::Exception: '0'
+  Test::More: '0'
+  autodie: '0'
+  perl: '5.010'
+version: '0.301'
+x_serialization_backend: 'CPAN::Meta::YAML version 0.020'

@@ -2232,7 +2232,9 @@ all files will be written to `$fh->filename`; be sure to put `execute => 0` unle
 
 ## 0.31
 
-Removed `File::Path` and `Term::ANSIColor` as dependencies
+Removed `File::Path` and `Term::ANSIColor` as dependencies; added `Data::Printer`
+
+added `venn_proportional_area` as a plot helper
 
 ## 0.301
 

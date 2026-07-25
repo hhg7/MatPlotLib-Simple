@@ -899,6 +899,7 @@ foreach my $interval (
 	@{ $d{tan}{$i}[1] } = map { sin($_)/cos($_) } @th;
 	$i++;
 }
+mkdir 'output.images' unless -d 'output.images';
 my $xticks = "[-2 * $pi, -3 * $pi / 2, -$pi, -$pi / 2, 0, $pi / 2, $pi, 3 * $pi / 2, 2 * $pi"
 		. '], [r\'$-2\pi$\', r\'$-3\pi/2$\', r\'$-\pi$\', r\'$-\pi/2$\', r\'$0$\', r\'$\pi/2$\', r\'$\pi$\', r\'$3\pi/2$\', r\'$2\pi$\']';
 my ($min, $max) = (-9,9);
@@ -1442,14 +1443,14 @@ foreach my $i (0..360) {
 		push @{ $imshow_data[$i] }, sin($i * $pi/180)*cos($j * $pi/180);
 	}
 }
-imshow({
+imshow(
 	data          => \@imshow_data,
 	execute       => 0,
    fh            => $fh,
 	'output.file' => '/tmp/imshow.single.svg',
 	set_xlim      => '0, ' . scalar @imshow_data,
 	set_ylim      => '0, ' . scalar @imshow_data,
-});
+);
 plt({
 	plots  => [
 		{
