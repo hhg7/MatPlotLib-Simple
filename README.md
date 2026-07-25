@@ -2,6 +2,10 @@
 
 Access Matplotlib from Perl; providing consistent user interface between different plot types
 
+# NAME
+
+Access Matplotlib from Perl; providing consistent user interface between different plot types
+
 # Synopsis
 
 Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in `/tmp`, to be edited at the user's discretion.
@@ -2232,7 +2236,7 @@ all files will be written to `$fh->filename`; be sure to put `execute => 0` unle
 
 ## 0.31
 
-Removed `File::Path` and `Term::ANSIColor` as dependencies; added `Data::Printer`
+Removed `Term::ANSIColor` as dependency
 
 added `venn_proportional_area` as a plot helper
 
