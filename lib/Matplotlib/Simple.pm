@@ -6,7 +6,7 @@ use autodie ':all';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.31;
+our $VERSION = 0.311;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Cwd 'getcwd';
@@ -244,6 +244,7 @@ my %opt = (
 	],
 	pie_helper => [
 	 'autopct',    # percent wise
+	 'key.order',
 	 #labeldistance and pctdistance are ratios of the radius; therefore they vary between 0 for the center of the pie and 1 for the edge of the pie, and can be set to greater than 1 to place text outside the pie https://matplotlib.org/stable/gallery/pie_and_polar_charts/pie_features.html
 	 'labeldistance',
 	 'pctdistance',
@@ -274,7 +275,9 @@ my %opt = (
 	 'color',      # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
 	 'colorbar.on',# only draw colorbar if colorbar is on
 	 'colors',
+	 'edgecolor',
 	 'key.order',
+	 'medians',
 	 'logscale',   # array: "x" and/or "y"
 	 'orientation',# {'vertical', 'horizontal'}, default: 'vertical'
 	 'whiskers'
@@ -2622,7 +2625,8 @@ sub venn_proportional_area_helper {
 	say { $args->{fh} } "from matplotlib_venn import venn$n_keys";
 	my $ax = $args->{ax} // '';
 	my @sets;
-	while ( my ( $i, $key ) = each @keys ) {
+	foreach my $i ( 0 .. $#keys ) { # "each @array" requires perl 5.12
+		my $key  = $keys[$i];
 		my $name = "venn_ax${ax}_set$i";
 		say { $args->{fh} } "$name = set([\""
 		. join( '","', @{ $plot->{data}{$key} } ) . '"])';
@@ -2867,6 +2871,34 @@ C<< p =E<gt> [ \%single, [ \%base, \%overlay ], \%another ] >>.
 
 C<sharex> and C<sharey> are both implemented at the plot, rather than subplot, level.  See Matplotlib's documentation for more clarity.
 
+=head3 Quoting text: commas and apostrophes
+
+C<title>, C<suptitle>, C<xlabel>, C<ylabel>, C<set_title>, C<set_xlabel> and
+C<set_ylabel> are quoted for you — but only when the text contains no comma, no
+apostrophe and no double quote.  Anything else is passed through to Python
+untouched, on the assumption that you are supplying Python syntax of your own,
+which is what makes a raw string such as
+
+ xlabel => 'r"$\it{anno}$ $\it{domini}$"',    # italics, via mathtext
+
+possible in the first place.  The practical consequence is that a plain-English
+label with a comma or an apostrophe in it has to carry its own quotes:
+
+ title => 'Two groups: mean and s.d.',     # fine, no comma
+ title => '"Two groups, mean and s.d."',   # comma: quote it yourself
+ title => '"war\'s end"',                  # apostrophe: likewise
+
+Without those quotes the generated Python is a syntax error rather than a
+mislabelled plot, so the mistake is loud.
+
+Use B<double> quotes when quoting text yourself.  C<suptitle> in particular is
+emitted twice — once for the subplot and once for the figure — and the second
+pass runs its own quoting rules over the text, which turns single-quoted text
+into C<plt.suptitle(''a, b'')>.  Double quotes survive both passes.
+
+Every other option is passed through as written, so text inside C<legend>, C<text>
+and friends is Python syntax throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
+
 =head1 Color Bars (colorbars)
 
 Colarbar args attempt to match matplotlib closely
@@ -2900,6 +2932,53 @@ Colarbar args attempt to match matplotlib closely
 </table>
 
 =head1 Examples/Plot Types
+
+Every plot type can be called two ways: through C<plt> with C<< 'plot.type' =E<gt> 'bar' >>,
+or through the same-named helper subroutine, C<bar( ... )>, which is a thin wrapper
+that fills in C<'plot.type'> and calls C<plt> for you.  Everything documented for a
+plot type therefore works in either form, and works identically whether the plot
+is alone or one panel of a C<plots> grid.
+
+=head2 Which helper takes which data?
+
+The fastest way to pick a plot type is to start from the shape of the data you
+already have in Perl:
+
+=for html
+<table>
+<tbody>
+<tr><td><code>data</code> you have</td><td>Helpers that take it</td><td>Notes</td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td></tr>
+<tr><td>hash of numbers, <code>A => 1</code></td><td><code>bar</code>, <code>barh</code>, <code>pie</code></td><td>one bar/wedge per key</td></tr>
+<tr><td>hash of array refs, <code>A => [1,2,3]</code></td><td><code>boxplot</code>, <code>violin</code>, <code>hist</code>, <code>hexbin</code>, <code>hist2d</code>, <code>scatter</code>, <code>venn_proportional_area</code></td><td>one distribution/series per key; <code>hexbin</code> and <code>hist2d</code> need exactly 2 keys (x and y), <code>scatter</code> 2 or 3, <code>venn_proportional_area</code> 2 or 3</td></tr>
+<tr><td>hash of hashes, <code>A => { X => 1 }</code></td><td><code>bar</code>, <code>barh</code>, <code>colored_table</code></td><td>grouped/stacked bars, or a matrix</td></tr>
+<tr><td>hash of <code>[ \@x, \@y ]</code> pairs</td><td><code>plot</code></td><td>one labelled line per key</td></tr>
+<tr><td>hash of arrays of <code>[ \@x, \@y ]</code> pairs</td><td><code>wide</code></td><td>repeated runs of the same curve, summarised</td></tr>
+<tr><td>hash of hashes of array refs</td><td><code>scatter</code></td><td>several labelled sets, each with its own x/y (and colour)</td></tr>
+<tr><td>a single array ref</td><td><code>hist</code>, <code>boxplot</code>, <code>violin</code></td><td>the one-series shorthand</td></tr>
+<tr><td>array of <code>[ \@x, \@y ]</code> pairs</td><td><code>plot</code>, <code>wide</code></td><td>unlabelled lines</td></tr>
+<tr><td>2-D array (array of array refs)</td><td><code>imshow</code></td><td>a raster/heatmap; strings allowed via <code>stringmap</code></td></tr>
+</tbody>
+</table>
+
+A few conventions hold across all of them:
+
+=over
+
+=item * Keys are used in B<sorted order> unless you say otherwise.  C<key.order> is
+accepted by C<bar>, C<barh>, C<boxplot>, C<violin>, C<hexbin>, C<hist2d>, C<plot> and
+C<venn_proportional_area>; C<scatter> spells the same idea C<keys>; and
+C<colored_table> uses C<row.labels>/C<col.labels>.  C<pie>, C<hist> and C<wide> take
+no ordering option at all, and C<imshow> has no keys to order.
+
+=item * C<title>, C<xlabel>, C<ylabel>, C<suptitle>, C<set_xlim>, C<legend> and the rest of
+Matplotlib's C<ax>/C<fig>/C<plt> methods are accepted by every plot type; see
+L<#options>.
+
+=item * Anything that is not recognised is reported as an error listing the arguments
+that I<are> accepted, rather than being silently ignored.
+
+=back
 
 Consider the following helper subroutines to generate data to plot:
 
@@ -2947,7 +3026,66 @@ Consider the following helper subroutines to generate data to plot:
 
 =head2 Barplot/bar/barh
 
-Plot a hash or a hash of arrays as a boxplot
+Plot a hash, a hash of arrays, or a hash of hashes as a bar chart.  C<bar> draws
+vertical bars, C<barh> horizontal ones; every option below applies to both.
+
+=head3 Entering data
+
+C<data> accepts three shapes, and the shape alone decides whether you get one
+bar per key or a group of bars per key:
+
+B<1. One bar per key (hash of numbers).> The simplest case — the key is the
+tick label:
+
+ bar(
+     'output.file' => '/tmp/simple.svg',
+     data          => { Mon => 73, Tue => 93, Wed => 77 },
+ );
+
+B<2. Groups of bars (hash of array refs).> Each key becomes a group; index C<i>
+of every array is one series, so C<color> and C<label> are arrays indexed the same
+way:
+
+ bar(
+     'output.file' => '/tmp/grouped.svg',
+     data          => {
+         1941 => [ 6.6, 6.2 ],    # UK, US
+         1942 => [ 7.6, 26.4 ],
+     },
+     color         => [ 'blue', 'gray' ],    # index 0, index 1
+     label         => [ 'UK',   'US'   ],    # legend entries
+ );
+
+B<3. Groups of bars (hash of hashes).> The same picture as (2), but the series
+are named by the inner keys rather than by position, so no C<label> is needed:
+
+ bar(
+     'output.file' => '/tmp/grouped.hoh.svg',
+     data          => {
+         1941 => { UK => 6.6, US => 6.2 },
+         1942 => { UK => 7.6, US => 26.4 },
+     },
+ );
+
+Both grouped forms accept C<< stacked =E<gt> 1 >> to pile the series on top of one
+another instead of placing them side by side.
+
+=head3 Error bars
+
+C<yerr> (natural for C<bar>) and C<xerr> (natural for C<barh>) take either one
+number for every bar, or a hash keyed by the data keys.  A two-element array
+gives asymmetric C<[ lower, upper ]> errors:
+
+ bar(
+     'output.file' => '/tmp/warheads.svg',
+     data          => { USA => 5277, Russia => 5449 },
+     yerr          => {
+         USA    => [ 15,  29   ],    # -15, +29
+         Russia => [ 199, 1000 ],
+     },
+     log           => 'True',
+     ylabel        => '# of Nuclear Warheads',
+ );
 
 =head3 Options
 
@@ -2959,8 +3097,10 @@ Plot a hash or a hash of arrays as a boxplot
 <tr><td>color</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed; as of version 0.23, colors can be given as a hash</td><td><code>color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],</code> or a single color for all bars <code>color => 'red'</code>, or as of version 0.23 <code>color => {A => 'red', B => 'green'}</code></td></tr>
 <tr><td>edgecolor</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar edges</td><td><code>edgecolor     => 'black'</code></td></tr>
 <tr><td>key.order</td><td>define the keys in an order (an array reference)</td><td><code>'key.order'        => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],</code></td></tr>
+<tr><td>label</td><td>an array of legend labels for grouped bar plots, indexed like the data arrays; only meaningful for the hash-of-arrays form, since the hash-of-hashes form takes its labels from the inner keys</td><td><code>label => ['North', 'South'],</code></td></tr>
 <tr><td>linewidth</td><td>float or array, optional; Width of the bar edge(s). If 0, don't draw edges. Only does anything with defined <code>edgecolor</code></td><td><code>linewidth => 2,</code></td></tr>
 <tr><td>log</td><td>bool, default: False; If *True*, set the y-axis to be log scale.</td><td><code>log = 'True',</code></td></tr>
+<tr><td>logscale</td><td>a synonym for <code>log</code> taking a Perl true/false value rather than Python's <code>'True'</code>/<code>'False'</code>.  Unlike the <code>logscale</code> of <code>boxplot</code>, <code>hist</code>, <code>hist2d</code>, <code>plot</code>, <code>scatter</code> and <code>violin</code>, this one is a scalar and not an array of axis names</td><td><code>logscale => 1,</code></td></tr>
 <tr><td>stacked</td><td>stack the groups on top of one another; default 0 = off</td><td><code>stacked   => 1,</code></td></tr>
 <tr><td>width</td><td>float only, default: 0.8; The width(s) of the bars.  <code>width</code> will be deactivated with grouped, non-stacked bar plots</td><td><code>width => 0.4,</code></td></tr>
 <tr><td>xerr</td><td>float or array-like of shape(N,) or shape(2, N), optional. If not *None*, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - *None*: No errorbar. (Default)</td><td><code>yerr                       => {'USA'               => [15,29], 'Russia'            => [199,1000],}</code></td></tr>
@@ -3208,7 +3348,31 @@ which produces the plot
 
 =head2 boxplot
 
-Plot a hash of arrays as a series of boxplots
+Plot a hash of arrays as a series of boxplots: one box per key, labelled with
+the key and the number of points it holds.
+
+=head3 Entering data
+
+Ordinarily C<data> is a hash of array refs, one array per box:
+
+ boxplot(
+     'output.file' => '/tmp/boxes.svg',
+     data          => { A => \@a, B => \@b, C => \@c },
+ );
+
+A bare array ref is the one-box shorthand; the box gets an empty label:
+
+ boxplot(
+     'output.file' => '/tmp/one.box.svg',
+     data          => \@a,
+ );
+
+Undefined values are dropped rather than fatal, so a column read out of a
+spreadsheet with blank cells can be handed over as-is; a value that is present
+but not a number is an error naming the offending key.  (L<#violin>
+takes exactly these two shapes as well — swapping C<< 'plot.type' =E<gt> 'boxplot' >>
+for C<< 'plot.type' =E<gt> 'violinplot' >> is a one-word change — but it drops
+non-numeric values silently instead of dying.)
 
 =head3 options
 
@@ -3217,16 +3381,21 @@ Plot a hash of arrays as a series of boxplots
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
-<tr><td><code>color</code></td><td>a single color for all plots</td><td><code>color => 'pink'</code></td></tr>
-<tr><td><code>colors</code></td><td>a hash, where each data point and color is a hash pair</td><td><code>colors => { A => 'orange', E => 'yellow', B => 'purple' },</code></td></tr>
-<tr><td><code>key.order</code></td><td>order that the keys in the entry hash will be plotted</td><td><code>key.order = ['A', 'E', 'B']</code></td></tr>
-<tr><td><code>orientation</code></td><td>orientation of the plot, by default <code>vertical</code></td><td><code>orientation = 'horizontal'</code></td></tr>
+<tr><td><code>color</code></td><td>a single color for all boxes</td><td><code>color => 'pink'</code></td></tr>
+<tr><td><code>colors</code></td><td>a hash pairing each data key with its own color.  Every key in <code>data</code> must appear, otherwise the call dies naming the keys that have no color</td><td><code>colors => { A => 'orange', E => 'yellow', B => 'purple' },</code></td></tr>
+<tr><td><code>key.order</code></td><td>order that the keys in the entry hash will be plotted</td><td><code>'key.order' => ['A', 'E', 'B']</code></td></tr>
+<tr><td><code>logscale</code></td><td>an array of the axes to put on a log scale; only <code>x</code> and <code>y</code> are accepted</td><td><code>logscale => ['y']</code></td></tr>
+<tr><td><code>notch</code></td><td>draw a notched box (<code>'True'</code>) instead of a rectangular one</td><td><code>notch => 'True'</code></td></tr>
+<tr><td><code>orientation</code></td><td>orientation of the plot, by default <code>vertical</code></td><td><code>orientation => 'horizontal'</code></td></tr>
 <tr><td><code>showcaps</code></td><td>Show the caps on the ends of whiskers; default <code>True</code></td><td><code>showcaps => 'False',</code></td></tr>
 <tr><td><code>showfliers</code></td><td>Show the outliers beyond the caps; default <code>True</code></td><td><code>showfliers  => 'False'</code></td></tr>
 <tr><td><code>showmeans</code></td><td>show means; default = <code>True</code></td><td><code>showmeans   => 'False'</code></td></tr>
-<tr><td><code>whiskers</code></td><td>show whiskers, default = 1</td><td><code> whiskers    => 0,</code></td></tr>
 </tbody>
 </table>
+
+C<showcaps>, C<showfliers>, C<showmeans> and C<notch> are passed straight through to
+Matplotlib, so they take Python's C<'True'>/C<'False'> rather than a Perl boolean.
+The C<whiskers> switch belongs to L<#violin>, not to C<boxplot>.
 
 =head3 single, simple plot
 
@@ -3395,7 +3564,55 @@ which makes the following plot:
 
 =head2 Colored Table
 
+Plot a hash of hashes as a matrix, coloring each cell by its value.
+
+=head3 Entering data
+
+C<data> is a hash of hashes: the outer key is the row, the inner key is the
+column, and the value is the number that picks the cell's color.
+
+ colored_table(
+     'output.file' => '/tmp/matrix.svg',
+     data          => {
+         H => { H => 432, Cl => 427, Br => 363 },
+         C => { H => 413, Cl => 339, Br => 276 },
+     },
+ );
+
+The matrix does not have to be complete.  Cells with no value are left out of
+the color scale and drawn in C<undef.color> (gray by default), and a table that
+only fills one triangle — the usual shape of a pairwise-comparison table — can
+be completed by reflecting it across the diagonal with C<< mirror =E<gt> 1 >>, so that
+C<$data{A}{B}> also supplies C<$data{B}{A}>.
+
+Rows and columns are otherwise taken in sorted order.  C<col.labels> chooses
+which keys are drawn and in what order, which is how the bond-dissociation
+example below shows the halogens only out of a larger table; C<row.labels>
+supplies the text down the left-hand side, so it should list the same keys in
+the same order.
+
 =head3 options
+
+=for html
+<table>
+<tbody>
+<tr><td>Option</td><td>Description</td><td>Example</td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td></tr>
+<tr><td><code>cb_logscale</code></td><td>color the cells on a log scale</td><td><code>cb_logscale => 1</code></td></tr>
+<tr><td><code>cb_min</code>, <code>cb_max</code></td><td>clamp the ends of the color scale instead of taking them from the data, so several tables can be compared directly</td><td><code>cb_min => 100, cb_max => 500</code></td></tr>
+<tr><td><code>cblabel</code></td><td>the label on the colorbar</td><td><code>cblabel => 'kJ/mol'</code></td></tr>
+<tr><td><code>cmap</code></td><td>the colormap used for coloring the cells</td><td><code>cmap => 'viridis'</code></td></tr>
+<tr><td><code>col.labels</code></td><td>array ref: which keys to draw, in order — this selects the rows and the columns of the matrix, not just the heading text</td><td><code>'col.labels' => ['H', 'F', 'Cl', 'Br', 'I']</code></td></tr>
+<tr><td><code>colorbar.on</code></td><td>draw the colorbar; on by default, <code>0</code> turns it off.  Passing <code>cblabel</code> draws it regardless</td><td><code>'colorbar.on' => 0</code></td></tr>
+<tr><td><code>mirror</code></td><td>treat the table as symmetric: <code>$data{A}{B}</code> also fills <code>$data{B}{A}</code></td><td><code>mirror => 1</code></td></tr>
+<tr><td><code>row.labels</code></td><td>array ref of the labels printed down the left side; give it the same keys, in the same order, as <code>col.labels</code></td><td><code>'row.labels' => ['H', 'F', 'Cl', 'Br', 'I']</code></td></tr>
+<tr><td><code>show.numbers</code></td><td>print each cell's value in the cell; off by default</td><td><code>'show.numbers' => 1</code></td></tr>
+<tr><td><code>undef.color</code></td><td>the color for cells that have no value; gray by default</td><td><code>'undef.color' => 'white'</code></td></tr>
+</tbody>
+</table>
+
+The colorbar options in L<#color-bars-colorbars> — C<cbdrawedges>,
+C<cblocation>, C<cborientation>, C<cbpad> — work here too.
 
 =head3 Single, simple plot
 
@@ -3516,6 +3733,24 @@ which makes the following plot:
 Plot a hash of arrays as a hexbin
 see https://matplotlib.org/stable/api/I<as>gen/matplotlib.pyplot.hexbin.html
 
+A hexbin answers the question a scatterplot stops answering once there are tens
+of thousands of points: instead of drawing every point and letting them pile up
+into an indistinguishable blob, the plane is tiled with hexagons and each one is
+colored by how many points fell inside it.
+
+=head3 Entering data
+
+C<data> is a hash of exactly B<two> array refs of equal length — the first key
+(sorted) is the x-axis, the second is the y-axis, and both become the axis
+labels.  Use C<key.order> to say which is which rather than relying on the sort:
+
+ hexbin(
+     'output.file' => '/tmp/hex.svg',
+     data          => { Height => \@heights, Weight => \@weights },
+     'key.order'   => [ 'Weight', 'Height' ],    # Weight on x
+     cblabel       => 'people per cell',
+ );
+
 =head3 options
 
 =for html
@@ -3524,6 +3759,7 @@ see https://matplotlib.org/stable/api/I<as>gen/matplotlib.pyplot.hexbin.html
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>------- </td></tr>
 <tr><td>cb_logscale</td><td>colorbar log scale <code>from matplotlib.colors import LogNorm</code></td><td>default 0, any value > 0 enables</td></tr>
+<tr><td>cblabel</td><td>the label on the colorbar, i.e. what the cell counts mean; <code>Density</code> if not given</td><td><code>cblabel => 'observations'</code></td></tr>
 <tr><td>cmap</td><td>The Colormap instance or registered colormap name used to map scalar data to colors</td><td>default <code>gist_rainbow</code></td></tr>
 <tr><td>key.order</td><td>define the keys in an order (an array reference)</td><td><code>'key.order' => ['X-rays', 'Yak Butter'],</code></td></tr>
 <tr><td>marginals</td><td>integer, by default off = 0</td><td><code>marginals => 1</code></td></tr>
@@ -3536,6 +3772,10 @@ see https://matplotlib.org/stable/api/I<as>gen/matplotlib.pyplot.hexbin.html
 <tr><td>yscale.hexbin</td><td>'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the vertical axis</td><td><code>'yscale.hexbin' => 'log'</code></td></tr>
 </tbody>
 </table>
+
+C<cb_logscale> cannot be combined with C<vmin>/C<vmax>.  The log-scaled colorbar is
+drawn by handing Matplotlib a C<LogNorm>, and an explicit range on top of that
+makes the generated Python fail; use one or the other.
 
 =head3 single, simple plot
 
@@ -3690,7 +3930,30 @@ which produces the following image:
 
 =head2 hist
 
-Plot a hash of arrays as a series of histograms
+Plot a hash of arrays as a series of histograms, one per key, drawn over each
+other in the same axes — C<alpha> defaults to 0.5 so that the overlaps stay
+readable.  A single array ref is the one-set shorthand.  Values must be numeric:
+unlike C<boxplot> and C<violin>, a non-numeric value here is an error.
+
+Each set is binned separately, so with C<< bins =E<gt> 50 >> two sets covering different
+ranges get 50 bins each over their own range rather than a common set of edges.
+When the sets must line up exactly — which is what makes the bar heights
+comparable — pass the edges themselves rather than a count:
+
+ hist(
+     'output.file' => '/tmp/hist.svg',
+     data          => { E => \@e, B => \@b },
+     bins          => [ map { 10 * $_ } 0 .. 20 ],    # shared edges, 0..200
+ );
+
+C<bins> and C<color> also accept a B<hash keyed by set>, for when one
+distribution wants different treatment from the others:
+
+     bins  => { E => 50, B => 20 },
+     color => { E => 'orange', B => 'black' },
+
+The legend is on by default when there is more than one set and off when there is
+only one; C<show.legend> overrides that either way.
 
 =head3 options
 
@@ -3699,11 +3962,12 @@ Plot a hash of arrays as a series of histograms
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
-<tr><td><code>alpha</code></td><td>default 0.5; same for all sets</td><td></td></tr>
-<tr><td><code>bins</code></td><td># nt or sequence or str, default: :rc:<code>hist.bins</code>If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open</td><td></td></tr>
-<tr><td><code>color</code></td><td>a hash, where keys are the keys in data, and values are colors</td><td><code>X => 'blue'</code></td></tr>
-<tr><td><code>log</code></td><td>if set to > 1, the y-axis will be logarithmic</td><td></td></tr>
-<tr><td><code>orientation</code></td><td>{'vertical', 'horizontal'}, default: 'vertical'</td><td></td></tr>
+<tr><td><code>alpha</code></td><td>opacity of the bars, default 0.5; the same value is used for all sets</td><td><code>alpha => 0.25</code></td></tr>
+<tr><td><code>bins</code></td><td>int or sequence or str, default: :rc:<code>hist.bins</code>.  If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open.  May also be a hash keyed by set</td><td><code>bins => 50</code></td></tr>
+<tr><td><code>color</code></td><td>either one color for every set, or a hash pairing each data key with its own color</td><td><code>color => { X => 'blue', Y => 'orange' }</code></td></tr>
+<tr><td><code>logscale</code></td><td>an array of the axes to put on a log scale, useful when one set is orders of magnitude rarer than another.  It must be an array reference — <code>logscale => 1</code> is an error</td><td><code>logscale => ['y']</code></td></tr>
+<tr><td><code>orientation</code></td><td>{'vertical', 'horizontal'}, default: 'vertical'</td><td><code>orientation => 'horizontal'</code></td></tr>
+<tr><td><code>show.legend</code></td><td>on when <code>data</code> holds more than one set, off when it holds one; set it explicitly to override</td><td><code>'show.legend' => 0</code></td></tr>
 </tbody>
 </table>
 
@@ -3861,7 +4125,13 @@ which makes the following simple plot:
 
 =head2 hist2d
 
-Make a 2-D histogram from a hash of arrays
+Make a 2-D histogram from a hash of arrays: like L<#hexbin>, C<data> is
+a hash of exactly B<two> equal-length array refs, the first (sorted) key giving
+the x-axis and the second the y-axis, and the plane is divided into rectangular
+cells colored by how many points landed in each.  C<hexbin> and C<hist2d> are
+interchangeable on the same data — hexagons tile the plane without the visual
+grid artefacts of squares, while square bins are easier to read off against the
+axes.
 
 =head3 single, simple plot
 
@@ -3896,12 +4166,13 @@ the range for the density min and max is reported to stdout
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
 <tr><td><code>cb_logscale</code></td><td>make the colorbar log-scale</td><td><code>cb_logscale => 1</code></td></tr>
+<tr><td><code>cblabel</code></td><td>the label on the colorbar, i.e. what the cell counts mean; <code>Density</code> if not given</td><td><code>cblabel => 'observations'</code></td></tr>
 <tr><td><code>cmap</code></td><td>color map for coloring # "gist_rainbow" by default</td><td></td></tr>
-<tr><td>'cmax', <code>cmin</code></td><td>All bins that has count < *cmin* or > *cmax* will not be displayed</td><td></td></tr>
-<tr><td>'density'</td><td>density : bool, default: False</td><td></td></tr>
-<tr><td>'key.order'</td><td>define the keys in an order (an array reference)</td><td></td></tr>
-<tr><td>'logscale'</td><td># logscale, an array of axes that will get log scale</td><td></td></tr>
-<tr><td>'show.colorbar'</td><td>self-evident, 0 or 1</td><td><code>show.colorbar</code> => 1</td></tr>
+<tr><td>'cmax', <code>cmin</code></td><td>All bins that has count < *cmin* or > *cmax* will not be displayed.  <code>cmin => 1</code> is the usual way to leave empty cells blank instead of coloring them as zero</td><td><code>cmin => 1</code></td></tr>
+<tr><td>'density'</td><td>density : bool, default: False; normalise the counts so the plot shows a probability density instead of raw counts, which is what makes two plots of different-sized samples comparable</td><td><code>density => 'True'</code></td></tr>
+<tr><td>'key.order'</td><td>define the keys in an order (an array reference), i.e. which key is the x-axis</td><td><code>'key.order' => ['Y', 'X']</code></td></tr>
+<tr><td>'logscale'</td><td>an array of the axes that will get a log scale</td><td><code>logscale => ['x']</code></td></tr>
+<tr><td>'show.colorbar'</td><td>self-evident, 0 or 1; this, and not <code>colorbar.on</code>, is what suppresses a <code>hist2d</code> colorbar</td><td><code>show.colorbar</code> => 0</td></tr>
 <tr><td>'vmax'</td><td>When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover</td><td></td></tr>
 <tr><td>'vmin'</td><td># When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover</td><td></td></tr>
 <tr><td>'xbins'</td><td># default 15</td><td></td></tr>
@@ -4024,6 +4295,39 @@ makes the following image:
 
 Plot 2D array of numbers as an image
 
+=head3 Entering data
+
+C<data> is a 2-D array — an array of array refs — and nothing else; a hash is an
+error.  The generated call leaves Matplotlib's C<origin> at its default, so row
+C<0> is drawn at the B<top>; use C<invert_yaxis> if your first row is meant to be
+the bottom of the picture:
+
+ my @grid;
+ foreach my $i (0 .. 360) {
+     foreach my $j (0 .. 360) {
+         push @{ $grid[$i] }, sin($i * $pi/180) * cos($j * $pi/180);
+     }
+ }
+ imshow(
+     'output.file' => '/tmp/grid.svg',
+     data          => \@grid,
+     cblabel       => 'sin(x) * cos(x)',
+ );
+
+The cells may hold B<strings> instead of numbers, as long as C<stringmap> gives
+the meaning of each one — without it, non-numeric data is an error.  Each string
+is assigned an integer, the image is drawn with one discrete color per string,
+and the colorbar's ticks are labelled with the names from C<stringmap> rather than
+with numbers.  (C<cmap> is dropped, with a warning, when strings are in play,
+since the palette has to be a discrete one.)  This is what makes C<imshow> usable
+for categorical rasters — sequence annotation, land cover, state-over-time
+diagrams — and there is a worked example under
+L<#secondary-structure-prediction-dssp>.
+
+Because C<imshow> produces a colorbar per subplot, C<shared.colorbar> is often
+worth setting when several panels show the same quantity: it gives them one
+colorbar, and hence one color scale, so the panels can be compared.
+
 =head3 options
 
 =for html
@@ -4035,7 +4339,11 @@ Plot 2D array of numbers as an image
 <tr><td><code>cbdrawedges</code></td><td>draw edges for colorbar</td><td></td></tr>
 <tr><td><code>cblocation</code></td><td>'left', 'right', 'top', 'bottom'</td><td><code>cblocation => 'left',</code></td></tr>
 <tr><td><code>cborientation</code></td><td>None, or 'vertical', 'horizontal'</td><td></td></tr>
+<tr><td><code>cbpad</code></td><td>fraction of the original axes between the image and the colorbar; the default 0.05 is often too big for a short, wide image</td><td><code>cbpad => 0.01,</code></td></tr>
 <tr><td><code>cmap</code></td><td># The Colormap instance or registered colormap name used to map scalar data to colors.</td><td></td></tr>
+<tr><td><code>colorbar.on</code></td><td>draw the colorbar; on by default, <code>0</code> turns it off</td><td><code>'colorbar.on' => 0</code></td></tr>
+<tr><td><code>shared.colorbar</code></td><td>0-based indices of the subplots that should share one colorbar, and therefore one color scale</td><td><code>'shared.colorbar' => [0,1]</code></td></tr>
+<tr><td><code>stringmap</code></td><td>a hash giving the meaning of each string used in <code>data</code>, which also makes string data legal</td><td><code>stringmap => { H => 'Alpha helix' }</code></td></tr>
 <tr><td><code>vmax</code></td><td>float</td><td></td></tr>
 <tr><td><code>vmin</code></td><td>float</td><td></td></tr>
 </tbody>
@@ -4245,7 +4553,27 @@ which makes the following plot:
 
 =head2 pie
 
+Plot a hash of numbers as a pie chart: one wedge per key, sized by its share of
+the total.  C<data> is the same simple hash that C<bar> takes, so the two are
+interchangeable — reach for C<pie> when the reader should see parts of a whole,
+and for C<bar> when they should compare the parts with each other.
+
+Wedges are laid out in sorted key order and that order cannot be overridden:
+C<key.order> is not among the options C<pie> accepts.  Nor is a legend added — the
+wedges carry their own labels — so C<show.legend> is not accepted either.
+
 =head3 options
+
+=for html
+<table>
+<tbody>
+<tr><td>Option</td><td>Description</td><td>Example</td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td></tr>
+<tr><td><code>autopct</code></td><td>a Python format string for the share printed inside each wedge; omit it and no numbers are drawn</td><td><code>autopct => '%1.1f%%'</code></td></tr>
+<tr><td><code>labeldistance</code></td><td>where the key label sits, as a fraction of the radius: <code>0</code> is the centre, <code>1</code> the edge, above <code>1</code> outside the pie</td><td><code>labeldistance => 0.6</code></td></tr>
+<tr><td><code>pctdistance</code></td><td>the same scale, for the <code>autopct</code> text.  Swapping the two — labels in, percentages out — is a readable arrangement when the labels are long</td><td><code>pctdistance => 1.25</code></td></tr>
+</tbody>
+</table>
 
 =head3 single, simple plot
 
@@ -4495,6 +4823,43 @@ that twin axis.
 Common axes options such as C<title>, C<xlabel>, C<ylabel>, and C<legend> are
 accepted here too, exactly as for the other plot types.
 
+=head3 Two y-axes with C<twinx>
+
+Series measured in different units, or on wildly different scales, flatten each
+other when they share a y-axis.  C<twinx> moves the named series onto a second
+y-axis on the right, and C<twinx.args> labels it:
+
+ plt(
+     'output.file' => '/tmp/twinx.svg',
+     'plot.type'   => 'plot',
+     data          => {
+         Temperature => [ [@t], [@celsius] ],
+         Pressure    => [ [@t], [@hPa]     ],
+     },
+     twinx         => 'Pressure',                        # onto the right axis
+     'twinx.args'  => { Pressure => { ylabel => 'hPa' } },
+     ylabel        => 'degrees C',                       # the left axis
+     xlabel        => 'hour',
+ );
+
+C<< twinx =E<gt> 'Pressure' >> is shorthand for the single-series case.  To twin more than
+one series, pass a hash whose keys are the series to move:
+
+ twinx => { Pressure => 1, Humidity => 1 },
+
+With array data the same options are given by index instead of by key:
+
+ plt(
+     'output.file' => '/tmp/twinx.arr.svg',
+     'plot.type'   => 'plot',
+     data          => [
+         [ [@t], [@celsius] ],    # index 0, left axis
+         [ [@t], [@hPa]     ],    # index 1
+     ],
+     twinx         => 1,                              # index 1 goes right
+     'twinx.args'  => { 1 => { ylabel => 'hPa' } },
+ );
+
 A C<plot> spec is an ordinary plot hash, so it can be dropped straight into the
 L<#the-p-argument> argument — on its own for a single subplot, or alongside
 other hashes to overlay or to fill a grid of subplots.
@@ -4742,6 +5107,81 @@ which makes
 
 =head2 scatter
 
+Plot points from a hash of arrays.  Beyond x and y, a scatterplot can carry a
+third number per point as B<color>, which is where most of C<scatter>'s options
+go.
+
+=head3 Entering data
+
+C<data> takes two shapes, and which one you passed is worked out from whether the
+values are arrays or hashes.
+
+B<1. One set (hash of 2 or 3 array refs).> All the arrays must be the same
+length.  Keys are taken in case-insensitive sorted order: the first is x, the
+second y, and a third — if present — is the value each point is colored by, which
+also gets a colorbar.  Exactly 2 or 3 keys are allowed; anything else is an
+error.  The keys become the axis labels, so naming them for the quantity they
+hold pays off:
+
+ scatter(
+     'output.file' => '/tmp/scatter.svg',
+     data          => {
+         Height => \@height,    # x
+         Weight => \@weight,    # y
+         Age    => \@age,       # colour + colorbar
+     },
+     color_key     => 'Age',    # say so rather than relying on the sort
+     cmap          => 'viridis',
+ );
+
+Sorted order is convenient but fragile — rename a key and the axes swap.  Use
+C<keys> to fix the roles positionally, or C<color_key> to name the color column
+explicitly, as above:
+
+     keys => [ 'Weight', 'Height', 'Age' ],    # x, y, colour
+
+B<2. Several labelled sets (hash of hashes of array refs).> The outer key is
+the set's legend label; each inner hash is a set of 2 or 3 arrays read exactly as
+in form 1.  This is the form to use for "the same measurement, split by group":
+
+ scatter(
+     'output.file' => '/tmp/by.group.svg',
+     data          => {
+         Male   => { Height => \@mh, Weight => \@mw },
+         Female => { Height => \@fh, Weight => \@fw },
+     },
+     'set.options' => {
+         Male   => 'marker = "v", color = "blue"',
+         Female => 'marker = "o", color = "red"',
+     },
+ );
+
+With three inner keys, every set is colored by its own third column and the
+figure gets a single colorbar, drawn from the last set plotted — so read the
+colors across sets only when the color columns cover comparable ranges.
+C<color_key> then names an B<inner> key, and it must exist in every set: naming a
+key that is not there is an error rather than being quietly ignored.
+
+=head3 options
+
+=for html
+<table>
+<tbody>
+<tr><td>Option</td><td>Description</td><td>Example</td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td></tr>
+<tr><td><code>cmap</code></td><td>the colormap used when a third key colors the points; <code>gist_rainbow</code> by default</td><td><code>cmap => 'viridis'</code></td></tr>
+<tr><td><code>color_key</code></td><td>which key of <code>data</code> holds the color values, rather than letting the sort decide.  For the multi-set form this is an inner key, and it must be present in every set</td><td><code>color_key => 'Age'</code></td></tr>
+<tr><td><code>keys</code></td><td>array ref fixing the roles of the keys positionally: x, y, then color</td><td><code>keys => ['Weight', 'Height', 'Age']</code></td></tr>
+<tr><td><code>logscale</code></td><td>an array of the axes to put on a log scale</td><td><code>logscale => ['x', 'y']</code></td></tr>
+<tr><td><code>set.options</code></td><td>arguments passed straight to Matplotlib's <code>ax.scatter</code>: <code>marker</code>, <code>color</code>, <code>alpha</code>, <code>s</code>, …  A **scalar** for the single-set form; a **hash keyed by set name** for the multi-set form.  Options for a set that has no data are an error</td><td><code>'set.options' => 'marker = "v", alpha = 0.4'</code></td></tr>
+</tbody>
+</table>
+
+C<xlabel> and C<ylabel> default to the names of the keys used for x and y; set them
+explicitly to override.  The colorbar is labelled with the name of the color key
+itself, and takes C<cbdrawedges> and C<cbpad> from
+L<#color-bars-colorbars>.
+
 =head3 single, simple plot
 
  scatter(
@@ -4825,10 +5265,10 @@ makes the following image:
              'plot.type'   => 'scatter',
              title         => 'Multiple Set Scatter w/ colorbar',
              'set.options' => {    # arguments to ax.scatter, for each set in data
-                 X => 'marker = "."',    # diamond
+                 X => 'marker = "."',    # point
                  Y => 'marker = "d"'     # diamond
              },
-             color_key => 'Z',
+             color_key => 'C', # an inner key, present in both sets
          }
      ]
  );
@@ -4939,7 +5379,16 @@ which makes the following figure:
 
 =head2 violin
 
-plot a hash of array refs as violins
+Plot a hash of array refs as violins: one kernel-density silhouette per key, with
+the quartile box, the whiskers and a red dot at the mean drawn over it.  Where a
+boxplot summarises a distribution in five numbers, a violin shows its shape, so
+bimodal data that a boxplot would hide is visible.
+
+C<violin> and C<violinplot> are the same subroutine under two names, and both
+accept the two data shapes described under L<#boxplot> — a hash of array
+refs, or a bare array ref for a single violin.  Non-numeric and undefined values
+are dropped silently.  Each x-axis label carries the number of points that went
+into it, so a violin drawn from very few points announces itself.
 
 =head3 options
 
@@ -4948,11 +5397,12 @@ plot a hash of array refs as violins
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
-<tr><td><code>color</code></td><td># a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'</td><td></td></tr>
-<tr><td><code>colors</code></td><td>match sets</td><td><code>colors       => { E => 'yellow', B => 'purple', A => 'green' }</code></td></tr>
-<tr><td><code>key.order</code></td><td>determine key order display on x-axis</td><td></td></tr>
-<tr><td><code>log</code></td><td># if set to > 1, the y-axis will be logarithmic</td><td></td></tr>
-<tr><td><code>orientation</code></td><td>'vertical', 'horizontal'}, default: 'vertical'</td><td></td></tr>
+<tr><td><code>color</code></td><td>a single color for every violin</td><td><code>color => 'red'</code></td></tr>
+<tr><td><code>colors</code></td><td>a hash pairing each data key with its own color; every key in <code>data</code> must appear</td><td><code>colors       => { E => 'yellow', B => 'purple', A => 'green' }</code></td></tr>
+<tr><td><code>key.order</code></td><td>determine key order display on x-axis</td><td><code>'key.order' => ['B', 'A', 'E']</code></td></tr>
+<tr><td><code>logscale</code></td><td>an array of the axes to put on a log scale; only <code>x</code> and <code>y</code> are accepted.  Note this is an array reference, not the <code>log => 1</code> scalar that <code>bar</code> takes</td><td><code>logscale => ['y']</code></td></tr>
+<tr><td><code>orientation</code></td><td>'vertical', 'horizontal'}, default: 'vertical'</td><td><code>orientation => 'horizontal'</code></td></tr>
+<tr><td><code>whiskers</code></td><td>draw the quartile bar and whiskers over the silhouette; on by default, <code>0</code> leaves the bare violin</td><td><code>whiskers => 0</code></td></tr>
 </tbody>
 </table>
 
@@ -5060,11 +5510,145 @@ which makes:
 
 =head2 wide
 
+Summarise B<several runs of the same curve>.  Every run is drawn as a faint
+line, the mean of the runs as a solid one, and one standard deviation either side
+of the mean as a translucent ribbon.  This is the plot for repeated measurements
+— replicate experiments, repeated simulations, one trace per subject — where a
+C<plot> of every line on top of the others would be an unreadable thicket and a
+C<plot> of the mean alone would hide how much the runs disagree.
+
+The runs do not have to share an x grid: each group's runs are interpolated onto
+101 evenly spaced points spanning that group's own x range before the mean and
+the standard deviation are taken, so runs of different lengths, or sampled at
+different x values, can be summarised together.
+
+=head3 Entering data
+
+B<1. Labelled groups (hash).> Each key is a group and becomes the legend label;
+its value is an array of runs, and each run is a C<[ \@x, \@y ]> pair — the same
+pair L<#plot> uses:
+
+ my @x = 0 .. 100;
+ my %runs;
+ foreach my $group ('Clinical', 'HGI') {
+     my $shift = $group eq 'HGI' ? 1 : 0;
+     foreach my $replicate (1 .. 3) {
+         push @{ $runs{$group} }, [
+             [@x],                                                       # x
+             [ map { $shift + sin($_/10) + rand_between(-0.2, 0.2) } @x ] # y
+         ];
+     }
+ }
+ wide(
+     'output.file' => 'output.images/single.wide.png',
+     data          => \%runs,
+     color         => {          # one color per group
+         Clinical => 'blue',
+         HGI      => 'green',
+     },
+     title         => 'Visualization of similar lines plotted together',
+     xlabel        => 'time',
+     ylabel        => 'signal',
+ );
+
+B<2. One unlabelled group (array).> Drop the enclosing hash and pass one group's
+array of runs directly; C<color> is then a single color rather than a hash:
+
+ wide(
+     'output.file' => 'output.images/single.array.png',
+     data          => $runs{Clinical},
+     color         => 'red',
+ );
+
+A group with a single run is legal — it just produces a line with a
+zero-width ribbon — which is convenient when one group has replicates and
+another does not.
+
 =head3 options
+
+=for html
+<table>
+<tbody>
+<tr><td>Option</td><td>Description</td><td>Example</td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td></tr>
+<tr><td><code>color</code></td><td>for hash data, a hash of one color per group; for array data, a single color.  Groups with no entry fall back to Matplotlib's <code>b</code> (blue), so a partial hash is allowed</td><td><code>color => { Clinical => 'blue', HGI => 'green' }</code></td></tr>
+<tr><td><code>show.legend</code></td><td>on by default, and only the hash form has labels to show; <code>0</code> suppresses it</td><td><code>'show.legend' => 0</code></td></tr>
+</tbody>
+</table>
+
+C<wide> accepts the usual axes options — C<title>, C<xlabel>, C<ylabel>, C<set_xlim>
+and the rest — but B<not> C<logscale> or C<key.order>.  For a log axis use
+Matplotlib's own C<< set_yscale =E<gt> '"log"' >>.  Since there is no C<key.order>, the
+groups are drawn in Perl's hash order, which is arbitrary and differs between
+runs: give each group an explicit C<color> if you need the same picture twice.
 
 =head3 single, simple plot
 
+Both calls above go through the C<wide> wrapper; naming the type explicitly to
+C<plt> is equivalent and takes exactly the same options:
+
+ plt(
+     'output.file' => 'output.images/single.wide.png',
+     'plot.type'   => 'wide',
+     data          => \%runs,
+     color         => { Clinical => 'blue', HGI => 'green' },
+ );
+
 =head3 multiple plots
+
+As an element of C<plots>, a C<wide> panel is just another plot hash — here the
+labelled groups sit beside one group on its own:
+
+ plt(
+     'output.file' => 'output.images/wide.png',
+     ncols         => 2,
+     suptitle      => 'Replicate runs, summarised',
+     plots         => [
+         {
+             'plot.type' => 'wide',
+             data        => \%runs,               # hash of groups of runs
+             color       => { Clinical => 'blue', HGI => 'green' },
+             title       => '"Two groups, mean +/- 1 s.d."', # comma: quoted
+             xlabel      => 'time',
+             ylabel      => 'signal',
+         },
+         {
+             'plot.type'   => 'wide',
+             data          => $runs{Clinical},    # just the runs, unlabelled
+             color         => 'red',
+             'show.legend' => 0,
+             title         => 'One group with no legend',
+         },
+     ],
+ );
+
+Because a C<wide> panel collapses many lines into one summary, it also composes
+well with a plot type that shows the same data another way.  Here the runs are
+summarised on the left and the distribution of their final values is drawn beside
+them:
+
+ my %endpoints;
+ foreach my $group (keys %runs) {
+     @{ $endpoints{$group} } = map { $_->[1][-1] } @{ $runs{$group} };
+ }
+ plt(
+     'output.file' => 'output.images/wide.and.violin.png',
+     ncols         => 2,
+     plots         => [
+         {
+             'plot.type' => 'wide',
+             data        => \%runs,
+             color       => { Clinical => 'blue', HGI => 'green' },
+             title       => 'Runs over time',
+         },
+         {
+             'plot.type' => 'violinplot',
+             data        => \%endpoints,    # hash of arrays, same keys
+             colors      => { Clinical => 'blue', HGI => 'green' },
+             title       => 'Final values',
+         },
+     ],
+ );
 
 =head1 Advanced
 

@@ -1,3 +1,2675 @@
+# ABSTRACT: Access Matplotlib from Perl; providing consistent user interface between different plot types
+use strict;
+use feature 'say';
+use warnings FATAL => 'all';
+use autodie ':all';
+
+package Matplotlib::Simple;
+require 5.010;
+our $VERSION = 0.311;
+use Scalar::Util 'looks_like_number';
+use List::Util qw(max sum min);
+use Cwd 'getcwd';
+use File::Temp;
+use DDP { output => 'STDOUT', array_max => 10, show_memsize => 1 };
+use Devel::Confess 'color';
+use FindBin '$RealScript';
+use Exporter 'import';
+use Capture::Tiny 'capture';
+use JSON::MaybeXS;
+use MIME::Base64;
+our @EXPORT = qw(plt bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter venn_proportional_area violinplot violin wide);
+use Encode qw(decode_utf8 is_utf8);
+our @EXPORT_OK = @EXPORT;
+
+my @ax_methods = (
+ 'ArtistList',     'add_child_axes', 'add_collection', 'add_container',
+ 'add_image',      'add_line', 'add_patch', 'add_table', 'apply_aspect',
+ 'autoscale_view', 'axison',   'bxp', 'callbacks', 'can_pan', 'can_zoom',
+ 'child_axes', 'collections', 'containers', 'contains_point', 'dataLim',
+ 'drag_pan',   'end_pan',     'fmt_xdata',  'fmt_ydata',      'format_coord',
+ 'format_xdata', 'format_ydata','hexbin', 'hist', 'hist2d', 'hlines',
+ 'ignore_existing_data_limits', 'in_axes',    'indicate_inset',
+'indicate_inset_zoom',         'inset_axes', 'invert_xaxis', 'invert_yaxis',
+ 'label_outer', 'legend_', 'name', 'pcolorfast', 'redraw_in_frame', 'relim',
+ 'reset_position',	'scatter', 'secondary_xaxis', 'secondary_yaxis', 'set_adjustable',
+ 'set_anchor', 'set_aspect', 'set_autoscale_on', 'set_autoscalex_on', 'set_autoscaley_on',
+ 'set_axes_locator', 'set_axis_off',    'set_axis_on',   'set_axisbelow',
+ 'set_box_aspect',   'set_fc',          'set_forward_navigation_events',
+ 'set_frame_on',     'set_navigate', 'set_navigate_mode',
+ 'set_position',     'set_prop_cycle',  'set_rasterization_zorder',
+ 'set_subplotspec',  'set_title',       'set_xbound', 'set_xlabel',
+ 'set_xlim', # ax.set_xlim(left, right), or ax.set_xlim(right = 180)
+ 'set_xmargin', 'set_xscale', 'set_xticklabels', 'set_xticks', 'set_ybound',
+ 'set_ylabel',  'set_ylim',   'set_ymargin', 'set_yscale', 'set_yticklabels',
+ 'set_yticks',  'sharex',     'sharey',      'spines', 'start_pan', 'tables',
+ 'text', 'tick_params', 'ticklabel_format', 'titleOffsetTrans', 'transAxes', 'transData', 'transLimits',
+ 'transScale', 'update_datalim', 'use_sticky_edges', 'viewLim', 'vlines', 'violin',
+ 'xaxis',      'xaxis_date',     'xaxis_inverted',   'yaxis',   'yaxis_date',
+ 'yaxis_inverted'
+);
+my @fig_methods = (
+	'add_artist', 'add_axes', 'add_axobserver', 'add_callback', 'add_gridspec',
+	'add_subfigure', 'add_subplot',   'align_labels', 'align_titles',
+	'align_xlabels', 'align_ylabels', 'artists',	'autofmt_xdate', #'axes', # same as plt
+	'bbox', 'bbox_inches', 'canvas', 'clear', 'clf', 'clipbox',
+	'colorbar',    # same name as in plt, have to use on case-by-case
+	'contains',           'convert_xunits', 'convert_yunits', 'delaxes', 'dpi',
+	'dpi_scale_trans',    'draw', 'draw_artist', 'draw_without_rendering',
+	'figbbox',            'figimage',    # 'figure', 'findobj',
+	'format_cursor_data', 'frameon', 'have_units', 'images',    'is_transform_set',    # 'legend',	 legends',
+	'lines',      'mouseover', 'number', 'patch', 'patches', 'pchanged', 'pick',
+	'pickable',   'properties', 'remove',
+	'remove_callback',    #'savefig', keeping plt instead
+	'sca', 'set', 'set_agg_filter', 'set_alpha', 'set_animated', 'set_canvas',
+	'set_clip_box', 'set_clip_on', 'set_clip_path', 'set_constrained_layout',
+	'set_constrained_layout_pads', 'set_dpi', 'set_edgecolor', 'set_facecolor',
+	'set_figheight'
+	,    # default 4.8 # 'set_figure', # deprecated as of matplotlib 3.10.0
+	'set_figwidth',    # default 6.4
+	'set_frameon',       'set_gid',       'set_in_layout', 'set_label',
+	'set_layout_engine', 'set_linewidth', 'set_mouseover', 'set_path_effects',
+	'set_picker', 'set_rasterized',   'set_size_inches',   'set_sketch_params',
+	'set_snap',   'set_tight_layout', 'set_transform', 'set_url', 'set_visible',
+	'set_zorder',      # 'show', # keeping plt instead
+	'stale', 'stale_callback', 'sticky_edges', 'subfigs',
+	'subfigures',           #	 subplot_mosaic',
+	'subplotpars',          #	 subplots','subplots_adjust',
+	'suppressComposite',    # 'suptitle', # keeping plt instead
+	'supxlabel', 'supylabel',    #'text',
+	'texts',                     #'tight_layout',
+	'transFigure', 'transSubfigure', 'update',
+	'update_from',               #'waitforbuttonpress',
+	'zorder'
+);
+my @plt_methods = (
+	'AbstractContextManager', 'Annotation', 'Arrow', 'Artist', 'AutoLocator',
+	'AxLine', 'Axes', 'BackendFilter',          'Button', 'Circle', 'Colorizer',
+	'ColorizingArtist', 'Colormap',     'Enum', 'ExitStack', 'Figure',
+	'FigureBase',   'FigureCanvasBase', 'FigureManagerBase', 'FixedFormatter',
+	'FixedLocator', 'FormatStrFormatter', 'Formatter',       'FuncFormatter',
+	'GridSpec',     'IndexLocator',       'Line2D', 'LinearLocator', 'Locator',
+	'LogFormatter', 'LogFormatterExponent', 'LogFormatterMathtext',
+	'LogLocator', 'MaxNLocator', 'MouseButton', 'MultipleLocator', 'Normalize',
+	'NullFormatter',   'NullLocator', 'PolarAxes', 'Polygon',      'Rectangle',
+	'ScalarFormatter', 'Slider',      'Subplot', 'SubplotSpec', 'TYPE_CHECKING',
+	'Text', 'TickHelper',   'Widget',    'acorr',  'angle_spectrum', 'annotate',
+	'annotations', 'arrow', 'autoscale', 'autumn', 'axes',           'axhline',
+	'axhspan',     'axis',  'axline', 'axvline', 'axvspan', 'backend_registry',
+	'bar_label', 'barbs', 'bone',    'box', 'boxplot',
+	'broken_barh', 'cast',      'cbook', 'cla',  'clabel'
+	,    #'clf', # I don't think you'd ever do that, also redundant with fig
+	'clim',      'close',   'cm',      'cohere', 'color_sequences', 'colorbar',
+	'colormaps', 'connect', 'contour', 'contourf', 'cool', 'copper', 'csd',
+	'cycler',              'delaxes', 'disconnect', 'draw',      'draw_all',
+	'draw_if_interactive', 'ecdf',    'errorbar',   'eventplot', 'figaspect',
+	'figimage',     'figlegend', 'fignum_exists',   'figtext', 'figure', 'fill',
+	'fill_between', 'fill_betweenx', 'findobj',     'flag', 'functools', 'gca',
+	'gcf', 'gci', 'get', 'get_backend', 'get_cmap', 'get_current_fig_manager',
+	'get_figlabels', 'get_fignums', 'get_plot_commands', 'get_scale_names',
+	'getp',    'ginput', 'gray', 'grid', 
+	'hot',     'hsv',    'importlib', 'imread', 'imsave', 'inferno',
+	'inspect', 'install_repl_displayhook', 'interactive', 'ioff', 'ion',
+	'isinteractive',  'jet', 'legend', 'locator_params', 'logging', 'loglog',
+	'magma',          'magnitude_spectrum', 'margins', 'matplotlib', 'matshow',
+	'minorticks_off', 'minorticks_on',      'mlab',    'new_figure_manager',
+	'nipy_spectral',  'np',  'overload', 'pause',  'pcolor', 'pcolormesh',
+	'phase_spectrum', 'pie', 'pink',     'plasma', 'plot', 'plot_date', 'polar',
+	'prism', 'psd', 'quiver', 'quiverkey', 'rc', 'rcParams', 'rcParamsDefault',
+	'rcParamsOrig', 'rc_context', 'rcdefaults', 'rcsetup', 'rgrids', 'savefig',
+	'sca', #'scatter', # taken by "ax"
+	'sci', 'semilogx', 'semilogy', 'set_cmap',  'set_loglevel', 'setp', 'show',
+	'specgram',   'spring', 'spy', 'stackplot', 'stairs',       'stem', 'step',
+	'streamplot', 'style',
+	'subplot',    # nrows, ncols : int, default: 1
+	'subplot2grid',    'subplot_mosaic', 'subplot_tool', 'subplots',
+	'subplots_adjust', 'summer', 'suptitle', 'switch_backend', 'sys', 'table',
+#	'text'
+	, # text(x: 'float', y: 'float', s: 'str', fontdict: 'dict[str, Any] | None' = None, **kwargs) -> 'Text'
+	'thetagrids',   'threading',# 'tick_params',
+	'tight_layout', 'time', 'title', 'tricontour', 'tricontourf', 'tripcolor',
+	'triplot',
+#'twinx', 'twiny',
+	'uninstall_repl_displayhook', 'violinplot',
+	'viridis', 'waitforbuttonpress', 'winter', 'xcorr', 'xkcd',# 'vlines'
+	'xlabel','xscale','ylabel', 'ylim', 'yscale',
+#	'xlim','xticks','yticks'
+);
+
+my @arg = ('add', 'cmap', 'data', 'execute', 'fh', 'ncol', 'ncols', 'nrow', 'nrows', 'p', 'plot.type',  'plots', 'plot', 'output.file', 'scale', 'scalex', 'scaley', 'shared.colorbar', 'show', 'twinx');
+my @cb_arg = (
+'cbdrawedges', # for colarbar: Whether to draw lines at color boundaries
+'cblabel',		# The label on the colorbar's long axis
+'cblocation', # of the colorbar None or {'left', 'right', 'top', 'bottom'}
+'cb_min',
+'cb_max',
+'cborientation', # None or {'vertical', 'horizontal'}
+'cbpad',         # pad : float, default: 0.05 if vertical, 0.15 if horizontal; Fraction of original Axes between colorbar and new image Axes
+'cb_logscale');
+my %opt = (
+	barplot_helper => [
+	'color'
+	, # :mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed
+	'edgecolor'	, # optional; The colors of the bar edges.
+	'key.order',    # define the keys in an order (an array reference)
+	'label',        # an array of labels for grouped bar plots
+	'linewidth', # float or array, optional; Width of the bar edge(s). If 0, don't draw edges
+	'log'	,   # bool, default: False; If *True*, set the y-axis to be log scale.
+	'logscale', # equivalent to "log"
+	'stacked',    # stack the groups on top of one another; default 0 = off
+	'width',      # float or array, default: 0.8; The width(s) of the bars.
+	'xerr', # float or array-like of shape(N,) or shape(2, N), optional. If not *None*, add horizontal / vertical errorbars to the bar tips. The values are +/- sizes relative to the data:        - scalar: symmetric +/- values for all bars #        - shape(N,): symmetric +/- values for each bar #        - shape(2, N): Separate - and + values for each bar. First row #          contains the lower errors, the second row contains the upper #          errors. #        - *None*: No errorbar. (Default)
+	'yerr',    # same as xerr, but better with bar
+	],
+	boxplot_helper => [
+	 'color', # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
+	 'colors', 'key.order',
+	 'logscale', # array of "x" and/or "y"
+	 'notch', # Whether to draw a notched boxplot (`True`), or a rectangular boxplot (`False`)
+	 'orientation',# {'vertical', 'horizontal'}, default: 'vertical'
+	 'showcaps',   # bool: Show the caps on the ends of whiskers; default "True"
+	 'showfliers', #bool, default: :rc:`boxplot.showfliers`; Show the outliers beyond the caps.
+	 'showmeans'   #bool, default: :rc:`boxplot.showmeans`
+	],
+	colored_table_helper => [@cb_arg,
+		'col.labels',
+		'cmap',		# the cmap used for coloring
+		'colorbar.on', # only draw if colorbar is on
+		'default_undefined',	# what value should undefined values be assigned to?
+		'mirror',   # $data{A}{B} = $data{B}{A}
+		'row.labels',	# row labels
+		'shared.colorbar', # array of 0-based indices for sharing a colorbar
+		'show.numbers',# show the numbers or not, by default off.  0 = "off"; "show.numbers" > 0 => "on"
+		'undef.color', # what color will undefined points be
+	],
+	hexbin_helper => [ @cb_arg,
+	  'cb_logscale',
+	  'cmap',         # "gist_rainbow" by default
+	  'colorbar.on',  # only draw colorbar if colorbar is on
+	  'key.order',    # define the keys in an order (an array reference)
+	  'marginals',  # If marginals is *True*, plot the marginal density as colormapped rectangles along the bottom of the x-axis and left of the y-axis.
+	  'mincnt'
+	  , # int >= 0, default: 0 If > 0, only display cells with at least *mincnt*        number of points in the cell.
+		'shared.colorbar', # array of 0-based indices for sharing a colorbar
+	  'vmax'
+	  , #  When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover
+	  'vmin'
+	  , # When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover
+	  'xbins',    # default 15
+	  'xscale.hexbin', # 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the horizontal axis.
+	  'ybins',    # default 15
+	  'yscale.hexbin', # 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the vertical axis.
+	],
+	hist_helper => [
+	  'alpha',    # default 0.5; same for all sets
+	  'bins'
+	  , # nt or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open
+	  'color', # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
+	  'colorbar.on',  # only draw colorbar if colorbar is on
+	  'logscale',       # if set to > 1, the y-axis will be logarithmic
+	  'orientation',    # {'vertical', 'horizontal'}, default: 'vertical'
+	  'shared.colorbar', # array of 0-based indices for sharing a colorbar
+	  'show.legend'
+	],
+	hist2d_helper => [@cb_arg,
+	  'cb_logscale',
+	  'cmap',         # "gist_rainbow" by default
+	  'cmax',         # All bins that has count < *cmin* or > *cmax* will not be displayed
+	  'cmin',         # color min
+	  'colorbar.on',  # only draw colorbar if colorbar is on
+	  'density',      # density : bool, default: False
+	  'key.order',    # define the keys in an order (an array reference)
+	  'logscale',     # logscale, an array of axes that will get log scale
+	  'shared.colorbar', # array of 0-based indices for sharing a colorbar
+	  'show.colorbar',
+	  'vmax'
+	  , #  When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover
+	  'vmin'
+	  , # When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover
+	  'xbins',    # default 15
+	  'xmin', 'xmax', 'ymin', 'ymax',
+	  'ybins',    # default 15
+	],
+	imshow_helper => [@cb_arg,
+	  'cblabel', # colorbar label
+	  'cbdrawedges', # for colorbar
+	  'cblocation', # of the colorbar None or {'left', 'right', 'top', 'bottom'}
+	  'cborientation', # None or {'vertical', 'horizontal'}
+	  'cmap', # The Colormap instance or registered colormap name used to map scalar data to colors
+	  'colorbar.on', # only draw if colorbar is on
+	  'shared.colorbar', # array of 0-based indices for sharing a colorbar
+	  'stringmap', # 'H' => 'Alpha helix'
+	  'vmax', # float
+	  'vmin', # flat
+	],
+	pie_helper => [
+	 'autopct',    # percent wise
+	 #labeldistance and pctdistance are ratios of the radius; therefore they vary between 0 for the center of the pie and 1 for the edge of the pie, and can be set to greater than 1 to place text outside the pie https://matplotlib.org/stable/gallery/pie_and_polar_charts/pie_features.html
+	 'labeldistance',
+	 'pctdistance',
+   ],
+	plot_helper => [
+	 'key.order',   # an array of key strings (which are defined in data)
+	 'logscale',    # an array of "x" and/or "y"
+	 'show.legend', # be default on; should be 0 if off
+	 'set.options',
+	 'twinx.args'
+	],
+	venn_proportional_area_helper => [
+	 'alpha',       # float, opacity of the set circles (matplotlib_venn default 0.4)
+	 'key.order',   # array ref: the order (and hence the set labels) of the sets
+	 'set_colors',  # array ref of colors, one per set, e.g. ['red','green']
+	],
+	scatter_helper => [
+	 'color_key',    # which of data keys is the color key
+	 'cmap',         # for 3-set scatterplots; default "gist_rainbow"
+	 'colorbar.on',  # only draw colorbar if colorbar is on
+	 'keys', # specify the order, otherwise alphabetical #'log', # if set to > 1, the y-axis will be logarithmic # 's', # float or array-like, shape (n, ), optional. The marker size in points**2 (typographic points are 1/72 in.).
+	  'logscale', # "x" and/or "y" as an aray
+	 'shared.colorbar', # array of 0-based indices for sharing a colorbar
+	 'show.legend',
+	 'set.options'    # color = 'red', marker = 'v', etc.
+	],
+	violin_helper => [
+	 'color',      # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
+	 'colorbar.on',# only draw colorbar if colorbar is on
+	 'colors',
+	 'key.order',
+	 'logscale',   # array: "x" and/or "y"
+	 'orientation',# {'vertical', 'horizontal'}, default: 'vertical'
+	 'whiskers'
+	],
+	wide_helper => [
+	  'color',		   # a hash, with each key assigned to a color "blue" or something
+	  'show.legend',  # be default on; should be 0 if off
+	],
+);
+sub write_data {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ( ref $args ne 'HASH' ) {
+	  die "args must be given as a hash ref, e.g. \"$current_sub({ data => ... })\"";
+	}
+	my @reqd_args = (
+	  'data', # args to original function (scalar, hashref, or arrayref)
+	  'fh',   # file handle
+	  'name'  # python variable name
+	);
+	my @undef_args = grep { not defined $args->{$_} } @reqd_args;
+	if (scalar @undef_args > 0) {
+		p @undef_args;
+		die "the above args are required for $current_sub, but weren't defined";
+	}
+	# 1. Create the JSON Encoder; allow_nonref: allows scalars (strings/numbers) to be encoded
+	my $json_encoder = JSON::MaybeXS->new->utf8->allow_nonref;
+	# 2. Serialize Perl Data -> JSON String; Passing data directly. JSON::MaybeXS handles refs + scalars automatically.
+	my $json_string = $json_encoder->encode($args->{data});
+	# 3. Base64 Encode the JSON String, not the reference
+	my $b64_data = encode_base64($json_string, ''); 
+	# Assign the b64 string to a temp python variable
+	say {$args->{fh}} "$args->{name}_b64 = '$b64_data'";
+	# Decode b64 -> bytes -> utf8 string -> json load -> python object
+	say {$args->{fh}} "$args->{name} = json.loads(base64.b64decode($args->{name}_b64).decode('utf-8'))";
+}
+sub plot_args {    # this is a helper function to other matplotlib subroutines
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
+	if ( ref $args ne 'HASH' ) {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+		'ax',   # ax1, ax2, etc. when there are multiple plots
+		'fh',   # e.g. $py, $fh, which will be passed by the subroutine
+		'args', # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+		p @undef_args;
+		die 'the above args are necessary, but were not defined.';
+	}
+	my @defined_args = ( @reqd_args, @ax_methods, @fig_methods, @plt_methods, @arg, @cb_arg );
+	my @bad_args = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @defined_args
+	} keys %{$args};
+	if ( scalar @bad_args > 0 ) {
+		p @bad_args, array_max => scalar @bad_args;
+		say 'the above arguments are not recognized.';
+		p @defined_args, array_max => scalar @defined_args;
+		die 'The above args are accepted.';
+	}
+	$args->{ax} = $args->{ax} // 'ax';
+	foreach my $item (
+		grep { defined $args->{args}{$_} } ( # no quotes!
+			'set_title', 'set_xlabel', 'set_ylabel', 'suptitle',
+			'xlabel',    'ylabel',     'title'
+		)
+		)
+		{
+		
+		# --- FIX: Upgrade raw bytes to UTF-8 characters before formatting ---
+		if ( !Encode::is_utf8( $args->{args}{$item} ) ) {
+			$args->{args}{$item} = Encode::decode_utf8( $args->{args}{$item} );
+		}
+		# --------------------------------------------------------------------
+
+		if ( $args->{args}{$item} =~ m/^([^\"\',]+)$/ ) {
+			$args->{args}{$item} = "'$args->{args}{$item}'";
+		}
+	}
+	my @obj  = ( $args->{ax}, 'fig', 'plt' );
+	my @args = ( \@ax_methods, \@fig_methods, \@plt_methods );
+	foreach my $i ( 0 .. $#args ) {
+		foreach my $method ( grep { defined $args->{args}{$_} } @{ $args[$i] } ) {
+			my $ref = ref $args->{args}{$method};
+			if ( ( $ref ne 'ARRAY' ) && ( $ref ne '' ) ) {
+				die "$current_sub only accepts scalar or array types, but \"$ref\" was entered.";
+			}
+			if ( $ref eq '' ) {
+				if ($method eq 'show') {
+					next; # plt.show() is emitted by plt() after plt.savefig()
+				} else {
+					say {$args->{fh}} "$obj[$i].$method($args->{args}{$method}) #line" . __LINE__;
+				}
+				next;
+			}
+			# can only be ARRAY
+			foreach my $j ( @{ $args->{args}{$method} } ) {
+				say { $args->{fh} } "$obj[$i].$method($j) #line" . __LINE__;
+			}
+		}
+	}
+	return unless defined $args->{ax};
+	my $legend   = $args->{args}{legend} // '';
+	my $pie_plot = 0;
+	if (   ( defined $args->{args}{'plot.type'} )
+	  && ( $args->{args}{'plot.type'} eq 'pie' ) ) {
+	  $pie_plot = 1;
+	}
+	return 1 if $pie_plot == 1;
+	# pie charts don't get legends
+	say { $args->{fh} }
+	"handles, labels = $args->{ax}.get_legend_handles_labels()";
+	say { $args->{fh} } 'if len(labels) > 0:';
+	say { $args->{fh} } "\t$args->{ax}.legend($legend)";
+}
+sub barplot_helper { # this is a helper function to other matplotlib subroutines
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+	  die
+	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+	  'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+	  'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = ('ax', @reqd_args, @ax_methods, @plt_methods, @fig_methods, @arg, @{ $opt{$current_sub} }	);
+	my $plot      = $args->{plot};
+	my @bad_opt = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	my $ax = $args->{ax} // '';
+	if ( scalar @bad_opt > 0 ) {
+	  p @bad_opt;
+	  die
+	"The above arguments aren't defined for $plot->{'plot.type'} at plot position $ax";
+	}
+	my ( %ref_counts, $plot_type );
+	foreach my $set ( keys %{ $plot->{data} } ) {
+	  $ref_counts{ ref $plot->{data}{$set} }++;
+	}
+	if ( scalar keys %ref_counts > 1 ) {
+		p $plot->{data};
+		p %ref_counts;
+		die
+	"different kinds of data were entered to plot $ax which should be simple hash or hash of arrays.";
+	}
+	if ( defined $ref_counts{''} ) {
+		$plot_type = 'simple';
+	} elsif ( defined $ref_counts{'ARRAY'} ) {
+		$plot_type = 'grouped';
+	} elsif ( defined $ref_counts{'HASH'} ) {
+		$plot_type = 'grouped';    # now make the hash of hash into a ARRAY structure
+		my %key2;
+		foreach my $key1 ( keys %{ $plot->{data} } ) {
+			foreach my $key2 ( keys %{ $plot->{data}{$key1} } ) {
+				$key2{$key2}++;
+			}
+		}
+		my @key2 = sort { lc $a cmp lc $b } keys %key2;
+		my %new_structure;
+		foreach my $k1 ( keys %{ $plot->{data} } ) {
+			@{ $new_structure{$k1} } = @{ $plot->{data}{$k1} }{@key2};
+		}
+		@{ $plot->{label} } = @key2;
+		$plot->{data} = \%new_structure;
+	} else {
+	  p %ref_counts;
+	  p $plot->{data};
+	  die 'the above plot type is not yet programmed in to bar/barh';
+	}
+	$plot->{stacked} = $plot->{stacked} // 0;
+	if (   ( $plot_type eq 'grouped' )
+	  && ( defined $plot->{width} )
+	  && ( $plot->{stacked} == 0 ) )
+	{
+	  say STDERR 'grouped, non-stacked barplots ignore width settings';
+	  delete $plot->{width};
+	}
+	my @key_order;
+	if ( defined $plot->{'key.order'} ) {
+	  @key_order = @{ $plot->{'key.order'} };
+	} else {
+	  @key_order = sort keys %{ $plot->{data} };
+	}
+	my $options = '';    # these args go to the plt.bar call
+	if ( $plot->{'log'} || $plot->{logscale}) {
+	  $options .= ', log = True';
+	}    # args that can be either arrays or strings below; STRINGS:
+	foreach my $c ( grep { defined $plot->{$_} } ( 'color', 'edgecolor' ) ) {
+		next if ( ( $c eq 'color' ) && ( $plot_type eq 'grouped' ) && ( ref $plot->{$c} ne '' ) );
+		my $ref = ref $plot->{$c};
+		if ( $ref eq '' ) {    # single color
+			$options .= ", $c = '$plot->{$c}'";
+		} elsif ( $ref eq 'ARRAY' ) {
+			$options .= ", $c = [\"" . join( '","', @{ $plot->{$c} } ) . '"]';
+		} elsif ( $ref eq 'HASH') {
+			
+		} else {
+			die "ref \"$ref\" isn't defined";
+		}
+	} # args that can be either arrays or strings below; NUMERIC:
+	foreach my $c ( grep { defined $plot->{$_} } ('linewidth') ) {
+		my $ref = ref $plot->{$c};
+		if ( $ref eq '' ) {    # single color
+			$options .= ", $c = $plot->{$c}";
+		} elsif ( $ref eq 'ARRAY' ) {
+			$options .= ", $c = [" . join( ',', @{ $plot->{$c} } ) . ']';
+		} else {
+			p $args;
+			die "$ref for $c isn't acceptable";
+		}
+	}
+	foreach my $err ( grep { defined $plot->{$_} } ( 'xerr', 'yerr' ) ) {
+		my $ref = ref $plot->{$err};
+		if ( $ref eq '' ) {
+			$options .= ", $err = $plot->{$err}";
+		} elsif ( $ref eq 'HASH' ) {    # I assume that it's all defined
+			my ( @low, @high );
+			foreach my $i (@key_order) {
+				if ( scalar @{ $plot->{$err}{$i} } != 2 ) {
+				  p $plot->{$err}{$i};
+				  die	"$err/$i should have exactly 2 items: low and high error bars";
+				}
+				push @low,  $plot->{$err}{$i}[0];
+				push @high, $plot->{$err}{$i}[1];
+			}
+			$options .=
+				 ", $err = [["
+			  . join( ',', @low ) . '],['
+			  . join( ',', @high ) . ']]';
+		} else {
+			p $args;
+			die "$ref for $err isn't acceptable";
+		}
+	}
+	if ( $plot_type eq 'simple' ) {    # a simple hash -> simple bar plot
+		write_data({
+			data => \@key_order,
+			fh   => $args->{fh},
+			name => 'labels'
+		});
+		say { $args->{fh} } 'vals = [' . join( ',', @{ $plot->{data} }{@key_order} ) . ']';
+		if ((defined $plot->{color}) && (ref $plot->{color} eq 'HASH')) {
+			@undef_args = grep {not defined $plot->{color}{$_}} @key_order;
+			if (scalar @undef_args > 0) {
+				p @undef_args;
+				die 'the above keys were not defined in the colors hash';
+			}
+			$options .= ',color = ["' . join ('","', @{ $plot->{color} }{@key_order} ) . '"]';
+		}
+		say { $args->{fh} } "ax$ax.$plot->{'plot.type'}(labels, vals $options)";
+	} elsif ( $plot_type eq 'grouped' ) {    # grouped bar plot; hash of array
+		my @val;
+		foreach my $k (@key_order) {
+			foreach my $i ( 0 .. scalar @{ $plot->{data}{$k} } - 1 ) {
+				$plot->{data}{$k}[$i] = $plot->{data}{$k}[$i] // 0; # must match in both sets
+				push @{ $val[$i] }, $plot->{data}{$k}[$i];
+			}
+		}
+		my $barwidth = $plot->{width} // 0.8;
+		$plot->{stacked} = $plot->{stacked} // 0;
+		if ( $plot->{stacked} == 0 ) {
+			$barwidth /= ( scalar @val + 1 ); # @val holds one array per bar series
+		}
+		my @xticks   = 0 .. scalar @{ $val[0] } - 1;
+		my @mean_pos = map { 0 } 0 .. scalar @{ $val[0] } - 1;    # initialize
+		my $hw       = 'height';
+		$hw = 'width' if $plot->{'plot.type'} eq 'bar';
+		my @bottom = map { 0 } 0 .. scalar @{ $val[0] } - 1;      # initialize
+		my $i = 0;
+		foreach my $arr (@val) {
+			my $x = '[' . join( ',', @xticks ) . ']';
+			foreach my $p ( 0 .. $#mean_pos ) {
+				$mean_pos[$p] += $xticks[$p];
+			}
+			my $set_options = '';
+			foreach
+			  my $f ( grep { ( ref $plot->{$_} eq 'ARRAY' ) && defined $plot->{$_}[$i] } ( 'color', 'label' ) )
+			{
+				 $set_options .= ", $f = '$plot->{$f}[$i]'";
+			}
+			if ( $plot->{stacked} > 0 ) {
+				my $stack_kwarg = $plot->{'plot.type'} eq 'barh' ? 'left' : 'bottom';
+				$set_options .= ", $stack_kwarg = [" . join( ',', @bottom ) . ']';
+			}
+			say { $args->{fh} } "ax$ax.$plot->{'plot.type'}($x, ["
+			 . join( ',', @{$arr} )
+			 . "], $hw = $barwidth $options $set_options)";
+			@bottom =
+			  map { $bottom[$_] + $arr->[$_] } 0 .. scalar @{ $val[0] } - 1
+			  if $plot->{stacked} > 0;
+			@xticks = map { $_ + $barwidth } @xticks
+			  if $plot->{stacked} <= 0;    # for next iteration
+			  $i++;
+		}
+		my $xticks = '["' . join( '","', @key_order ) . '"]';
+		my $ticks  = 'yticks';
+		$ticks = 'xticks' if $plot->{'plot.type'} eq 'bar';
+		$_ /= scalar @val for @mean_pos;
+		say { $args->{fh} } "ax$ax.set_$ticks(["
+		 . join( ',', @mean_pos )
+		 . "], $xticks)";
+	} else {
+	  die
+	"\$plot_type = $plot_type & stacked = $plot->{stacked}and isn't defined.";
+	}
+}
+
+sub boxplot_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+	'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+	'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (
+	  @ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} }
+	);
+	my $plot      = $args->{plot};
+	my @bad_opt = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @bad_opt > 0 ) {
+		p @bad_opt;
+		die "The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
+	}
+	$plot->{orientation} = $plot->{orientation} // 'vertical';
+	if ( $plot->{orientation} !~ m/^(?:horizontal|vertical)$/ ) {
+	  die
+	"$current_sub needs either \"horizontal\" or \"vertical\", not \"$plot->{orientation}\"";
+	}
+	if (ref $plot->{data} eq 'ARRAY') {
+		my $tmp = delete $plot->{data};
+		$plot->{data}{''} = $tmp;
+	}
+	my ( @xticks, @key_order );
+	if ( defined $plot->{'key.order'} ) {
+	  @key_order = @{ $plot->{'key.order'} };
+	} else {
+	  @key_order = sort keys %{ $plot->{data} };
+	}
+	my $ax = $args->{ax} // '';
+	#	$plot->{medians} = $plot->{medians} // 1; # by default, show median values
+	$plot->{notch}      = $plot->{notch}      // 'False';
+	$plot->{showcaps}   = $plot->{showcaps}   // 'True';
+	$plot->{showfliers} = $plot->{showfliers} // 'True';
+	$plot->{showmeans}  = $plot->{showmeans}  // 'True';
+	my $options = "orientation = '$plot->{orientation}'";
+	foreach my $arg ( 'showcaps', 'showfliers', 'showmeans', 'notch') {
+	  $options .= ", $arg = $plot->{$arg}";
+	}
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y
+		if ($axis =~ m/^([^xy])$/) {
+			p $plot->{logscale};
+			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
+		}
+		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
+	}
+	say { $args->{fh} } 'd = []';
+	foreach my $key (@key_order) {
+		@{ $plot->{data}{$key} } = grep { defined } @{ $plot->{data}{$key} };
+		my @non_numeric = grep {!looks_like_number($_)} @{ $plot->{data}{$key} };
+		if (scalar @non_numeric > 0) {
+			p @non_numeric;
+			die "$key has non-numeric values";
+		}
+		say { $args->{fh} } 'd.append([' . join( ',', @{ $plot->{data}{$key} } ) . '])';
+	}
+	say { $args->{fh} } "bp = ax$ax.boxplot(d, patch_artist = True, $options)";
+	if ( defined $plot->{colors} ){ # every hash key should have its own color defined
+	# the below code helps to provide better error messages in case I make an error in calling the sub
+		my @bad_keys =
+		 grep { not defined $plot->{colors}{$_} } keys %{ $plot->{data} };
+		if ( scalar @bad_keys > 0 ) {
+			p @bad_keys;
+			die 'the above data keys have no defined color';
+		}
+
+	# list of pre-defined colors: https://matplotlib.org/stable/gallery/color/named_colors.html
+	  print { $args->{fh} } 'colors = ["'
+		 . join( '","', @{ $plot->{colors} }{@key_order} ) . '"]' . "\n";
+
+	 # the above color list will have the same order, via the above hash slice
+	  say { $args->{fh} } 'for patch, color in zip(bp["boxes"], colors):';
+	  say { $args->{fh} } "\tpatch.set_facecolor(color)";
+	  say { $args->{fh} } "\tpatch.set_edgecolor('black')";
+	} else {
+		say { $args->{fh} } 'for pc in bp["boxes"]:';
+		if ( defined $plot->{color} ) {
+			say { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')";
+		}
+		say { $args->{fh} } "\tpc.set_edgecolor('black')";
+	}
+	foreach my $key (@key_order) {
+		push @xticks, "$key ("
+		 . format_commas( scalar @{ $plot->{data}{$key} }, '%.0u' ) . ')';
+	}
+	if ( $plot->{orientation} eq 'vertical' ) {
+		say { $args->{fh} } "ax$ax.set_xticks(["
+		 . join( ',',   1 .. scalar @key_order ) . '], ["'
+		 . join( '","', @xticks ) . '"])';
+	} else {
+		say { $args->{fh} } "ax$ax.set_yticks(["
+		 . join( ',',   1 .. scalar @key_order ) . '], ["'
+		 . join( '","', @xticks ) . '"])';
+	}
+}
+
+sub colored_table_helper {
+	my ($args) = @_;
+	my $current_sub = (split(/::/,(caller(0))[3]))[-1]; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if (ref $args ne 'HASH') {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+		'fh',   # e.g. $py, $fh, which will be passed by the subroutine
+		'plot', # args to original function
+	);
+	my @undef_args = grep {!defined $args->{$_}} @reqd_args;
+	if (scalar @undef_args > 0) {
+		p @undef_args;
+		die "The arguments above are necessary for proper function of $current_sub and weren't defined.";
+	}
+#	optional args are below
+	my @defined_args = (@reqd_args, @ax_methods, @plt_methods, @fig_methods, @arg,
+	'ax', @{ $opt{$current_sub} });
+	my @bad_args = grep { my $key = $_; not grep {$_ eq $key} @defined_args} keys %{ $args };
+	if (scalar @bad_args > 0) {
+		p @bad_args;
+		say 'the above arguments are not recognized.';
+		p @defined_args;
+		die 'The above args are accepted.'
+	}
+	my $plot = $args->{plot};
+	$plot->{default_undefined} = $plot->{default_undefined} // 0;
+	$plot->{mirror} = $plot->{mirror} // 0;
+#	my @data;
+	my (@cols, @rows, %data);
+	if (defined $plot->{'col.labels'}) {
+		@cols = @{ $plot->{'col.labels'} };
+	} else {
+		@cols = sort keys %{ $plot->{data} };
+	}
+	foreach my $k1 (@cols) {
+		foreach my $k2 (keys %{ $plot->{data}{$k1} }) {
+			$data{$k1}{$k2} = $plot->{data}{$k1}{$k2};
+			$data{$k2}{$k1} = $data{$k1}{$k2} if $plot->{mirror} > 0;
+		}
+	}
+	if (defined $plot->{'row.labels'}) {
+		@rows = @{ $plot->{'row.labels'} };
+	} else {
+		@rows = @cols; # the matrix "d" is built with one row per entry of @cols
+	}
+	my ($min, $max) = ('inf', '-inf');
+	say {$args->{fh}} 'd = []';
+	say {$args->{fh}} 'import numpy as np';
+	foreach my $k1 (@cols) {
+		foreach my $k2 (grep {!defined $data{$k1}{$_}} @cols) {
+			$data{$k1}{$k2} = 'np.nan';#$plot->{default_undefined};
+		}
+		foreach my $k2 (grep {looks_like_number($data{$k1}{$_})} @cols) {
+			$min = min($min, $data{$k1}{$k2});
+			$max = max($max, $data{$k1}{$k2});
+		}
+		say {$args->{fh}} 'd.append([' . join (',', @{ $data{$k1} }{@cols}) . '])';
+	}
+	$min = $plot->{cb_min} // $min;
+	$max = $plot->{cb_max} // $max;
+	$plot->{cmap} = $plot->{cmap} // 'gist_rainbow';
+	$plot->{cb_logscale} = $plot->{cb_logscale} // 0;
+	my $ax = $args->{ax} // '';
+	say {$args->{fh}} 'from matplotlib import colors' if $plot->{cb_logscale} > 0;
+	$plot->{'undef.color'} = $plot->{'undef.color'} // 'gray';
+	say {$args->{fh}} 'import matplotlib';
+	say {$args->{fh}} "table_cmap = matplotlib.colormaps['$plot->{cmap}'].copy()";
+	say {$args->{fh}} 'table_cmap.set_bad("' . $plot->{'undef.color'} . '")';
+	say {$args->{fh}} "norm = plt.Normalize($min, $max)";
+	say {$args->{fh}} 'datacolors = table_cmap(norm(d))';
+	my @options;
+	my %translate = (cb_min => 'vmin', cb_max => 'vmax');
+	foreach my $opt (grep {defined $plot->{$_}} 'cb_min', 'cb_max'){
+		unless (looks_like_number( $plot->{$opt} )) {
+			die "\"$opt\" = $plot->{$opt} must be a number";
+		}
+		push @options, "$translate{$opt} = $plot->{$opt}";
+	}
+	my $opt = join (',', @options);
+	if (scalar @options > 0) {
+		$opt = ", $opt";
+	}
+	if ($plot->{cb_logscale}) {
+		say {$args->{fh}} 'img = ax' . $ax . '.imshow(d, cmap=table_cmap, norm=colors.LogNorm(' . join (',', @options) . '))';
+	} else {
+		say {$args->{fh}} "img = ax$ax.imshow(d, cmap=table_cmap $opt)";
+	}
+	$plot->{'colorbar.on'} = $plot->{'colorbar.on'} // 1;
+	if (defined $plot->{cblabel}) {
+		say {$args->{fh}} "fig.colorbar(img, label = '$plot->{cblabel}')";
+	} else {
+		say {$args->{fh}} "fig.colorbar(img)" if $plot->{'colorbar.on'};
+	}
+	say {$args->{fh}} 'img.set_visible(False)';
+	$plot->{'show.numbers'} = $plot->{'show.numbers'} // 0;
+	say {$args->{fh}} 'for ri, row in enumerate(d):';
+	say {$args->{fh}} '	for ii, item in enumerate(row):';
+	say {$args->{fh}} '		if np.isnan(item):';
+	say {$args->{fh}} '			d[ri][ii] = ""';
+	if ($plot->{'show.numbers'}) {
+		say {$args->{fh}} "table = ax$ax" . '.table(cellText=d, rowLabels=["' . join ('","', @rows) . '"], colLabels = ["' . join ('","', @cols) . '"], cellColours = datacolors, loc = "center", bbox=[0,0,1,1])';
+	} else {
+		say {$args->{fh}} "table = ax$ax" . '.table(rowLabels=["' . join ('","', @rows) . '"], colLabels = ["' . join ('","', @cols) . '"], cellColours = datacolors, loc = "center", bbox=[0,0,1,1])';
+	}
+	foreach my $arg (grep {defined $plot->{$_}} ('title')) {
+		say {$args->{fh}} "ax$ax.$arg('$plot->{$arg}')";
+	}
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y
+		if ($axis =~ m/^([^xy])$/) {
+			p $plot->{logscale};
+			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
+		}
+		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
+	}
+#	say {$args->{fh}} "fig.clim(vmin = $plot->{cb_min})" if defined $plot->{cb_min};
+#	say {$args->{fh}} "fig.clim(vmax = $plot->{cb_max})" if defined $plot->{cb_max};
+	foreach my $axis ('x','y') {
+		say {$args->{fh}} "ax$ax.set_${axis}ticks" . '([])';
+		say {$args->{fh}} "ax$ax.set_${axis}ticklabels" . '([])';
+	}
+}
+
+sub hexbin_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+		'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+		'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+		p @undef_args;
+		die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (
+	  @ax_methods, @fig_methods, @arg, @plt_methods,
+	  'ax', @{ $opt{$current_sub} }
+	);
+	my $plot = $args->{plot};
+	@undef_args = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_args > 0 ) {
+		p @undef_args;
+		die "The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+	}
+	$plot->{cb_logscale} = $plot->{cb_logscale} // 0;
+	$plot->{marginals}   = $plot->{marginals}   // 0;
+	$plot->{xbins}       = $plot->{xbins}       // 15;
+	$plot->{ybins}       = $plot->{ybins}       // 15;
+	$plot->{xbins}       = int $plot->{xbins};
+	$plot->{ybins}       = int $plot->{ybins};
+	if ( ( $plot->{xbins} == 0 ) || ( $plot->{ybins} == 0 ) ) {
+	  p $plot;
+	  die "# of bins cannot be 0 in $current_sub";
+	}
+	my @keys;
+	if ( defined $plot->{'key.order'} ) {
+		@keys = @{ $plot->{'key.order'} };
+	} else {
+		@keys = sort keys %{ $plot->{data} };
+	}
+	if ( scalar @keys != 2 ) {
+	  p @keys;
+	  die "There must be exactly 2 keys for $current_sub";
+	}
+	my $n_points = scalar @{ $plot->{data}{ $keys[0] } };
+	if ( scalar @{ $plot->{data}{ $keys[1] } } != $n_points ) {
+	  say "\"$keys[0]\" has $n_points points.";
+	  say "\"$keys[1]\" has "
+		 . scalar @{ $plot->{data}{ $keys[1] } }
+		 . " points.";
+	  die 'The length of both keys must be equal.';
+	}
+	$plot->{xlabel} = $plot->{xlabel} // $keys[0];
+	$plot->{ylabel} = $plot->{ylabel} // $keys[1];
+	$plot->{cmap}   = $plot->{cmap}   // 'gist_rainbow';
+	my $options =
+	", gridsize = ($plot->{xbins}, $plot->{ybins}), cmap = '$plot->{cmap}'"
+	;    # these args go to the plt.hist call
+	if ( $plot->{cb_logscale} ) {
+	  say { $args->{fh} } 'from matplotlib.colors import LogNorm';
+	  $options .= ', norm = LogNorm()';
+	}
+	foreach my $opt (
+	  grep { defined $plot->{$_} } ('xrange', 'yrange', 'vmin', 'vmax', 'mincnt')
+	)
+	{
+		$options .= ", $opt = $plot->{$opt}";
+	}
+	foreach my $opt (grep {defined $plot->{$_} } ('xscale.hexbin', 'yscale.hexbin')) {
+		if (($plot->{$opt} ne 'log') && ($plot->{$opt} ne 'linear')) {
+			die "\"$opt\" is neither \"log\" nor \"linear\"";
+		}
+		my $opth = $opt;
+		$opth =~ s/\.\w+$//;
+		$options .= ", $opth = '$plot->{$opt}'";
+	}
+	if ((defined $plot->{marginals}) && ($plot->{marginals} > 0)) {
+		$options .= ', marginals = True';
+	}
+	say { $args->{fh} } 'x = ['
+	. join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
+	say { $args->{fh} } 'y = ['
+	. join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']';
+	my $ax = $args->{ax} // '';
+	say { $args->{fh} } "im$ax = ax$ax.hexbin(x, y $options)\n";
+	my $opts = '';
+	foreach my $o (grep {defined $plot->{$_}} ('cblocation', 'cborientation')) { #str; cblabel is handled separately below
+		my $mpl_opt = $o;
+		$mpl_opt =~ s/^cb//;
+		$opts .= ", $mpl_opt = '$plot->{$o}'";
+	}
+	foreach my $o (grep {defined $plot->{$_}} ('cbdrawedges', 'cbpad')) { # numeric
+		die "$o = $plot->{$o} must be numeric" unless (looks_like_number($plot->{$o}));
+		my $mpl_opt = $o;
+		$mpl_opt =~ s/^cb//;
+		$opts .= ", $mpl_opt = $plot->{$o}";
+	}
+	$plot->{'colorbar.on'} = $plot->{'colorbar.on'} // 1;
+	if (($plot->{'colorbar.on'}) && (defined $plot->{'shared.colorbar'})) {
+		my @ax = map {"ax$_"} @{ $plot->{'shared.colorbar'} };
+		$opts .= ', ax = [' . join (',', @ax) . '] ';
+	}
+	if ( defined $plot->{cblabel} ) {
+		write_data({
+			data => $plot->{cblabel},
+			fh   => $args->{fh},
+			name => 'cblabel',
+		});
+		say { $args->{fh} } "plt.colorbar(im$ax, label = cblabel $opts)";
+	} else {
+		say { $args->{fh} } "plt.colorbar(im$ax, label = 'Density' $opts)";
+	}
+}
+
+sub format_commas
+{ #($n, $format = '.%02d') { # https://stackoverflow.com/questions/33442240/perl-printf-to-use-commas-as-thousands-separator
+    # $format should be '%.0u' for integers
+    my ( $n, $format ) = @_;
+    $format = '.%02d' if not defined $format;
+    return
+      reverse( join( ",", unpack( "(A3)*", reverse int($n) ) ) )
+      . sprintf( $format, int( 100 * ( .005 + ( $n - int($n) ) ) ) );
+}
+
+sub hist_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+		die
+	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+		'ax',   # used for multiple plots
+		'fh',   # e.g. $py, $fh, which will be passed by the subroutine
+		'plot', # args to original function
+	);
+	my @undef = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef > 0 ) {
+		p @undef;
+		die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
+	my $plot      = $args->{plot};
+	@undef = grep {
+		my $key = $_;
+		not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef > 0 ) {
+		p @undef;
+		die "The above arguments aren't defined for $plot->{'plot.type'}";
+	}
+	my $options = '';    # these args go to the plt.hist call
+	$plot->{alpha} = $plot->{alpha} // 0.5;
+	foreach my $arg ( grep { defined $plot->{$_} } ( 'bins', 'orientation' ) ) {
+		next if ref $plot->{$arg} eq 'HASH';    # set-specific setting exists
+		my $ref = ref $plot->{$arg};
+		if ( $ref eq '' ) { # single color
+			if ( $plot->{$arg} =~ m/^[A-Za-z]+$/ ) {    # "Red" needs quotes
+				$options .= ", $arg = '$plot->{$arg}'";
+			} else { # I'm assuming numeric
+				$options .= ", $arg = $plot->{$arg}";
+			}
+		} elsif ( $ref eq 'ARRAY' ) {
+			$options .= ", $arg = [" . join( ',', @{ $plot->{$arg} } ) . ']';
+		} else {
+			p $plot;
+			die "$ref for $arg isn't acceptable";
+		}
+	}
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y
+		if ($axis =~ m/^([^xy])$/) {
+			p $plot->{logscale};
+			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
+		}
+		say {$args->{fh}} "ax$args->{ax}.set_$axis" . 'scale("log")';
+	}
+	if (ref $plot->{data} eq 'ARRAY') {
+		my $tmp = delete $plot->{data};
+		$plot->{data}{A} = $tmp;
+	}
+	if (scalar keys %{ $plot->{data} } > 1) {
+		$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
+	} else {
+		$plot->{'show.legend'} = $plot->{'show.legend'} // 0;
+	}
+	foreach my $set ( sort keys %{ $plot->{data} } ) {
+		my @non_numeric = grep {not looks_like_number($_)} @{ $plot->{data}{$set} };
+		if (scalar @non_numeric > 0) {
+			p @non_numeric;
+			die "$set has non-numeric values; which for hist must be numeric";
+		}
+		my $set_options = '';
+		foreach
+		 my $arg ( grep { ref $plot->{$_} eq 'HASH' } ( 'bins', 'color' ) )
+		{
+			next unless defined $plot->{$arg}{$set};
+			if ( $plot->{$arg}{$set} =~ m/^[A-Za-z]+$/ ) {  # "Red" needs quotes
+				$set_options .= ", $arg = '$plot->{$arg}{$set}'";
+			} else {    # I'm assuming numeric; "10" doesn't need quotes
+				$set_options .= ", $arg = $plot->{$arg}{$set}";
+			}
+		}
+		say {$args->{fh}} 'd = [' . join (',', @{ $plot->{data}{$set} }) . ']';
+		if ($plot->{'show.legend'}) {
+			say { $args->{fh} } "ax$args->{ax}.hist(d, alpha = $plot->{alpha}, label = '$set' $options $set_options)";
+		} else {
+			say { $args->{fh} } "ax$args->{ax}.hist(d, alpha = $plot->{alpha} $options $set_options)";
+		}
+	}
+}
+
+sub hist2d_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+		'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+		'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
+	my $plot = $args->{plot};
+	@undef_args = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die
+	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+	}
+	$plot->{cb_logscale}     = $plot->{cb_logscale}     // 0;
+	$plot->{'show.colorbar'} = $plot->{'show.colorbar'} // 1;
+	$plot->{xbins}           = int( $plot->{xbins} // 15 );
+	$plot->{ybins}           = int( $plot->{ybins} // 15 );
+	if ( ( $plot->{xbins} == 0 ) || ( $plot->{ybins} == 0 ) ) {
+	  p $plot;
+	  die "# of bins cannot be 0 in $current_sub";
+	}
+	my @keys;
+	if ( defined $plot->{'key.order'} ) {
+		@keys = @{ $plot->{'key.order'} };
+	} else {
+		@keys = sort keys %{ $plot->{data} };
+	}
+	if ( scalar @keys != 2 ) {
+	  p @keys;
+	  die "There must be exactly 2 keys for $current_sub";
+	}
+	my $n_points = scalar @{ $plot->{data}{ $keys[0] } };
+	if ( scalar @{ $plot->{data}{ $keys[1] } } != $n_points ) {
+	  say "$keys[0] has $n_points points.";
+	  say "$keys[1] has "
+		 . scalar @{ $plot->{data}{ $keys[1] } }
+		 . " points.";
+	  die 'The length of both keys must be equal.';
+	}
+	$plot->{xlabel} = $plot->{xlabel} // $keys[0];
+	$plot->{ylabel} = $plot->{ylabel} // $keys[1];
+	$plot->{cmap}   = $plot->{cmap}   // 'gist_rainbow';
+	my $options = ", cmap = '$plot->{cmap}'"; # these args go to the plt.hist call
+	if ( $plot->{cb_logscale} ) {
+		say {$args->{fh}} 'from matplotlib.colors import LogNorm';
+		# prevents "ValueError: Passing a Normalize instance simultaneously with vmin/vmax is not supported.  Please pass vmin/vmax directly to the norm when creating it"
+		my @logNorm_opt;
+		foreach my $arg (grep {defined $plot->{$_}} ('vmin', 'vmax')) {
+			if (not looks_like_number($plot->{$arg})) {
+				die "$arg must be numeric for $current_sub, but was given \"$plot->{$arg}\"";
+			}
+			push @logNorm_opt, "$arg = $plot->{$arg}";
+			delete $plot->{$arg}; 
+		}
+		$options .= ', norm = LogNorm(' . join (',', @logNorm_opt) . ')';
+	}
+	foreach my $opt ( grep { defined $plot->{$_} } ( 'cmin', 'cmax', 'density', 'vmin', 'vmax' ) )
+	{
+		$options .= ", $opt = $plot->{$opt}";
+	}
+	my @bad_indices;
+	my $bad_pts = 0;
+	foreach my $i (0,1) {
+		@{ $bad_indices[$i] } = grep {not defined $plot->{data}{$keys[$i]}[$_]} 0..$n_points-1;
+		$bad_pts += scalar @{ $bad_indices[$i] };
+	}
+	if ($bad_pts > 0) {
+		say STDERR "the above args have the following indices undefined ($n_points total)";
+		p @bad_indices;
+		die "Cannot proceed as there are $bad_pts undefined points.";
+	}
+	foreach my $i (0,1) {
+		@{ $bad_indices[$i] } = grep {not looks_like_number($plot->{data}{$keys[$i]}[$_])} 0..$n_points-1;
+		$bad_pts += scalar @{ $bad_indices[$i] };
+	}
+	if ($bad_pts > 0) {
+		p $args;
+		say STDERR "the above args have the following indices non-numeric ($n_points total)";
+		p @bad_indices;
+		die "Cannot proceed as there are $bad_pts non-numeric points.";
+	}
+	say { $args->{fh} } 'x = ['
+	. join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
+	$plot->{xmin} = $plot->{xmin} // min( @{ $plot->{data}{ $keys[0] } } );
+	$plot->{xmax} = $plot->{xmax} // max( @{ $plot->{data}{ $keys[0] } } );
+	say { $args->{fh} } 'y = ['
+	. join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']';
+	$plot->{ymin} = $plot->{ymin} // min( @{ $plot->{data}{ $keys[1] } } );
+	$plot->{ymax} = $plot->{ymax} // max( @{ $plot->{data}{ $keys[1] } } );
+	my $ax = $args->{ax} // '';
+	# the range argument ensures that there are no empty parts of the plot
+	my $range =	", range = [($plot->{xmin}, $plot->{xmax}), ($plot->{ymin}, $plot->{ymax})]";
+	# logscale complications
+	say {$args->{fh}} 'import numpy as np';
+	if ($plot->{logscale}) {
+		my %linear_axes = ('x' => 1, 'y' => 1);
+		foreach my $axis (@{ $plot->{logscale} }) { # x, y
+			if ($axis =~ m/^([^xy])$/) {
+				p $plot->{logscale};
+				die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
+			}
+			say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
+			my $min = $plot->{$axis . 'min'};
+			my $max = $plot->{$axis . 'max'};
+			my $key = "${axis}bins";
+			say {$args->{fh}} "${axis}bins = np.logspace(np.log10($min), np.log10($max), $plot->{$key})";
+			delete $linear_axes{$axis}; # so that I don't make a linear space for it
+		}
+		foreach my $axis ( keys %linear_axes ) {
+			my $min = $plot->{$axis . 'min'};
+			my $max = $plot->{$axis . 'max'};
+			my $key = "${axis}bins";
+			say {$args->{fh}} "${axis}bins = np.linspace($min, $max, $plot->{$key})";
+		}
+		$options = ", bins = [xbins, ybins] $options";
+	} else {
+		$options = ", ($plot->{xbins}, $plot->{ybins}) $options";
+	}
+	say {$args->{fh}}	"hist2d_n, hist2d_xedges, hist2d_yedges, im$ax = ax$ax.hist2d(x, y $options $range)";
+	say {$args->{fh}} 'max_hist2d_box = np.max(hist2d_n)';
+	say {$args->{fh}} 'min_hist2d_box = np.min(hist2d_n)';
+	say {$args->{fh}} "print(f'plot $ax hist2d density range = [{min_hist2d_box}, {max_hist2d_box}]')";
+	return 0 if $plot->{'show.colorbar'} == 0;
+	my $opts = '';
+	foreach my $o (grep {defined $plot->{$_}} ('cblocation', 'cborientation')) { #str; cblabel is handled separately below
+		my $mpl_opt = $o;
+		$mpl_opt =~ s/^cb//;
+		$opts .= ", $mpl_opt = '$plot->{$o}'";
+	}
+	foreach my $o (grep {defined $plot->{$_}} ('cbdrawedges', 'cbpad')) { # numeric
+		die "$o = $plot->{$o} must be numeric" unless (looks_like_number($plot->{$o}));
+		my $mpl_opt = $o;
+		$mpl_opt =~ s/^cb//;
+		$opts .= ", $mpl_opt = $plot->{$o}";
+	}
+	$plot->{'colorbar.on'} = $plot->{'colorbar.on'} // 1;
+	if (($plot->{'colorbar.on'}) && (defined $plot->{'shared.colorbar'})) {
+		my @ax = map {"ax$_"} @{ $plot->{'shared.colorbar'} };
+		$opts .= ', ax = [' . join (',', @ax) . '] ';
+	}
+#	say { $args->{fh} } "cbar = fig.colorbar(im$ax $opts)" if $plot->{'colorbar.on'};
+	if ( defined $plot->{cblabel} ) {
+	  say { $args->{fh} } "plt.colorbar(im$ax, label = '$plot->{cblabel}' $opts)";
+	} else {
+	  say { $args->{fh} } "plt.colorbar(im$ax, label = 'Density' $opts)";
+	}
+}
+
+sub imshow_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+	  die
+	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+	  'ax',
+	  'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+	  'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
+	my $plot = $args->{plot};
+	@undef_args = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die
+	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+	}
+	my $data_ref = ref $plot->{data};
+	if ($data_ref ne 'ARRAY') {
+		p $args;
+		die "$current_sub can only accept 2-D arrays as input in \"data\", but received $data_ref";
+	}
+	my $non_numeric_data = 0;
+	foreach my $row (@{ $plot->{data} }) {
+		if (grep {not looks_like_number($_)} @{ $row }) {
+			$non_numeric_data = 1;
+			last;
+		}
+	}
+	if (($non_numeric_data) && (not defined $plot->{stringmap})) {
+		p $args;
+		die "$current_sub needs a map to translate strings to integers";
+	}
+	my (@ytick_labels, %intmap);
+	# assign integers for each key in stringmap
+	foreach my $string (sort keys %{ $plot->{stringmap} }) {
+		$intmap{$string} = scalar @ytick_labels;
+		push @ytick_labels, $plot->{stringmap}{$string};
+	}
+	if ($non_numeric_data) {
+		foreach my $row (@{ $plot->{data} }) {
+			@{ $row } = map { $intmap{$_} } @{ $row };
+		}
+	}
+	my ($min_val, $max_val) = ('inf', '-inf');
+	my $opts = '';
+	if ($non_numeric_data) {
+		say { $args->{fh} } 'from matplotlib.colors import ListedColormap';
+		my @prop_cycle = ('#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2',
+ '#7f7f7f', '#bcbd22', '#17becf'); #plt.rcParams['axes.prop_cycle']
+		say { $args->{fh} } 'colors = ["' . join ('","', @prop_cycle[0..(scalar keys %intmap) - 1]) . '"]';
+		say { $args->{fh} } 'this_cmap = ListedColormap(colors)';
+		warn "deleting \"$plot->{cmap}\" because string data is present" if defined $plot->{cmap};
+		delete $plot->{cmap};
+		$min_val = 0;
+		$max_val = max(values %intmap);
+		$opts .= ', cmap = this_cmap';
+	}
+	write_data({
+		data => $plot->{data},
+		fh   => $args->{fh},
+		name => 'd',
+	});
+	foreach my $row (@{ $plot->{data} }) { # write data to the python file
+		next if $non_numeric_data; # strings don't have max and min
+		$min_val = min(@{ $row }, $min_val);
+		$max_val = max(@{ $row }, $max_val);
+	}
+	my $ax = $args->{ax} // '';
+	$plot->{vmax} = $plot->{vmax} // $max_val;
+	$plot->{vmin} = $plot->{vmin} // $min_val;
+	foreach my $opt (grep {defined $plot->{$_}} ('cmap')) { # strings
+		$opts .= ", $opt = '$plot->{$opt}'";
+	}
+	foreach my $opt (grep {defined $plot->{$_}} ('vmax', 'vmin')) { # numeric
+		$opts .= ", $opt = $plot->{$opt}";
+	}
+	say { $args->{fh} } "im$ax = ax$ax.imshow(d, aspect = 'auto' $opts)";
+	$opts = '';
+	if ($non_numeric_data) {
+		$opts .= ', ticks = [' . join (',', map {$_ + 0.5 - $_/$max_val} 0..$max_val) . ']';
+	}
+	foreach my $o (grep {defined $plot->{$_}} ('cblabel', 'cblocation', 'cborientation')) { #str
+		my $mpl_opt = $o;
+		$mpl_opt =~ s/^cb//;
+		$opts .= ", $mpl_opt = '$plot->{$o}'";
+	}
+	foreach my $o (grep {defined $plot->{$_}} ('cbdrawedges', 'cbpad')) { # numeric
+		die "$o = $plot->{$o} must be numeric" unless (looks_like_number($plot->{$o}));
+		my $mpl_opt = $o;
+		$mpl_opt =~ s/^cb//;
+		$opts .= ", $mpl_opt = $plot->{$o}";
+	}
+	$plot->{'colorbar.on'} = $plot->{'colorbar.on'} // 1;
+	if (($plot->{'colorbar.on'}) && (defined $plot->{'shared.colorbar'})) {
+		my @ax = map {"ax$_"} @{ $plot->{'shared.colorbar'} };
+		$opts .= ', ax = [' . join (',', @ax) . '] ';
+	}
+	say { $args->{fh} } "cbar = fig.colorbar(im$ax $opts)" if $plot->{'colorbar.on'};
+	if (($non_numeric_data) && ($plot->{'colorbar.on'})) {
+		say { $args->{fh} } 'cbar.ax.set_yticklabels(["' . join ('","', @ytick_labels) . '"])';
+	}
+}
+
+sub pie_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+	  die
+	"args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+	  'ax',
+	  'fh',   # e.g. $py, $fh, which will be passed by the subroutine
+	  'plot', # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
+	my $plot      = $args->{plot};
+	my @undef_opt = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_opt > 0 ) {
+	  p @undef_opt;
+	  die
+	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+	}
+	my @key_order;
+	if ( defined $plot->{'key.order'} ) {
+	  @key_order = @{ $plot->{'key.order'} };
+	} else {
+	  @key_order = sort keys %{ $plot->{data} };
+	}
+	$plot->{autopct} = $plot->{autopct} // '';
+	my $opt = '';
+	if ( $plot->{autopct} ne '' ) {
+	$opt .= ", autopct = '$plot->{autopct}'";
+	}
+	foreach my $arg ( grep { defined $plot->{$_} } 'labeldistance', 'pctdistance' ) {
+	  $opt .= ", $arg = $plot->{$arg}";
+	}
+	write_data({
+		data => \@key_order,
+		fh   => $args->{fh},
+		name => 'labels',
+	});
+	say { $args->{fh} } 'vals = ['
+	. join( ',', @{ $plot->{data} }{@key_order} ) . ']';
+	my $ax = $args->{ax} // '';
+	say { $args->{fh} } "ax$ax.pie(vals, labels = labels $opt)";
+}
+
+sub plot_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+		'ax',	'fh',# e.g. $py, $fh, which will be passed by the subroutine
+		'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (@ax_methods, @fig_methods, @arg, @plt_methods, 'ax', @{ $opt{$current_sub} });
+	my $plot = $args->{plot};
+	my @bad_opt = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @bad_opt > 0 ) {
+	  p $args;
+	  p @bad_opt;
+	  die	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+	}
+	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y
+		if ($axis =~ m/^([^xy])$/) {
+			p $plot->{logscale};
+			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
+		}
+		say {$args->{fh}} "ax$args->{ax}.set_$axis" . 'scale("log")';
+	}
+	my @twinx;
+	# Allow a single line entered as two bare array refs, with no enclosing
+	# pair-array and no hash key:
+	#     data => [ \@x, \@y ]
+	# Promote it to the canonical array-of-pairs form so the array path below
+	# handles it unchanged:
+	#     data => [ [ \@x, \@y ] ]
+	# The discriminator vs. the multi-line form (data => [ [\@x,\@y], ... ]) is
+	# data->[0][0]: a number here, an ARRAY ref in the multi-line form.
+	if (   ( ref $plot->{data} eq 'ARRAY' )
+		&& ( scalar @{ $plot->{data} } == 2 )
+		&& ( ref $plot->{data}[0] eq 'ARRAY' )
+		&& ( ref $plot->{data}[1] eq 'ARRAY' )
+		&& ( ref $plot->{data}[0][0] ne 'ARRAY' ) )
+	{
+		$plot->{data} = [ $plot->{data} ];
+	}
+	if (ref $plot->{data} eq 'ARRAY') {
+		if (defined $plot->{'set.options'}) {
+			my $ref_type = ref $plot->{'set.options'};
+			# a scalar applies to every line (handy for the single-line form);
+			# an array gives one option string per line (positional)
+			if ($ref_type eq 'ARRAY') {
+				my $n_set_opt = scalar @{ $plot->{'set.options'} };
+				my $n_data = scalar @{ $plot->{data} };
+				if ($n_set_opt > $n_data) {
+					p $args;
+					die "there are $n_set_opt sets for options, but only $n_data data points.";
+				}
+			} elsif ($ref_type ne '') {
+				p $args;
+				die "\"set.options\" must be a scalar (applied to every line) or an array (one per line) when data is an array, but \"$ref_type\" was given.";
+			}
+		}
+		if (defined $plot->{twinx}) {
+			if (ref $plot->{twinx} eq '') {
+				die "twinx must be an array index, not \"$plot->{twinx}\"" unless $plot->{twinx} =~ m/^\d+$/;
+				@twinx = $plot->{twinx};
+			} elsif (ref $plot->{twinx} eq 'ARRAY') {
+				@bad_opt = grep {$_ !~ m/^\d+$/} @{ $plot->{twinx} };
+				if (scalar @bad_opt > 0) {
+					p @bad_opt;
+					die 'data that could not possibly be an array index for twinx is shown above';
+				}
+				@twinx = @{ $plot->{twinx} };
+			}
+		}
+		if (defined $plot->{'twinx.args'}) {
+			my $ref = ref $plot->{'twinx.args'};
+			die "\"twinx.args\" must be a hash, but $ref was entered" unless $ref eq 'HASH';
+			@bad_opt = grep {$_ !~ m/^\d+$/} keys %{ $plot->{'twinx.args'} };
+			if (scalar @bad_opt > 0) {
+				p @bad_opt;
+				die 'the above keys are not hash indices';
+			}
+			foreach my $idx (keys %{ $plot->{'twinx.args'} }) {
+				next if grep {$idx == $_} @twinx;
+				push @twinx, $idx;
+			}
+		}
+		my $arr_i = 0;
+		foreach my $arr (@{ $plot->{data} }) {
+			my $ref = ref $arr;
+			if ($ref ne 'ARRAY') {
+				p $plot->{data}[$arr_i];
+				die "index $arr_i is \"$ref\" but must be \"ARRAY\"";
+			}
+			my $n_elem = scalar @{ $arr };
+			if ($n_elem != 2) {
+				p $arr;
+				die "there must be 2 array references (x, y) but index $arr_i has $n_elem";
+			}
+			@bad_opt = map { scalar @{ $arr->[$_] } } (0,1);
+			if ($bad_opt[0] != $bad_opt[1]) {
+				say STDERR "index $arr_i must have arrays/array refs of equal length, but these lengths were given:";
+				p @bad_opt;
+				die 'the array/array ref lengths must be equal';
+			}
+			foreach my $i (0,1) {
+				my $max_i = scalar @{ $arr->[$i] } - 1;
+				@bad_opt = grep {not looks_like_number($arr->[$i][$_])} 0..$max_i;
+				next if scalar @bad_opt == 0; # it's fine, don't worry
+				p $plot->{data}[$arr_i];
+				p @bad_opt;
+				@bad_opt = @{ $arr->[$i] }[@bad_opt];
+				say STDERR 'have these non-numeric values:';
+				p @bad_opt;
+				die "Array index $arr_i/axis $i has non-numeric values (above)";
+			}
+			my $options = '';
+			say { $args->{fh} } 'x = [' . join( ',', @{ $arr->[0] } ) . ']';
+			say { $args->{fh} } 'y = [' . join( ',', @{ $arr->[1] } ) . ']';
+			if ( defined $plot->{'set.options'} ) {
+				my $so_ref = ref $plot->{'set.options'};
+				if ( $so_ref eq '' ) {    # scalar: same options for every line
+					$options = ", $plot->{'set.options'}";
+				} elsif (   ( $so_ref eq 'ARRAY' )
+						&& ( defined $plot->{'set.options'}[$arr_i] ) ) {
+					$options = ", $plot->{'set.options'}[$arr_i]";    # one per line
+				}
+			}
+			my $ax = "ax$args->{ax}";
+			if (grep {$arr_i == $_} @twinx) {
+				say { $args->{fh} } "twinx_$ax = $ax.twinx()# " . __LINE__;
+				say { $args->{fh} } "twinx_$ax.plot(x, y $options) # " . __LINE__;
+				if (defined $plot->{'twinx.args'}{$arr_i}) {
+					plot_args({
+						fh   => $args->{fh},
+						args => $plot->{'twinx.args'}{$arr_i},
+						ax   => "twinx_$ax"
+					});
+				}
+			} else {
+				say { $args->{fh} } "ax$args->{ax}.plot(x, y $options) # " . __LINE__;
+			}
+			$arr_i++;
+		}
+		return 1; # the rest only applies if $plot->{data} is a hash
+	}
+	my @key_order;
+	if ( defined $plot->{'key.order'} ) {
+		@key_order = @{ $plot->{'key.order'} };
+	} else {
+		@key_order = sort keys %{ $plot->{data} };
+	}
+	if ((defined $plot->{'set.options'}) && (ref $plot->{'set.options'} eq 'HASH')) {
+		@bad_opt = sort grep {!defined $plot->{data}{$_}} keys %{ $plot->{'set.options'} };
+		if (scalar @bad_opt > 0) {
+			p @bad_opt;
+			die "the above options are defined for undefined data sets in $current_sub.";
+		}
+	}
+	if (defined $plot->{twinx}) {
+		if (ref $plot->{twinx} eq '') {
+			die "twinx \"$plot->{twinx}\" is not a key in data" unless defined $plot->{data}{ $plot->{twinx} };
+			@twinx = ($plot->{twinx});
+		} elsif (ref $plot->{twinx} eq 'HASH') {
+			@bad_opt = sort grep {!defined $plot->{data}{$_}} keys %{ $plot->{twinx} };
+			if (scalar @bad_opt > 0) {
+				p @bad_opt;
+				die 'data for undefined data keys is shown above';
+			}
+			@twinx = sort keys %{ $plot->{twinx} };
+		}
+	}
+	if (defined $plot->{'twinx.args'}) {
+		my $ref = ref $plot->{'twinx.args'};
+		die "\"twinx.args\" must be a hash, but $ref was entered" unless $ref eq 'HASH';
+		@bad_opt = sort grep {!defined $plot->{data}{$_}} keys %{ $plot->{'twinx.args'} };
+		if (scalar @bad_opt > 0) {
+			p @bad_opt;
+			die 'the above keys are not present in data keys';
+		}
+		foreach my $set (keys %{ $plot->{'twinx.args'} }) {
+			next if grep {$set eq $_} @twinx;
+			push @twinx, $set;
+		}
+	}
+	my $set_i = 0;
+	foreach my $set (@key_order) {
+		my $set_ref = ref $plot->{data}{$set};
+		if ( $set_ref ne 'ARRAY' ) {
+			p $plot->{data}{$set};
+			die "$set must have two arrays, x and y coordinates, but instead has a $set_ref";
+		}
+		my $n_arrays = scalar @{ $plot->{data}{$set} };
+		if ( $n_arrays != 2 ) {
+			p $plot->{data}{$set};
+			die "$n_arrays were entered for $set, but there must be exactly 2";
+		}
+		my @n_elem = map { scalar @{ $plot->{data}{$set}[$_] }} (0,1);
+		if ( $n_elem[0] != $n_elem[1] ) {
+			p $plot->{data}{$set};
+			p @n_elem;
+			die "$set has length = $n_elem[0] for x; length = $n_elem[1] for y: x & y must be of equal length";
+		}
+		foreach my $ax (0,1) {
+			my $n = scalar @{ $plot->{data}{$set}[$ax] };
+			my @undef_i = grep {not defined $plot->{data}{$set}[$ax][$_]} 0..$n-1;
+			if (scalar @undef_i > 0) {
+				p $plot;
+				p @undef_i;
+				my $max_i = scalar @{ $plot->{data}{$set}[$ax] };
+				die "set $set axis $ax has undefined indices, of max index $max_i in $current_sub";
+			}
+		}
+		my $options = '';
+		say { $args->{fh} } 'x = [' . join( ',', @{ $plot->{data}{$set}[0] } ) . ']';
+		say { $args->{fh} } 'y = [' . join( ',', @{ $plot->{data}{$set}[1] } ) . ']';
+		if (   ( defined $plot->{'set.options'} )
+			&& ( ref $plot->{'set.options'} eq '' ) )
+		{
+			$options = ", $plot->{'set.options'}";
+		}
+		if ( ( ref $plot->{'set.options'} eq 'HASH' ) && ( defined $plot->{'set.options'}{$set} ) ) {
+			$options = ", $plot->{'set.options'}{$set}";
+		}
+		my $label = '';
+		if ( $plot->{'show.legend'} ) {
+			$label = ",label = '$set'";
+		}
+		my $ax = "ax$args->{ax}";
+		if (grep {$set eq $_} @twinx) { # this set has
+			say { $args->{fh} } "twinx_${ax}_$set_i = $ax.twinx()# " . __LINE__;
+			say { $args->{fh} } "twinx_${ax}_$set_i.plot(x, y $label $options) # " . __LINE__;
+			if (defined $plot->{'twinx.args'}{$set}) {
+				plot_args({
+					fh   => $args->{fh},
+					args => $plot->{'twinx.args'}{$set},
+					ax   => "twinx_${ax}_$set_i"
+				});
+			}
+		} else {
+			say { $args->{fh} } "ax$args->{ax}.plot(x, y $label $options) # " . __LINE__;
+		}
+		$set_i++;
+	}
+	return 1;
+}
+
+sub scatter_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+	  'ax',  'fh', # e.g. $py, $fh, which will be passed by the subroutine
+	  'plot',      # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (@ax_methods, @cb_arg, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
+	my $plot      = $args->{plot};
+	@undef_args = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_args > 0 ) {
+		p @undef_args;
+		die "The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+	}
+	my $overall_ref = ref $plot->{data};
+	if ( $overall_ref ne 'HASH' ) {
+		die
+	"scatter only takes 1) hashes of arrays (single or 2) hash of hash of arrays; but $overall_ref was entered";
+	}
+	my ( %ref_counts, $plot_type );
+	foreach my $set ( keys %{ $plot->{data} } ) {
+		$ref_counts{ ref $plot->{data}{$set} }++;
+	}
+	my $ax = $args->{ax};
+	if ( (scalar keys %ref_counts) > 1 ) {
+		p $plot->{data};
+		die "different kinds of data were entered to plot $ax; should be simple hash or hash of arrays.";
+	}
+	if ( defined $ref_counts{ARRAY} ) {
+		$plot_type = 'single';
+	} elsif ( defined $ref_counts{HASH} ) {
+		$plot_type = 'multiple';
+	} else {
+		p $plot->{data};
+		p %ref_counts;
+		die 'Could not determine scatter type for the above data.';
+	}
+	$plot->{cmap} = $plot->{cmap} // 'gist_rainbow';
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y 
+		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
+	}
+	if ( $plot_type eq 'single' ) { # only a single set of data
+		my $options = '';
+		my ( $color_key, @keys );
+		if ( defined $plot->{'keys'} ) {
+			@keys = @{ $plot->{'keys'} };
+		} else {
+			@keys = sort { lc $a cmp lc $b } keys %{ $plot->{data} };
+		}
+		my $n_keys = scalar keys %{ $plot->{data} };
+		if ( ( $n_keys != 2 ) && ( $n_keys != 3 ) ) {
+			p $plot->{data};
+			die "scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
+		}
+		if ( defined $plot->{color_key} ) {
+			$color_key = $plot->{color_key};
+			@keys = grep {$_ ne $plot->{color_key}} @keys;
+		} elsif ( scalar @keys == 3 ) {
+			$color_key = pop @keys;
+		}
+		foreach my $i (0,1) {
+			my @undef_i = grep {not defined $plot->{data}{$keys[$i]}[$_]} 0..scalar @{ $plot->{data}{ $keys[$i] } } - 1;
+			if (scalar @undef_i > 0) {
+				p @undef_i;
+				die "the above indices for $current_sub group $i are undefined.";
+			}
+		}
+		say { $args->{fh} } 'x = [' . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
+		say { $args->{fh} } 'y = [' . join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']';
+		if (   ( defined $plot->{'set.options'} )
+			&& ( ref $plot->{'set.options'} eq '' ) )
+		{
+			$options = ", $plot->{'set.options'}";
+		}
+		my $cb_opts = '';
+		foreach my $o (grep {defined $plot->{$_}} ('cbdrawedges', 'cbpad')) { # numeric
+			die "$o = $plot->{$o} must be numeric" unless (looks_like_number($plot->{$o}));
+			my $mpl_opt = $o;
+			$mpl_opt =~ s/^cb//;
+			$cb_opts .= ", $mpl_opt = $plot->{$o}";
+		}
+		if ( defined $color_key ) {
+			if (not defined $plot->{data}{$color_key}) {
+				die "\"$color_key\" isn't defined for this scatter";
+			}
+			say { $args->{fh} } 'z = [' . join( ',', @{ $plot->{data}{$color_key} } ) . ']';
+			say { $args->{fh} }
+			  "im = ax$ax.scatter(x, y, c = z, cmap = '$plot->{cmap}' $options)";
+			say { $args->{fh} } "fig.colorbar(im, label = '$color_key' $cb_opts)";
+		} else {
+			say { $args->{fh} } "ax$ax.scatter(x, y $options)";
+		}
+		$plot->{xlabel} = $plot->{xlabel} // $keys[0];
+		$plot->{ylabel} = $plot->{ylabel} // $keys[1];
+	} elsif ( $plot_type eq 'multiple' ) { # multiple sets
+		my @undefined_opts;
+		foreach my $set ( sort keys %{ $plot->{'set.options'} } ) {
+			next if grep { $set eq $_ } keys %{ $plot->{data} };
+			push @undefined_opts, $set;
+		}
+		if ( scalar @undefined_opts > 0 ) {
+			p $plot->{data};
+			p $plot;
+			say 'The data and options are above, but the following sets have options without data:';
+			p @undefined_opts;
+			die 'no data was defined for the above options';
+		}
+		my $color_key;
+		foreach my $set ( sort keys %{ $plot->{data} } ) {
+			my $options = '';
+			my @keys;
+			if ( defined $plot->{'keys'} ) {
+				 @keys = @{ $plot->{'keys'} };
+			} else { # automatically take the key from the first; further sets should have the same labels
+				 @keys = sort { lc $a cmp lc $b } keys %{ $plot->{data}{$set} };
+			}
+			my $n_keys = scalar keys %{ $plot->{data}{$set} };
+			if ( ( $n_keys != 2 ) && ( $n_keys != 3 ) ) {
+				p $plot->{data}{$set};
+				die "scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
+			}
+			foreach my $key (@keys) {
+				@undef_args = grep {!defined $plot->{data}{$set}{$key}[$_]} 0..scalar @{ $plot->{data}{$set}{$key} } - 1;
+				if (scalar @undef_args > 0) {
+					p @undef_args;
+					die "the above indices for \"$key\" are undefined in $current_sub";
+				}
+			}
+			if ( defined $plot->{color_key} ) {
+				$color_key = $plot->{color_key};
+				@keys = grep {$_ ne $plot->{color_key}} @keys;
+			} elsif ( scalar @keys == 3 ) {
+				$color_key = pop @keys;
+			}
+			if ( ( not defined $color_key ) && ( $n_keys == 3 ) ) {
+				$color_key = pop @keys;
+			}
+			if ( defined $plot->{'set.options'}{$set} ) {
+				$options = ", $plot->{'set.options'}{$set}";
+			}
+			say { $args->{fh} } 'x = [' . join( ',', @{ $plot->{data}{$set}{ $keys[0] } } ) . ']';
+			say { $args->{fh} } 'y = [' . join( ',', @{ $plot->{data}{$set}{ $keys[1] } } ) . ']';
+			if ( defined $color_key ) {
+				if (not defined $plot->{data}{$set}{$color_key}) {
+					die "\"$color_key\" isn't defined for set \"$set\"";
+				}
+				say { $args->{fh} } 'z = [' . join( ',', @{ $plot->{data}{$set}{$color_key} } ) . ']';
+				unless ( $options =~ m/label\s*=/ ) {
+					$options .= ", label = '$set'";
+				}
+				say { $args->{fh} }
+				"im = ax$ax.scatter(x, y, c = z, cmap = '$plot->{cmap}' $options)";
+			} else {
+				say { $args->{fh} }	"ax$ax.scatter(x, y, label = '$set' $options)";
+			}
+			$plot->{xlabel} = $plot->{xlabel} // $keys[0];
+			$plot->{ylabel} = $plot->{ylabel} // $keys[1];
+	  }
+	  say { $args->{fh} } "plt.colorbar(im, label = '$color_key')"  if defined $color_key;
+	}
+}
+
+sub violin_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+	  'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+	  'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
+	my $plot      = $args->{plot};
+	my @undef_opt = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_opt > 0 ) {
+		p @undef_opt;
+		die "The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
+	}
+	$plot->{orientation} = $plot->{orientation} // 'vertical';
+	if ( $plot->{orientation} !~ m/^(?:horizontal|vertical)$/ ) {
+		die "$current_sub needs either \"horizontal\" or \"vertical\", not \"$plot->{orientation}\"";
+	}
+	if (ref $plot->{data} eq 'ARRAY') {
+		my $tmp = delete $plot->{data};
+		$plot->{data}{''} = $tmp;
+	}
+	my ( @xticks, @key_order );
+	if ( defined $plot->{'key.order'} ) {
+		@key_order = @{ $plot->{'key.order'} };
+	} else {
+		@key_order = sort keys %{ $plot->{data} };
+	}
+	my $ax = $args->{ax} // '';
+	$plot->{medians}  = $plot->{medians}  // 1; # by default, show median values
+	$plot->{whiskers} = $plot->{whiskers} // 1;    # by default, make whiskers
+	$plot->{edgecolor} = $plot->{edgecolor} // 'black';
+	my $options = '';    # these args go to the plt.hist call
+	say { $args->{fh} } 'd = []';
+	my $min_n_points = 'inf';
+	foreach my $key (@key_order) {
+	  @{ $plot->{data}{$key} } = grep { defined && looks_like_number($_) } @{ $plot->{data}{$key} };
+	  say { $args->{fh} } 'd.append(['
+		 . join( ',', @{ $plot->{data}{$key} } ) . '])';
+	  $min_n_points = min( scalar @{ $plot->{data}{$key} }, $min_n_points );
+	}
+	foreach my $axis (@{ $plot->{logscale} }) { # x, y
+		if ($axis =~ m/^([^xy])$/) {
+			p $plot->{logscale};
+			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
+		}
+		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
+	}
+	say { $args->{fh} } "vp = ax$ax.violinplot(d, showmeans=False, points = $min_n_points, orientation = '$plot->{orientation}', showmedians = $plot->{medians})";
+	if ( defined $plot->{colors} ) { # every hash key should have its own color defined
+		# the below code helps to provide better error messages in case I make an error in calling the sub
+		my @wrong_keys = grep { not defined $plot->{colors}{$_} } keys %{ $plot->{data} };
+		if ( scalar @wrong_keys > 0 ) {
+			p $plot;
+			p @wrong_keys;
+			die 'the above data keys have no defined color';
+		}
+		# list of pre-defined colors: https://matplotlib.org/stable/gallery/color/named_colors.html
+		say { $args->{fh} } 'colors = ["'
+		 . join( '","', @{ $plot->{colors} }{@key_order} ) . '"]';
+
+		# the above color list will have the same order, via the above hash slice
+		say { $args->{fh} } 'for i, pc in enumerate(vp["bodies"], 1):';
+		say { $args->{fh} } "\tpc.set_facecolor(colors[i-1])";
+		say { $args->{fh} } "\tpc.set_edgecolor('black')";
+	} else {
+		say { $args->{fh} } 'for pc in vp["bodies"]:';
+		if ( defined $plot->{color} ) {
+			say { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')";
+		}
+		say { $args->{fh} } "\tpc.set_edgecolor('black')";
+
+		#		say {$args->{fh}} "\tpc.set_alpha(1)";
+	}
+	if ( $plot->{whiskers} ) {
+		# https://matplotlib.org/stable/gallery/statistics/customized_violin.html
+		say {$args->{fh} } 'import numpy as np';
+		say {$args->{fh} } 'def adjacent_values(vals, q1, q3):';
+		say {$args->{fh} } '	upper_adjacent_value = q3 + (q3 - q1) * 1.5';
+		say {$args->{fh} }
+		 '	upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])';
+		say {$args->{fh} } '	lower_adjacent_value = q1 - (q3 - q1) * 1.5';
+		say {$args->{fh} }
+		 '	lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)';
+		say {$args->{fh} }
+		 '	return lower_adjacent_value, upper_adjacent_value';
+		say {$args->{fh} } 'np_data = np.array(d, dtype = object)';
+		say {$args->{fh} } 'quartile1 = []';
+		say {$args->{fh} } 'medians   = []';
+		say {$args->{fh} } 'quartile3 = []';
+		say {$args->{fh} } 'for subset in list(range(0, len(np_data))):';
+		say {$args->{fh}} '	local_quartile1, local_medians, local_quartile3 = np.percentile(d[subset], [25, 50, 75])' . "\n";
+		say {$args->{fh}} '	quartile1.append(local_quartile1)';
+		say {$args->{fh}} '	medians.append(local_medians)';
+		say {$args->{fh}} '	quartile3.append(local_quartile3)';
+		say {$args->{fh}} 'whiskers = np.array([';
+		say {$args->{fh}} '    adjacent_values(sorted_array, q1, q3)';
+		say {$args->{fh}} '    for sorted_array, q1, q3 in zip(d, quartile1, quartile3)])';
+		say {$args->{fh}} 'whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]';
+		say {$args->{fh}} 'inds = np.arange(1, len(medians) + 1)';
+		if ( $plot->{orientation} eq 'vertical' ) {
+			say { $args->{fh} } "ax$ax"
+			  . '.vlines(inds, quartile1, quartile3, color="k", linestyle="-", lw=5)';
+			say { $args->{fh} } "ax$ax"
+			  . '.vlines(inds, whiskers_min, whiskers_max, color="k", linestyle="-", lw=1)';
+		} else {
+			say { $args->{fh} } "ax$ax"
+			  . '.hlines(inds, quartile1, quartile3, color="k", linestyle="-", lw=5)';
+			say { $args->{fh} } "ax$ax"
+			  . '.hlines(inds, whiskers_min, whiskers_max, color="k", linestyle="-", lw=1)';
+		}
+	}
+	foreach my $key (@key_order) {
+		push @xticks, "$key ("
+		 . format_commas( scalar @{ $plot->{data}{$key} }, '%.0u' ) . ')';
+		if ( $plot->{orientation} eq 'vertical' ) {
+			say { $args->{fh} } "ax$ax.plot("
+			  . scalar @xticks . ', '
+			  . ( sum( @{ $plot->{data}{$key} } ) / scalar @{ $plot->{data}{$key} } )
+			  . ', "ro")';    # plot mean point, which is red
+		} else {                # orientation = horizontal
+			say { $args->{fh} } "ax$ax.plot("
+			 . ( sum( @{ $plot->{data}{$key} } ) / scalar @{ $plot->{data}{$key} } )
+			 . ', ' . scalar @xticks . ', "ro")';    # plot mean point, which is red
+		}
+	}
+	if ( $plot->{orientation} eq 'vertical' ) {
+		say { $args->{fh} } "ax$ax.set_xticks(["
+		 . join( ',',   1 .. scalar @key_order ) . '], ["'
+		 . join( '","', @xticks ) . '"])';
+	} else {
+	  say { $args->{fh} } "ax$ax.set_yticks(["
+		 . join( ',',   1 .. scalar @key_order ) . '], ["'
+		 . join( '","', @xticks ) . '"])';
+	}
+}
+
+sub wide_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+	  die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+	  'fh',      # e.g. $py, $fh, which will be passed by the subroutine
+	  'plot',    # args to original function
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+		p @undef_args;
+		die "the above args are necessary for $current_sub, but were not defined.";
+	}
+	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
+	my $plot      = $args->{plot};
+	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
+	my @undef_opt = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_opt > 0 ) {
+	  p @undef_opt;
+	  die
+	"The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
+	}
+	say { $args->{fh} } 'import numpy as np';
+	my $ax       = $args->{ax} // '';
+	my $ref_type = ref $plot->{data};
+	if ( $ref_type eq 'HASH' ) {    # multiple groups, no label
+		foreach my $group ( keys %{ $plot->{data} } ) {
+			my $color = $plot->{color}{$group} // 'b';
+			say { $args->{fh} } 'ys = []';
+			my ( $min_x, $max_x ) = ( 'inf', '-inf' );
+			foreach my $run ( 0 .. scalar @{ $plot->{data}{$group} } - 1 ) {
+				$min_x = min( $min_x, @{ $plot->{data}{$group}[$run][0] } );
+				$max_x = max( $max_x, @{ $plot->{data}{$group}[$run][0] } );
+			}
+			say { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)";
+			foreach my $run ( 0 .. scalar @{ $plot->{data}{$group} } - 1 ) {
+				say { $args->{fh} } 'x = ['
+				. join( ',', @{ $plot->{data}{$group}[$run][0] } ) . ']';
+				say { $args->{fh} } 'y = ['
+				. join( ',', @{ $plot->{data}{$group}[$run][1] } ) . ']';
+				say { $args->{fh} } "ax$ax.plot(x, y, '$color', alpha=0.15)";
+				say { $args->{fh} } 'y = np.interp(base_y, x, y)';
+				say { $args->{fh} } 'ys.append(y)';
+			}
+			say { $args->{fh} } 'ys = np.array(ys)';
+			say { $args->{fh} } 'mean_ys = ys.mean(axis=0)';
+			say { $args->{fh} } 'std = ys.std(axis=0)';
+			say { $args->{fh} } 'ys_upper = mean_ys + std';
+			say { $args->{fh} } 'ys_lower = mean_ys - std';
+			if ( $plot->{'show.legend'} > 0 ) {
+				say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color', label = '$group')";
+			} else {
+				say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color')";
+			}
+			say { $args->{fh} }
+		"ax$ax.fill_between(base_y, ys_lower, ys_upper, color='$color', alpha=0.3)";
+		}
+	} elsif ( $ref_type eq 'ARRAY' ) {
+		my $color = $plot->{color} // 'b';
+		say { $args->{fh} } 'ys = []';
+		my ( $min_x, $max_x ) = ( 'inf', '-inf' );
+		foreach my $run ( 0 .. scalar @{ $plot->{data} } - 1 ) {
+			$min_x = min( $min_x, @{ $plot->{data}[$run][0] } );
+			$max_x = max( $max_x, @{ $plot->{data}[$run][0] } );
+		}
+		say { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)";
+		foreach my $run ( 0 .. scalar @{ $plot->{data} } - 1 ) {
+			say { $args->{fh} } 'x = ['
+			  . join( ',', @{ $plot->{data}[$run][0] } ) . ']';
+			say { $args->{fh} } 'y = ['
+			  . join( ',', @{ $plot->{data}[$run][1] } ) . ']';
+			say { $args->{fh} } "ax$ax.plot(x, y, '$color', alpha=0.15)";
+			say { $args->{fh} } 'y = np.interp(base_y, x, y)';
+			say { $args->{fh} } 'ys.append(y)';
+		}
+		say { $args->{fh} } 'ys = np.array(ys)';
+		say { $args->{fh} } 'mean_ys = ys.mean(axis=0)';
+		say { $args->{fh} } 'std = ys.std(axis=0)';
+		say { $args->{fh} } 'ys_upper = mean_ys + std';
+		say { $args->{fh} } 'ys_lower = mean_ys - std';
+		say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color')";
+		say { $args->{fh} }
+		"ax$ax.fill_between(base_y, ys_lower, ys_upper, color='$color', alpha=0.3)";
+	} else {
+	  die "$current_sub cannot take ref type \"$ref_type\" for \"data\"";
+	}
+}
+
+sub print_type {
+	my $str = shift;
+	my $type = 'no quotes';
+	if (looks_like_number($str)) { # numbers (e.g. 0.8) must not be quoted
+		return 'no quotes';
+	}
+	if ($str =~ m/\w+\h*=\h*["'\(]/) {
+		return 'no quotes';
+	}
+   if ($str =~ m/^\w+$/) {
+   	return 'single quotes';
+   } elsif ($str =~ m/^\[\h*\-?\d.+\d\h*\]$/) {
+   	return 'no quotes';
+   } elsif ($str =~ m/[!@#\$\%^&*\(\)\{\}\[\]\<\>,\/\-\h:;\+=\w]+$/) {
+   	return 'single quotes';
+   } elsif (($str =~ m/,/) && ($str !~ m/[\]\[]/)) {
+   	return 'single quotes';
+   }
+   return $type;
+}
+my @all_opt;
+foreach my $type (keys %opt) {
+	push @all_opt, @{ $opt{$type} };
+}
+sub normalise_p {
+	# "p" is a flat list of subplots: ONE array element == ONE subplot.
+	#   p => [ \%h, \%h, ... ]                 each hash is its own subplot
+	#   p => [ \%h, [ \%h, \%h ], \%h, ... ]   an inner array of hashes is a
+	#                                          single subplot holding several
+	#                                          plots on the same axes (the 1st
+	#                                          hash is the base plot, the rest
+	#                                          are "add"itions/overlays)
+	# The plain-hash and inner-array forms may be mixed freely in one "p".
+	# Using "p" means top-level "plot.type"/"data" are not used. If no grid is
+	# given, the subplots are laid out on an automatically-sized near-square
+	# grid; pass nrow(s)/ncol(s) to override.
+	my ( $args, $current_sub ) = @_;
+	$current_sub = $current_sub // 'plt';
+	my $p = delete $args->{p};
+	if ( ref $p ne 'ARRAY' ) {
+		die "$current_sub: \"p\" must be an ARRAY reference (one element per subplot)";
+	}
+	if ( scalar @{$p} == 0 ) {
+		die "$current_sub: \"p\" is empty";
+	}
+	# "p" supersedes the older interface; forbid mixing to avoid ambiguity
+	foreach my $clash ( grep { defined $args->{$_} } ( 'plot.type', 'data', 'plots', 'add' ) ) {
+		die "$current_sub: \"$clash\" cannot be combined with \"p\"";
+	}
+	my @plots;
+	my $i = 0;
+	foreach my $subplot ( @{$p} ) {
+		my $ref = ref $subplot;
+		if ( $ref eq 'HASH' ) {                       # one subplot, one plot
+			push @plots, { %{$subplot} };             # shallow copy; don't mutate caller
+		} elsif ( $ref eq 'ARRAY' ) {                 # one subplot, several overlaid plots
+			if ( scalar @{$subplot} == 0 ) {
+				die "$current_sub: subplot $i in \"p\" is an empty array";
+			}
+			my @g    = @{$subplot};
+			my $main = shift @g;                      # 1st hash is the base plot
+			foreach my $plot ( $main, @g ) {
+				if ( ref $plot ne 'HASH' ) {
+					die "$current_sub: subplot $i in \"p\": every plot must be a HASH reference";
+				}
+			}
+			my %plot = %{$main};                      # shallow copy of the base plot
+			push @{ $plot{add} }, @g if scalar @g;    # the rest overlay on the same axes
+			push @plots, \%plot;
+		} else {
+			die "$current_sub: subplot $i in \"p\" must be a HASH reference (one plot) or an ARRAY of HASH references (overlaid plots), not a \"$ref\" reference";
+		}
+		$i++;
+	}
+	$args->{plots} = \@plots;
+	# convenience: choose a subplot grid. With neither dimension given, use a
+	# near-square grid; with exactly one given (and positive), derive the other
+	# so e.g. "ncols => 1" stacks the subplots in a single column. Empty
+	# trailing cells are pruned later by the engine.
+	my $n     = scalar @plots;
+	my $ncols = $args->{ncols} // $args->{ncol};
+	my $nrows = $args->{nrows} // $args->{nrow};
+	if ( ( not defined $ncols ) && ( not defined $nrows ) ) {
+		$ncols = 1;
+		$ncols++ while ( $ncols * $ncols ) < $n;             # ceil(sqrt $n), no floats
+		$args->{ncols} = $ncols;
+		$args->{nrows} = int( ( $n + $ncols - 1 ) / $ncols );  # ceil($n / $ncols)
+	} elsif ( ( not defined $ncols ) && ( $nrows > 0 ) ) {   # only rows given
+		$args->{ncols} = int( ( $n + $nrows - 1 ) / $nrows );
+	} elsif ( ( not defined $nrows ) && ( $ncols > 0 ) ) {   # only cols given
+		$args->{nrows} = int( ( $n + $ncols - 1 ) / $ncols );
+	}
+	return $args;
+}
+sub plt {
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	# Accept BOTH calling conventions:
+	#   new style:       plt( key => value, ... )
+	#   back-compatible: plt({ key => value, ... })
+	my $args;
+	if ( ( scalar @_ == 1 ) && ( ref $_[0] eq 'HASH' ) ) {
+		$args = $_[0];      # plt({ ... })
+	} elsif ( ( scalar @_ % 2 ) == 0 ) {
+		$args = { @_ };     # plt( ... )
+	} else {
+		die "$current_sub: odd number of arguments; call as $current_sub( key => value, ... ) or $current_sub({ key => value, ... })";
+	}
+	# fold the "p" interface into the engine's internal plot model
+	normalise_p( $args, $current_sub ) if defined $args->{p};
+	if ((scalar grep {$args->{$_}} ('output.file', 'show')) == 0) {
+		p $args;
+		die 'either "show" or "output.file" must be defined';
+	}
+	my @reqd_args = $args->{show} ? () : ('output.file'); # e.g. "my_image.svg"; optional if "show" is set
+	my $single_example = 'plt({
+	\'output.file\' => \'/tmp/gospel.word.counts.svg\',
+	\'plot.type\'       => \'bar\',
+	data              => {
+	\'Matthew\' => 18345,
+	\'Mark\'    => 11304,
+	\'Luke\'    => 19482,
+	\'John\'    => 15635,
+	}
+	});';
+	my $multi_example = 'plt({
+	\'output.file\'	=> \'svg/pie.svg\',
+	plots             => [
+	{
+		data	=> {
+		 Russian => 106_000_000,  # Primarily European Russia
+		 German => 95_000_000,    # Germany, Austria, Switzerland, etc.
+		},
+		\'plot.type\'	=> \'pie\',
+		title       => \'Top Languages in Europe\',
+		suptitle    => \'Pie in subplots\',
+	},
+	{
+		data	=> {
+		 Russian => 106_000_000,  # Primarily European Russia
+		 German => 95_000_000,    # Germany, Austria, Switzerland, etc.
+		},
+		\'plot.type\'	=> \'pie\',
+		title       => \'Top Languages in Europe\',
+	},
+	ncols    => 3,
+	});';
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+	  p @undef_args;
+	  die 'the above args are necessary, but were not defined.';
+	}
+	if (   ( not defined $args->{'plot.type'} )
+	  && ( not defined $args->{plots} ) )
+	{
+		p $args;
+		die 'either "plot.type" or "plots" must be defined, but neither were';
+	}
+	if (ref $args->{'output.file'} ne '') {
+		p $args;
+		die '"output.file" must be a SCALAR or string, but was given a ' . ref $args->{'output.file'};
+	}
+	my @defined_args = (@reqd_args, @ax_methods, @fig_methods, @plt_methods, @arg, @all_opt);
+	my @bad_args = grep {
+	  my $key = $_;
+	  not grep { $_ eq $key } @defined_args
+	} keys %{$args};
+	if ( scalar @bad_args > 0 ) {
+	  p @defined_args, array_max => scalar @defined_args;
+	  p @bad_args, array_max => scalar @bad_args;
+	  say STDERR 'the 2nd group of arguments are not recognized, while the 1st is the defined list';
+	  die "The above args are accepted by \"$current_sub\"";
+	}
+	$args->{nrows} = $args->{nrow} if defined $args->{nrow}; # allow synonyms
+	$args->{ncols} = $args->{ncol} if defined $args->{ncol}; # allow synonyms
+	$args->{nrows} = $args->{nrows} // 1;
+	$args->{ncols} = $args->{ncols} // 1;
+	my $single_plot = 0; # false
+	if ( ( defined $args->{'plot.type'} ) && ( defined $args->{data} ) ) {
+	  $single_plot = 1; # true
+	}
+	if (($single_plot == 1) && (not defined $args->{'plot.type'})) {
+	  p $args;
+	  say $single_example;
+	  die "\"plot.type\" was not defined for a single plot in $current_sub";
+	}
+	if ( ( $single_plot == 0 ) && (not defined $args->{plots} )) {
+		say $multi_example;
+		die "$current_sub: single plots need \"data\" and \"plot.type\", see example above";
+	}
+	if ( ( $single_plot == 0 ) && ( ref $args->{plots} ne 'ARRAY' ) ) {
+		p $args;
+		die "$current_sub \"plots\" must have an array entered into it";
+	}
+	if ( ( $single_plot == 0 ) && ( scalar @{ $args->{plots} } == 0 ) ) {
+		p $args;
+		die "$current_sub \"plots\" has 0 plots entered.";
+	}
+	if ($single_plot == 1) {
+		foreach my $arg (grep {defined $args->{$_} && $args->{$_} > 1} ('ncols', 'nrows')) {
+			warn "\"$arg\" is set to >1, but there is only 1 plot: resetting $arg to 1.";
+			$args->{$arg} = 1;
+		}
+	}
+	if (   ( $single_plot == 0 )
+	  && ( ( $args->{nrows} * $args->{ncols} ) < scalar @{ $args->{plots} } )
+	)
+	{
+	  p $args;
+	  my $n_plots = scalar @{ $args->{plots} };
+	  say
+	"ncols = $args->{ncols}; nrows = $args->{nrows}, but there are $n_plots plots.\n";
+	  die 'There are not enough subplots for the data';
+	}
+	if ($single_plot == 0) { # multiple plots
+		my $max_i = scalar @{ $args->{plots} } - 1;
+		my @hash_ref_i = grep { ref $args->{plots}[$_]{data} eq 'HASH' } 0..$max_i;
+		@bad_args = grep { scalar keys %{ $args->{plots}[$_]{data} } == 0} @hash_ref_i;
+		if (scalar @bad_args > 0) {
+			foreach my $i (@bad_args) {
+				say STDERR "plot index $i:";
+				p $args->{plots}[$i];
+			}
+			die "the above hash ref indices have empty data hashes for $current_sub";
+		}
+		my @output_file = grep {defined $args->{plots}[$_]{'output.file'}} 0..$max_i;
+		if (scalar @output_file > 0) {
+			p $args;
+			p @output_file;
+			die '"output.file" was defined at subplots indices above, which does not make sense';
+		}
+	}
+	if (($single_plot == 1) && (ref $args->{data} eq 'HASH') && (scalar keys %{ $args->{data}} == 0 )) {
+		p $args;
+		die '"data" is an empty hash';
+	}
+	@bad_args = grep {defined $args->{$_} && (not looks_like_number($args->{$_}))} ('cbpad', 'ncols', 'nrows', 'scale', 'scalex', 'scaley');
+	if (scalar @bad_args > 0) {
+		p $args;
+		p @bad_args;
+		die 'the above args must be numeric';
+	}
+	my @ax = map { "ax$_" } 0 .. $args->{nrows} * $args->{ncols} - 1;
+	my ( @py, @y, $fh);
+	my $i = 0;
+	foreach my $ax (@ax) {
+		my $a1i = int $i / $args->{ncols}; # 1st index
+		my $a2i = $i % $args->{ncols};     # 2nd index
+		$y[$a1i][$a2i] = $ax;
+		$i++;
+	}
+	foreach my $y (@y) {
+		push @py, '(' . join( ',', @{$y} ) . ')';
+	}
+	if ((defined $args->{'shared.colorbar'}) && ($single_plot == 1)) {
+		warn 'There is only 1 plot/subplot, shared colorbars make no sense... deleting';
+		delete $args->{'shared.colorbar'};
+	}
+	if (defined $args->{'shared.colorbar'}) {
+		my $ref = ref $args->{'shared.colorbar'};
+		if ($ref ne 'ARRAY') {
+			p $args;
+			die '"shared.colobar" must be an array reference';
+		}
+		my $max_subplot_idx = max(@{ $args->{'shared.colorbar'} });
+		if ($max_subplot_idx > ($args->{nrows} * $args->{ncols} - 1)) {
+			p $args;
+			die "the max \"shared.colorbar\" index $max_subplot_idx > than the max index of plots";
+		}
+	}
+	if (defined $args->{add}) {
+		my $ref = ref $args->{add};
+		if ($ref ne 'ARRAY') {
+			die "\"add\" must be an array (of anonymous hashes), but you entered a $ref reference";
+		}
+	}
+	if ( defined $args->{fh} ) {
+		my $ref = ref $args->{fh};
+		if ($ref ne 'File::Temp') {
+			p $args;
+			die "$current_sub received a \"$ref\" for \"fh\", which isn't a \"File::Temp\" object.";
+		}
+		$fh = $args->{fh};# open $fh, '>>', $args->{fh};
+	} else {
+		$fh = File::Temp->new(DIR => '/tmp', SUFFIX => '.py', UNLINK => 0);
+	}
+	# Non-ASCII key names (e.g. Greek letters like ρ, τ) arrive as wide
+	# characters when the caller has "use utf8", so give the output filehandle
+	# a UTF-8 encoding layer. Without it, "say $fh" dies with
+	# "Wide character in say" under this module's "warnings FATAL => 'all'".
+	# Only add the layer if it isn't already present, to avoid double-encoding
+	# a filehandle that was passed in.
+	unless ( grep { /utf-?8/i } PerlIO::get_layers($fh) ) {
+		binmode $fh, ':encoding(UTF-8)';
+	}
+	say 'temp file is ' . $fh->filename;
+	say $fh 'import matplotlib.pyplot as plt';
+	say $fh 'import json, base64';
+	if ( $single_plot == 0 ) {
+		$args->{sharex} = $args->{sharex} // 0;
+		$args->{sharey} = $args->{sharey} // 0;
+		say $fh 'fig, ('
+		 . join( ',', @py )
+		 . ") = plt.subplots($args->{nrows}, $args->{ncols}, sharex = $args->{sharex}, sharey = $args->{sharey}, layout = 'constrained') #" . __LINE__;
+	} elsif ( $single_plot == 1 ) {
+		say $fh 'fig, ax0 = plt.subplots(1,1, layout = "constrained")';
+	} else {
+		die "\$single_plot = $single_plot breaks pigeonholes";
+	}
+	if ( defined $args->{plots} ) {
+		my @undef_plot_types;
+		my $j = 0;
+		foreach my $plot (@{ $args->{plots} }) {
+			next if defined $plot->{'plot.type'};
+			push @undef_plot_types, $j;
+			$j++;
+		}
+		if ( scalar @undef_plot_types > 0 ) {
+			p $args;
+			p @undef_plot_types;
+			die 'The above subplot indices are missing "plot.type"';
+		}
+	}
+	my %dispatch = (
+		bar          => \&barplot_helper, barh         => \&barplot_helper,
+		boxplot      => \&boxplot_helper, colored_table=> \&colored_table_helper,
+		hexbin       => \&hexbin_helper,  hist         => \&hist_helper,
+		hist2d       => \&hist2d_helper,  imshow       => \&imshow_helper,
+		pie          => \&pie_helper,	    plot         => \&plot_helper,
+		scatter      => \&scatter_helper, violin   => \&violin_helper,
+		venn_proportional_area => \&venn_proportional_area_helper,
+		violinplot   => \&violin_helper,
+		wide         => \&wide_helper
+	);
+	if ($single_plot == 1) {
+		foreach my $graph (@{ $args->{add} }) {
+			$graph->{'plot.type'} = $graph->{'plot.type'} // $args->{'plot.type'};
+			my $type = $graph->{'plot.type'};
+			die 'plot.type not defined for "add" graph' unless defined $type;
+			die "\"$type\" isn't a known plot.type" unless defined $dispatch{$type};
+			$dispatch{$type}->({
+				fh   => $fh,
+				ax   => 0,
+				plot => $graph
+			});
+		}
+		delete $args->{add};
+		my $type = $args->{'plot.type'};
+		unless (defined $dispatch{$type}) {
+			p $args;
+			die "$type isn't defined";
+		}
+		$dispatch{$type}->({
+			fh   => $fh,
+			ax   => 0,
+			plot => $args
+		});
+		my %rename = (
+			xlabel => 'set_xlabel',
+			title  => 'set_title',
+			ylabel => 'set_ylabel',
+			legend => 'legend',
+			xlim   => 'set_xlim',
+		);
+		foreach my $opt ( grep { defined $rename{$_} } keys %{$args} ) {
+			$args->{ $rename{$opt} } = delete $args->{$opt};
+		}
+		plot_args({
+			fh   => $fh,
+			args => $args,
+			ax   => 'ax0'
+		});
+	}
+	my $ax = 0;
+	foreach my $plot (@{ $args->{plots} } ) {
+		if (
+				(defined $args->{'shared.colorbar'})               && # shared.colorbar is defined
+				(grep {$_ == $ax} @{ $args->{'shared.colorbar'} })    # subplot's colorbar is shared w other plots
+			) {
+			if ($ax == max( @{ $args->{'shared.colorbar'} } )) { # this is the max
+				$plot->{'colorbar.on'}     = 1; # turn on if this is the max plot
+				$plot->{'shared.colorbar'} = $args->{'shared.colorbar'};
+				$plot->{cbpad} = $args->{cbpad};
+			} else {
+				$plot->{'colorbar.on'} = 0; # turn off, its colorbar will be shared later
+			}
+		}
+		if (defined $plot->{add}) {
+			my $ref = ref $plot->{add};
+			if ($ref ne 'ARRAY') {
+				die "\"add\" must be an array (of anonymous hashes), but you entered a $ref reference at ax = $ax";
+			}
+		}
+		foreach my $graph (@{ $plot->{add} }) {
+			$graph->{'plot.type'} = $graph->{'plot.type'} // $plot->{'plot.type'};
+			my $type = $graph->{'plot.type'};
+			die "plot.type not defined for \"add\" graph at ax = $ax" unless defined $type;
+			die "\"$type\" isn't a known plot.type at ax = $ax" unless defined $dispatch{$type};
+			$dispatch{$type}->({
+				fh   => $fh,
+				ax   => $ax,
+				plot => $graph
+			});
+		}
+		my @reqd_keys = (
+			'data',      # data type, of which several are available
+			'plot.type', # "bar", "barh", "hist", etc.
+		);
+		my @undef_keys = grep { !defined $plot->{$_} } @reqd_keys;
+		if ( scalar @undef_keys > 0 ) {
+			p $plot;
+			p @undef_keys;
+			die "Above args are necessary, but were not defined for plot $ax.";
+		}
+		$dispatch{$plot->{'plot.type'}}->({
+			fh   => $fh,
+			ax   => $ax,
+			plot => $plot
+		});
+		my %rename = (
+			xlabel => 'set_xlabel',			title  => 'set_title',
+			ylabel => 'set_ylabel',			legend => 'legend',
+			#			xlim => 'set_xlim',
+		);
+		foreach my $opt ( grep { defined $rename{$_} } keys %{$plot} ) {
+			$plot->{ $rename{$opt} } = delete $plot->{$opt};
+		}
+		plot_args({
+			fh   => $fh,
+			args => $plot,
+			ax   => "ax$ax"
+		});
+		$ax++;
+	}
+	foreach my $ax (@ax) {
+		say $fh "if $ax.has_data() == False:";    # remove empty plots
+		say $fh "\t$ax.remove()";                 # remove empty plots
+	}
+	my %methods = map { $_ => 1 } @plt_methods;
+	foreach my $plt_method ( grep { defined $methods{$_} } keys %{$args} ) {
+		my $ref = ref $args->{$plt_method};
+		if ( $ref eq '' ) {
+			my $type = print_type($args->{$plt_method});
+			if ($plt_method eq 'show') {
+				next; # plt.show() is emitted after plt.savefig() below
+			} elsif ($type eq 'single quotes') {
+				say $fh "plt.$plt_method('$args->{$plt_method}')#" . __LINE__;
+			} elsif ($type eq 'no quotes') {
+				say $fh "plt.$plt_method($args->{$plt_method})#" . __LINE__;
+			}
+		} elsif ( $ref eq 'ARRAY' ) {
+			foreach my $j ( @{ $args->{$plt_method} } ) {
+				my $type = print_type($j);
+				if ($type eq 'single quotes') {
+					say $fh "plt.$plt_method('$j')#" . __LINE__;
+				} elsif ($type eq 'no quotes') {
+					say $fh "plt.$plt_method($j)#" . __LINE__;
+				}
+			}
+		} else {
+			p $args;
+			die "$plt_method = \"$ref\" only accepts scalar or array types";
+		}
+	}
+	%methods = map { $_ => 1 } @fig_methods;
+	foreach my $fig_method ( grep { defined $methods{$_} } keys %{$args} ) {
+		my $ref = ref $args->{$fig_method};
+		if ( $ref eq '' ) {
+			say $fh "fig.$fig_method($args->{$fig_method})#" . __LINE__;
+		} elsif ( $ref eq 'ARRAY' ) {
+			foreach my $j ( @{ $args->{$fig_method} } ) {    # say $fh "plt.$method($plt)";
+				say $fh "fig.$fig_method($j)";
+			}
+		} else {
+			p $args;
+			die "$fig_method = \"$ref\" only accepts scalar or array types";
+		}
+	}
+	if (defined $args->{scale}) {
+		say $fh "fig.set_figheight(plt.rcParams['figure.figsize'][1] * $args->{scale}) #" . __LINE__;
+		say $fh "fig.set_figwidth(plt.rcParams['figure.figsize'][0] * $args->{scale}) #" . __LINE__;
+	}
+	if (defined $args->{scalex}) {
+		say $fh "fig.set_figwidth(plt.rcParams['figure.figsize'][0] * $args->{scalex}) #" . __LINE__;
+	}
+	if (defined $args->{scaley}) {
+		say $fh "fig.set_figheight(plt.rcParams['figure.figsize'][1] * $args->{scaley}) #" . __LINE__;
+	}
+	if (defined $args->{'output.file'}) {
+		write_data({
+			data => $args->{'output.file'},
+			fh   => $fh,
+			name => 'output_file'
+		});
+		say $fh "plt.savefig(output_file, bbox_inches = 'tight', metadata={'Creator': 'made/written by "
+		. getcwd()
+		. "/$RealScript called using \"$current_sub\" in " . __FILE__ . " version $VERSION'})";
+	}
+	say $fh 'plt.show()' if $args->{show}; # after savefig, so the file is written even if the window is never closed
+	$args->{execute} = $args->{execute} // 1;
+	say $fh 'plt.close()' if $args->{execute} == 0;
+	if ( $args->{execute} ) {
+		my ($stdout, $stderr, $exit) = capture {
+			system( 'python3 ' . $fh->filename )
+		};
+		if ($exit != 0) {
+			say STDERR "STDOUT = $stdout";
+			say STDERR "STDERR = $stderr";
+			die 'python3 ' . $fh->filename . ' failed';
+		}
+		say 'will write ' . "\e[36;103m$args->{'output.file'}\e[0m" if defined $args->{'output.file'};
+	} else { # not running yet
+		say 'will write ' . "\e[36;103m$args->{'output.file'}\e[0m" if defined $args->{'output.file'};
+	}
+	return $fh->filename;
+}
+sub venn_proportional_area_helper {
+	my ($args) = @_;
+	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
+	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
+	if ( ref $args ne 'HASH' ) {
+		die "args must be given as a hash ref, e.g. \"$current_sub({ data => \@blah })\"";
+	}
+	my @reqd_args = (
+		'ax',   # e.g. 0, 1, 2 ... the subplot index, passed in by plt
+		'fh',   # the File::Temp filehandle, passed in by plt
+		'plot', # the per-plot args from the caller
+	);
+	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
+	if ( scalar @undef_args > 0 ) {
+		p @undef_args;
+		die 'the above args are necessary, but were not defined.';
+	}
+	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
+	my $plot      = $args->{plot};
+	my @undef_opt = grep {
+		my $key = $_;
+		not grep { $_ eq $key } @opt
+	} keys %{$plot};
+	if ( scalar @undef_opt > 0 ) {
+		p @undef_opt;
+		die "The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+	}
+	# matplotlib_venn only draws area-proportional diagrams for 2 or 3 sets
+	my $n_keys = scalar keys %{ $plot->{data} };
+	if ( ( $n_keys != 2 ) && ( $n_keys != 3 ) ) {
+		p $plot->{data};
+		die "$current_sub only takes 2 or 3 sets of data.";
+	}
+	foreach my $key ( keys %{ $plot->{data} } ) {
+		if ( ref $plot->{data}{$key} ne 'ARRAY' ) {
+			p $plot->{data};
+			die "\"$key\" must be an array reference in $current_sub";
+		}
+		if ( grep { !defined } @{ $plot->{data}{$key} } ) {
+			p $plot->{data}{$key}, array_max => scalar @{ $plot->{data}{$key} };
+			die "\"$key\" has undefined values in $current_sub, there may be undefined values in other keys";
+		}
+	}
+	my @keys;
+	if ( defined $plot->{'key.order'} ) {
+		@keys = @{ $plot->{'key.order'} };
+		if ( scalar @keys != $n_keys ) {
+			p $plot;
+			die "\"key.order\" has " . scalar(@keys) . " keys, but data has $n_keys in $current_sub";
+		}
+	} else {
+		@keys = sort keys %{ $plot->{data} };
+	}
+	# The import is emitted at the point of use; a duplicate "from matplotlib_venn
+	# import ..." across several subplots is harmless in Python.
+	say { $args->{fh} } "from matplotlib_venn import venn$n_keys";
+	my $ax = $args->{ax} // '';
+	my @sets;
+	foreach my $i ( 0 .. $#keys ) { # "each @array" requires perl 5.12
+		my $key  = $keys[$i];
+		my $name = "venn_ax${ax}_set$i";
+		say { $args->{fh} } "$name = set([\""
+		. join( '","', @{ $plot->{data}{$key} } ) . '"])';
+		push @sets, $name;
+	}
+	my $opt = '';
+	if ( defined $plot->{set_colors} ) {
+		$opt .= ', set_colors=("' . join( '","', @{ $plot->{set_colors} } ) . '")';
+	}
+	$opt .= ", alpha=$plot->{alpha}" if defined $plot->{alpha};
+	say { $args->{fh} } "venn$n_keys(["
+	. join( ',', @sets ) . '],("'
+	. join( '","', @keys ) . "\"), ax=ax$ax$opt)";
+}
+# Generate wrappers dynamically
+my @wrappers = qw(bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter venn_proportional_area violin violinplot wide);
+
+foreach my $sub_name (@wrappers) {
+	no strict 'refs'; # Gemini helped
+	*$sub_name = sub {
+		# accept both bar({ ... }) and bar( ... )
+		my $args;
+		if ( ( scalar @_ == 1 ) && ( ref $_[0] eq 'HASH' ) ) {
+			$args = $_[0];
+		} elsif ( ( scalar @_ % 2 ) == 0 ) {
+			$args = { @_ };
+		} else {
+			die "$sub_name: odd number of arguments; call as $sub_name( key => value, ... ) or $sub_name({ key => value, ... })";
+		}
+		# Check for conflicts
+		if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $sub_name)) {
+			warn "$args->{'plot.type'} will be ignored for $sub_name";
+		}
+		if (defined $args->{plots}) {
+			die "\"plots\" is meant for the subroutine \"plt\"; $sub_name is single-only";
+		}
+		if (defined $args->{p}) {
+			die "\"p\" is meant for the subroutine \"plt\"; $sub_name is single-only";
+		}
+		# Call plt
+		plt({ %{ $args }, 'plot.type' => $sub_name });
+	};
+}
+1;
+__END__
+# from md2pod.pl πατερ ημων ο εν τοις ουρανοις, ἁγιασθήτω τὸ ὄνομά σου
 =encoding utf8
 
 =head1 Abstract
@@ -214,15 +2886,9 @@ label with a comma or an apostrophe in it has to carry its own quotes:
  title => '"war\'s end"',                  # apostrophe: likewise
 
 Without those quotes the generated Python is a syntax error rather than a
-mislabelled plot, so the mistake is loud.
-
-Use B<double> quotes when quoting text yourself.  C<suptitle> in particular is
-emitted twice — once for the subplot and once for the figure — and the second
-pass runs its own quoting rules over the text, which turns single-quoted text
-into C<plt.suptitle(''a, b'')>.  Double quotes survive both passes.
-
-Every other option is passed through as written, so text inside C<legend>, C<text>
-and friends is Python syntax throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
+mislabelled plot, so the mistake is loud.  Every other option is passed through
+as written, so text inside C<legend>, C<text> and friends is Python syntax
+throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
 
 =head1 Color Bars (colorbars)
 

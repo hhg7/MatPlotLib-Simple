@@ -196,15 +196,9 @@ label with a comma or an apostrophe in it has to carry its own quotes:
     title => '"war\'s end"',                  # apostrophe: likewise
 
 Without those quotes the generated Python is a syntax error rather than a
-mislabelled plot, so the mistake is loud.
-
-Use **double** quotes when quoting text yourself.  `suptitle` in particular is
-emitted twice — once for the subplot and once for the figure — and the second
-pass runs its own quoting rules over the text, which turns single-quoted text
-into `plt.suptitle(''a, b'')`.  Double quotes survive both passes.
-
-Every other option is passed through as written, so text inside `legend`, `text`
-and friends is Python syntax throughout: `legend => 'loc = "upper left"'`.
+mislabelled plot, so the mistake is loud.  Every other option is passed through
+as written, so text inside `legend`, `text` and friends is Python syntax
+throughout: `legend => 'loc = "upper left"'`.
 
 # Color Bars (colorbars)
 

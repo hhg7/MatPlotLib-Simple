@@ -1,0 +1,2609 @@
+╭─── Claude Code v2.1.220 ─────────────────────────────────────────────────────╮
+│                                                   │ Tips for getting started │
+│                 Welcome back Dave!                │ Run /init to create a C… │
+│                                                   │ ──────────────────────── │
+│                      ▐▛███▜▌                      │ What's new               │
+│                     ▝▜█████▛▘                     │ Bug fixes and reliabili… │
+│                       ▘▘ ▝▝                       │ Added Claude Opus 5 (`c… │
+│                                                   │ Added `sandbox.network.… │
+│     Opus 5 · Claude Team · IMCI-Modeling-Core     │ /release-notes for more  │
+│   ~/Scripts/python/matplotlib/MatPlotLib-Simple   │                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+❯ look at lib/Matplotlib/Simple.pm; the new version isn't backwards-compatible  
+  to 5.10:                                                                      
+  Output from '/usr/bin/make test':                                             
+                                                                                
+  PERL_DL_NONLAZY=1 "/home/david/cpantesting/perl-5.10.1/bin/perl"              
+  "-MExtUtils::Command::MM" "-MTest::Harness" "-e" "undef                       
+  *Test::Harness::Switches; test_harness(0, 'blib/lib', 'blib/arch')" t/*.t     
+  Type of arg 1 to each must be hash (not private array) at                     
+  /home/david/cpantesting/perl-5.10.1/.cpan/build/Matplotlib-Simple-0.31-0/blib 
+  /lib/Matplotlib/Simple.pm line 2625, near "@keys ) "                          
+  BEGIN not safe after errors--compilation aborted at /home/david/cpantesting/p 
+  erl-5.10.1/.cpan/build/Matplotlib-Simple-0.31-0/blib/lib/Matplotlib/Simple.pm 
+  line 2644.                                                                    
+      require Matplotlib/Simple.pm called at t/01.all.tests.t line 9            
+      main::BEGIN() called at /home/david/cpantesting/perl-5.10.1/.cpan/build/M 
+  atplotlib-Simple-0.31-0/blib/lib/Matplotlib/Simple.pm line 2644               
+      eval {...} called at /home/david/cpantesting/perl-5.10.1/.cpan/build/Matp 
+  lotlib-Simple-0.31-0/blib/lib/Matplotlib/Simple.pm line 2644                  
+  Compilation failed in require at t/01.all.tests.t line 9.                     
+      main::BEGIN() called at /home/david/cpantesting/perl-5.10.1/.cpan/build/M 
+  atplotlib-Simple-0.31-0/blib/lib/Matplotlib/Simple.pm line 9                  
+      eval {...} called at /home/david/cpantesting/perl-5.10.1/.cpan/build/Matp 
+  lotlib-Simple-0.31-0/blib/lib/Matplotlib/Simple.pm line 9                     
+  BEGIN failed--compilation aborted at t/01.all.tests.t line 9.                 
+  t/01.all.tests.t ...                                                          
+  Dubious, test returned 9 (wstat 2304, 0x900)                                  
+  No subtests run                                                               
+  Type of arg 1 to each must be hash (not private array) at                     
+  /home/david/cpantesting/perl-5.10.1/.cpan/build/Matplotlib-Simple-0.31-0/blib 
+  /lib/Matplotlib/Simple.pm line 2625, near "@keys ) "                          
+  BEGIN not safe after errors--compilation aborted at /home/david/cpantesting/p 
+  erl-5.10.1/.cpan/build/Matplotlib-Simple-0.31-0/blib/lib/Matplotlib/Simple.pm 
+  line 2644.                                                                    
+      require Matplotlib/Simple.pm called at t/02.interface.t line 10           
+      main::BEGIN() called at /home/david/cpantesting/perl-5.10.1/.cpan/build/M 
+  atplotlib-Simple-0.31-0/blib/lib/Matplotlib/Simple.pm line 2644               
+      eval {...} called at /home/david/cpantesting/perl-5.10.1/.cpan/build/Matp 
+  lotlib-Simple-0.31-0/blib/lib/Matplotlib/Simple.pm line 2644                  
+  Compilation failed in require at t/02.interface.t line 10.                    
+      main::BEGIN() called at /home/david/cpantesting/perl-5.10.1/.cpan/build/M 
+  atplotlib-Simple-0.31-0/blib/lib/Matplotlib/Simple.pm line 10                 
+      eval {...} called at /home/david/cpantesting/perl-5.10.1/.cpan/build/Matp 
+  lotlib-Simple-0.31-0/blib/lib/                                                
+  ──── (199 lines hidden) ───────────────────────────────────────────────────── 
+  URCE -fwrapv -fno-strict-aliasing -pipe -fstack-protector                     
+  -I/usr/local/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64',             
+      optimize='-O2',                                                           
+      cppflags='-D_REENTRANT -D_GNU_SOURCE -fwrapv -fno-strict-aliasing -pipe   
+  -fstack-protector -I/usr/local/include'                                       
+      ccversion='', gccversion='10.2.1 20210110', gccosandvers=''               
+      intsize=4, longsize=8, ptrsize=8, doublesize=8, byteorder=12345678        
+      d_longlong=define, longlongsize=8, d_longdbl=define, longdblsize=16       
+      ivtype='long', ivsize=8, nvtype='double', nvsize=8, Off_t='off_t',        
+  lseeksize=8                                                                   
+      alignbytes=8, prototype=define                                            
+    Linker and Libraries:                                                       
+      ld='cc', ldflags =' -fstack-protector -L/usr/local/lib'                   
+      libpth=/usr/local/lib /lib/x86_64-linux-gnu /lib/../lib                   
+  /usr/lib/x86_64-linux-gnu /usr/lib/../lib /lib /usr/lib /lib64 /usr/lib64     
+      libs=-lnsl -ldl -lm -lcrypt -lutil -lpthread -lc                          
+      perllibs=-lnsl -ldl -lm -lcrypt -lutil -lpthread -lc                      
+      libc=libc-2.31.so, so=so, useshrplib=false, libperl=libperl.a             
+      gnulibc_version='2.31'                                                    
+    Dynamic Linking:                                                            
+      dlsrc=dl_dlopen.xs, dlext=so, d_dlsymun=undef, ccdlflags='-Wl,-E'         
+      cccdlflags='-fPIC', lddlflags='-shared -O2 -L/usr/local/lib               
+  -fstack-protector'                                                            
+                                                                                
+                                                                                
+  Characteristics of this binary (from libperl):                                
+    Compile-time options: MULTIPLICITY PERL_DONT_CREATE_GVSV                    
+                          PERL_IMPLICIT_CONTEXT PERL_MALLOC_WRAP USE_64_BIT_ALL 
+                          USE_64_BIT_INT USE_ITHREADS USE_LARGE_FILES           
+                          USE_PERLIO USE_REENTRANT_API                          
+    Locally applied patches:                                                    
+      Devel::PatchPerl 2.08                                                     
+    Built under linux                                                           
+    Compiled at Feb  5 2022 21:00:07                                            
+    %ENV:                                                                       
+      PERL="5.10.1"                                                             
+      PERL5LIB=""                                                               
+      PERL5OPT=""                                                               
+      PERL5_CPANPLUS_IS_RUNNING="7238"                                          
+      PERL5_CPAN_IS_RUNNING="7238"                                              
+      PERLBREW_HOME="/home/david/.perlbrew"                                     
+      PERLBREW_MANPATH="/home/david/perl5/perlbrew/perls/perl-5.42.1/man"       
+      PERLBREW_PATH="/home/david/perl5/perlbrew/bin:/home/david/perl5/perlbrew/ 
+  perls/perl-5.42.1/bin"                                                        
+      PERLBREW_PERL="perl-5.42.1"                                               
+      PERLBREW_ROOT="/home/david/perl5/perlbrew"                                
+      PERLBREW_SHELLRC_VERSION="0.98"                                           
+      PERLBREW_VERSION="0.98"                                                   
+      PERLVER="5.10.1"                                                          
+      PERL_INLINE_DIRECTORY="/home/david/.Inline-5.10.1"                        
+      PERL_MM_USE_DEFAULT="1"                                                   
+      PERL_USE_UNSAFE_INC="0"                                                   
+    @INC:                                                                       
+      /home/david/cpantesting/perl-5.10.1/lib/5.10.1/x86_64-linux-thread-multi  
+      /home/david/cpantesting/perl-5.10.1/lib/5.10.1                            
+      /home/david/cpantesting/perl-5.10.1/lib/site_perl/5.10.1/x86_64-linux-thr 
+  ead-multi                                                                     
+      /home/david/cpantesting/perl-5.10.1/lib/site_perl/5.10.1                  
+      .                                                                         
+
+● I'll look at the offending code.
+
+  Searched for 2 patterns, read 1 file (ctrl+o to expand)
+
+● Single offender — each @array is Perl 5.12+.
+
+● Update(lib/Matplotlib/Simple.pm)
+  ⎿  Added 2 lines, removed 1 line
+      2622    say { $args->{fh} } "from matplotlib_venn import venn$n_key
+            s";
+      2623    my $ax = $args->{ax} // '';
+      2624    my @sets;
+      2625 -  while ( my ( $i, $key ) = each @keys ) {                   
+      2625 +  foreach my $i ( 0 .. $#keys ) { # "each @array" requires pe
+           +rl 5.12                                                      
+      2626 +    my $key  = $keys[$i];                                    
+      2627      my $name = "venn_ax${ax}_set$i";
+      2628      say { $args->{fh} } "$name = set([\""
+      2629      . join( '","', @{ $plot->{data}{$key} } ) . '"])';
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+✻ Sautéed for 25m 49s
+
+❯ ~/Scripts/stats/test.all.perls.pl tests multiple versions of Perl; make an    
+  analogous script for this directory/module                                    
+
+  Searched for 1 pattern, read 1 file, listed 2 directories, ran 1 shell command (ctrl+o to expand)
+
+● Write(test.all.perls.pl)
+  ⎿  Wrote 447 lines to test.all.perls.pl
+       1 #!/usr/bin/env perl
+         ery perlbrew perl.
+       4 # Matplotlib::Simple claims MIN_PERL_VERSION 5.010, so every rel
+         ease has to
+         t modern perl
+         natures, ...).
+         inds them now:
+       8 #
+         dest perl first
+          compile only
+     … +515 lines (ctrl+o to expand)
+
+● Update(test.all.perls.pl)
+  ⎿  Added 5 lines
+      31  use File::Spec;
+      32  use IO::Handle;
+      33  use Cwd 'getcwd';
+      34 +use File::Find 'find';                                         
+      35  use POSIX 'strftime';
+      36  use Time::HiRes 'time';
+      37  
+      38 +# This script deliberately restricts itself to what perl 5.10 u
+         +nderstands, so                                                 
+      39 +# it can be run by whichever perl happens to be first in PATH -
+         +- including the                                                
+      40 +# old one it is testing against.                               
+      41 +                                                               
+      42  my $PERLBREW_ROOT = $ENV{PERLBREW_ROOT} || File::Spec->catdir($
+          ENV{HOME}, 'perl5', 'perlbrew');
+      43  
+      44  my ($help, $list, $install, $deps, $stop, $quiet, $jobs, $synta
+          x, $all, @only);
+
+● Now fixing the 5.12+/5.14+ constructs I used and the shell-quoting in the
+  helper passes:
+
+● Update(test.all.perls.pl)
+  ⎿  Added 5 lines, removed 2 lines
+      158  my $min_key = minkey($min_perl);
+      159  sub too_old { return vkey($_[0]) lt $min_key }
+      160  
+      161 -my @lib_pm = sort glob 'lib/Matplotlib/*.pm';                 
+      162 -my @tests  = sort glob 't/*.t';                               
+      161 +my @lib_pm;                                                   
+      162 +find({ no_chdir => 1, wanted => sub { push @lib_pm, $File::Fin
+          +d::name if /\.pm$/ } }, 'lib')                                
+      163 +  if -d 'lib';                                                
+      164 +@lib_pm = sort @lib_pm;                                       
+      165 +my @tests = sort glob 't/*.t';                                
+      166  die "$0: no modules found under lib/\n" unless @lib_pm;
+      167  
+      168  if ($list) {
+
+● Update(test.all.perls.pl)
+  ⎿  Added 6 lines, removed 4 lines
+      190  # ------------------------------------------------------------
+           - child runner --
+      191  
+      192  # Run @cmd with STDERR folded into STDOUT, echoing to the term
+           inal and to
+      193 -# $logfh.  Returns ($exit_code, \@lines).                     
+      193 +# $logfh (either may be omitted).  Returns ($exit_code, \@line
+          +s).  Nothing is                                               
+      194 +# passed through a shell, so no argument needs quoting.       
+      195  sub run_cmd {
+      195 -  my ($cmd, $logfh) = @_;                                     
+      196 -  print $logfh "\n\$ @$cmd\n";                                
+      197 -  print "\$ @$cmd\n" unless $quiet;                           
+      196 +  my ($cmd, $logfh, $silent) = @_;                            
+      197 +  $silent = 1 if $quiet;                                      
+      198 +  print $logfh "\n\$ @$cmd\n"  if $logfh;                     
+      199 +  print "\$ @$cmd\n"           unless $silent;                
+      200  
+      201    my $pid = open my $fh, '-|';
+      202    die "$0: fork failed: $!\n" unless defined $pid;
+
+● Update(test.all.perls.pl)
+  ⎿  Added 2 lines, removed 2 lines
+      211    my @lines;
+      212    while (defined(my $line = <$fh>)) {
+      213      push @lines, $line;
+      214 -    print $logfh $line;                                       
+      215 -    print $line unless $quiet;                                
+      214 +    print $logfh $line if $logfh;                             
+      215 +    print $line        unless $silent;                        
+      216    }
+      217    close $fh;
+      218    my $status = $?;
+
+● Update(test.all.perls.pl)
+  ⎿  Added 2 lines, removed 1 line
+      234    }
+      235    if (@missing) {
+      236      my %seen;
+      237 -    my @mods = map { s{/}{::}gr } grep { !$seen{$_}++ } @missi
+          -ng;                                                           
+      237 +    my @mods = grep { !$seen{$_}++ } @missing;                
+      238 +    s{/}{::}g for @mods;                                      
+      239      return ('DEPS', 'missing: ' . join(' ', @mods));
+      240    }
+      241    if (defined $err) {
+
+● Now the prologue — replacing backticks with run_cmd so nothing goes through a
+  shell:
+
+● Update(test.all.perls.pl)
+  ⎿  Added 41 lines, removed 31 lines
+      249  # ------------------------------------------------------------
+           --- prologue ---
+      250  
+      251  STDOUT->autoflush(1);
+      252 +my @short = @targets;                                         
+      253 +s/^perl-// for @short;                                        
+      254  say '=' x 72;
+      255  printf "== Matplotlib::Simple %s   MIN_PERL_VERSION %s\n",
+      254 -  ($dist_ver || '?'), ($min_perl || '?');                     
+      256 +  (defined $dist_ver ? $dist_ver : '?'), (defined $min_perl ? 
+          +$min_perl : '?');                                             
+      257  printf "== %d module(s), %d test file(s), %d perl(s): %s\n",
+      256 -  scalar @lib_pm, scalar @tests, scalar @targets, join ' ', ma
+          -p { s/^perl-//r } @targets;                                   
+      258 +  scalar @lib_pm, scalar @tests, scalar @targets, join ' ', @s
+          +hort;                                                         
+      259  say '=' x 72;
+      260  
+      259 -# python3 is shared by every perl, so a broken python is not a
+          - perl failure.                                                
+      261 +# python3 is shared by every perl, so a broken python is not a
+          + perl failure --                                              
+      262 +# say so once here rather than letting it look like four ident
+          +ical regressions.                                             
+      263  {
+      261 -  my $py = `python3 -c 'import matplotlib; print(matplotlib.__
+          -version__)' 2>&1`;                                            
+      262 -  chomp $py;                                                  
+      263 -  if ($? == 0 && $py =~ /^\d/) {                              
+      264 -    say "-- python3 matplotlib $py";                          
+      264 +  my ($code, $lines) = run_cmd(                               
+      265 +    ['python3', '-c', 'import matplotlib; print(matplotlib.__v
+          +ersion__)'], undef, 1);                                       
+      266 +  my $first = @$lines ? $lines->[0] : '';                     
+      267 +  chomp $first;                                               
+      268 +  if ($code == 0 && $first =~ /^\d/) {                        
+      269 +    say "-- python3 matplotlib $first";                       
+      270    } elsif ($syntax) {
+      266 -    say "-- python3/matplotlib unusable ($py) - harmless in --
+          -syntax mode";                                                 
+      271 +    say "-- python3/matplotlib unusable ($first) - harmless in
+          + --syntax mode";                                              
+      272    } else {
+      268 -    say "-- WARNING: python3/matplotlib unusable, every perl w
+          -ill fail the same way:";                                      
+      269 -    say "--   $py";                                           
+      273 +    say '-- WARNING: python3/matplotlib unusable, every perl w
+          +ill fail the same way:';                                      
+      274 +    say "--   $_" for map { my $l = $_; chomp $l; $l } @$lines
+          +;                                                             
+      275    }
+      276  }
+      277  
+      273 -# Perl::MinimumVersion, run under the perl running this script
+          -, names the                                                   
+      274 -# construct that raised the floor -- which is the actual quest
+          -ion when a                                                    
+      275 -# CPAN Testers report says 5.10.1 will not compile.           
+      276 -if ($minver && !@only) {                                      
+      277 -  my $out = `$^X -MPerl::MinimumVersion -e '                  
+      278 -    my \$max;                                                 
+      279 -    for my \$f (\@ARGV) {                                     
+      280 -      my \$p = Perl::MinimumVersion->new(\$f) or next;        
+      281 -      my \$v = \$p->minimum_version         or next;          
+      282 -      printf "%-40s %s\n", \$f, \$v;                          
+      283 -      \$max = \$v if !defined \$max || \$v > \$max;           
+      284 -    }                                                         
+      285 -    print "MINIMUM \$max\n" if defined \$max;                 
+      286 -  ' @lib_pm @tests 2>&1`;                                     
+      287 -  if ($? != 0) {                                              
+      278 +# Perl::MinimumVersion, run under whichever perl is running th
+          +is script, names                                              
+      279 +# the construct that raised the floor -- which is the actual q
+          +uestion when a                                                
+      280 +# CPAN Testers report says 5.10.1 will not compile.  Advisory 
+          +only: it is a                                                 
+      281 +# static heuristic, so the real answer is still `make test` un
+          +der an old perl.                                              
+      282 +if ($minver) {                                                
+      283 +  my $probe = <<'END_PROBE';                                  
+      284 +my $max;                                                      
+      285 +for my $f (@ARGV) {                                           
+      286 +  my $p = Perl::MinimumVersion->new($f) or next;              
+      287 +  my $v = $p->minimum_version           or next;              
+      288 +  printf "%-44s %s\n", $f, $v;                                
+      289 +  $max = $v if !defined($max) || $v > $max;                   
+      290 +}                                                             
+      291 +print "MINIMUM $max\n" if defined $max;                       
+      292 +END_PROBE                                                     
+      293 +  my ($code, $lines) = run_cmd(                               
+      294 +    [$^X, '-MPerl::MinimumVersion', '-e', $probe, @lib_pm, @te
+          +sts], undef, 1);                                              
+      295 +  if ($code != 0) {                                           
+      296      say '-- Perl::MinimumVersion not installed; skipping the s
+           tatic floor check';
+      297    } else {
+      290 -    my ($max) = $out =~ /^MINIMUM (\S+)/m;                    
+      291 -    $out =~ s/^MINIMUM .*\n//m;                               
+      292 -    print $out if !$quiet;                                    
+      298 +    my $max;                                                  
+      299 +    for my $l (@$lines) {                                     
+      300 +      if ($l =~ /^MINIMUM (\S+)/) { $max = $1; next }         
+      301 +      print "-- $l" unless $quiet;                            
+      302 +    }                                                         
+      303      if (defined $max) {
+      294 -      printf "-- Perl::MinimumVersion floor: %s (MIN_PERL_VERS
+          -ION %s)%s\n",                                                 
+      295 -        $max, ($min_perl || '?'),                             
+      304 +      printf "-- Perl::MinimumVersion floor: %s (declared %s)%
+          +s\n",                                                         
+      305 +        $max, (defined $min_perl ? $min_perl : '?'),          
+      306          (defined $min_perl && minkey($max) gt minkey($min_perl
+           )
+      297 -          ? '  <== declared minimum is too low' : '');        
+      307 +          ? '  <== raises the floor above MIN_PERL_VERSION' : 
+          +'');                                                          
+      308      }
+      309    }
+      310  }
+● Update(test.all.perls.pl)
+  ⎿  Added 3 lines, removed 2 lines
+      431    push @results, \%r;
+      432  
+      433    if ($failed && $stop) {
+      434 -    my @rest = grep { my $v = $_; !grep { $_->{version} eq $v 
+          -} @results }                                                  
+      435 -               grep { !grep { $_ eq $v } @skipped } @targets; 
+      434 +    my %done = map { $_->{version} => 1 } @results;           
+      435 +    $done{$_} = 1 for @skipped;                               
+      436 +    my @rest = grep { !$done{$_} } @targets;                  
+      437      print "-- --stop-on-fail: skipping @rest\n" if @rest;
+      438      last;
+      439    }
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Now the real test — the --syntax mode against all three perls:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Update(test.all.perls.pl)
+  ⎿  Added 3 lines
+      230    my (@missing, $err);
+      231    for my $l (@$lines) {
+      232      push @missing, $1 if $l =~ /Can't locate (\S+?)\.pm in \@I
+           NC/;
+      233 +    push @missing, $1 if $l =~ /you may need to install the (\
+          +S+?) module/i;                                                
+      234 +    # autodie ':all' reports its own missing back end this way
+      235 +    push @missing, $1 if $l =~ /^([\w:]+) required for Fatalis
+          +ed/;                                                          
+      236      $err = $l if !defined $err && $l =~ /\bat .*? line \d+/ &&
+            $l !~ /^\s*#/;
+      237    }
+      238    if (@missing) {
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Now the full build+test sweep:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Update(test.all.perls.pl)
+  ⎿  Added 6 lines
+      463  printf "%-14s %-9s %-8s\n", $_, '-', 'SKIP' for @skipped;
+      464  print '-' x 72, "\n";
+      465  my $not_run = @targets - @results - @skipped;
+      466 +my @unusable = grep { $_->{status} eq 'DEPS' } @results;      
+      467  printf "%d/%d perl(s) passed%s%s in %.1fs.  Logs in %s\n",
+      468    scalar(@results) - $bad, scalar(@results),
+      469    (@skipped  ? sprintf(' (%d skipped as older than %s)', scala
+           r @skipped, $min_perl) : ''),
+      470    ($not_run  ? " ($not_run not run)" : ''),
+      471    time - $t_all, $log_dir;
+      472 +# a perl without the prerequisites proves nothing either way a
+          +bout this dist                                                
+      473 +printf "%d perl(s) could not be tested for missing prerequisit
+          +es, not for anything\n"                                       
+      474 +  . "wrong here; re-run with --deps to cpanm them: %s\n",     
+      475 +  scalar @unusable, join ' ', map { $_->{version} } @unusable 
+      476 +  if @unusable;                                               
+      477  
+      478  exit($bad || $not_run ? 1 : 0);
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Update(.gitignore)
+  ⎿  Added 1 line
+      2  Makefile.old
+      3  blib/
+      4  pm_to_blib
+      5 +.build/                                                         
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Both done.
+
+  The 5.10 break
+
+  lib/Matplotlib/Simple.pm:2625 in venn_proportional_area used each @keys.
+  each/keys/values on an array arrived in 5.12 — under 5.10 it's a compile-time
+  error, which is why every test file aborted in BEGIN. Replaced with an index
+  loop:
+
+  foreach my $i ( 0 .. $#keys ) { # "each @array" requires perl 5.12
+        my $key  = $keys[$i];
+        my $name = "venn_ax${ax}_set$i";
+        ...
+
+  I swept the rest of the file for other post-5.10 syntax (s///r, postfix deref,
+  %h{...} slices, signatures, __SUB__, keys $hashref, package NAME { }, fc) —
+  that each was the only one. List::Util qw(max sum min) and Scalar::Util 
+  'looks_like_number' are all fine at 5.10's bundled versions.
+
+  Verified: 208 tests pass under perl-5.10.1 (Result: PASS), same under 5.44.0.
+
+  test.all.perls.pl
+
+  Modeled on ~/Scripts/stats/test.all.perls.pl, adapted for a pure-Perl dist:
+
+  - --syntax / -c — compiles lib/*.pm + t/*.t under each perl and stops. 0.6s
+  for all three perls versus 69s for the full cycle, and it's the mode that
+  still works on a perl missing prerequisites. This is the mode that catches
+  exactly the class of bug above.
+  - Full mode drops the XS-specific OPTIMIZE=-Wall and always runs perl -c on
+  the module before Makefile.PL/make/make test, so a syntax regression reports
+  in a tenth of a second instead of after a build.
+  - DEPS vs FAIL — a perl that can't load IPC::System::Simple is reported
+  separately from a perl that rejects your code, including autodie's "X required
+  for Fatalised..." phrasing which doesn't say "Can't locate". --deps cpanms
+  them.
+  - Scrapes PREREQ_PM, MIN_PERL_VERSION and VERSION from Makefile.PL
+  (dzil-generated, so it tracks dist.ini); perls below MIN_PERL_VERSION report
+  SKIP unless --all.
+  - Checks python3/matplotlib once up front — it's shared by every perl, so a
+  broken python would otherwise look like N identical regressions.
+  - Optional Perl::MinimumVersion advisory pass that names the computed floor
+  and flags it if it exceeds the declared MIN_PERL_VERSION (currently not
+  installed here, so it says so and moves on — cpanm Perl::MinimumVersion under
+  5.44 enables it).
+  - --install now defaults off (the stats version installs by default);
+  installing this into every perlbrew perl seemed like the wrong default. Logs
+  go to .build/multiperl/, which I added to .gitignore.
+
+  The script is itself written to compile under 5.10.1, so it can run under the
+  old perl it's testing.
+
+  Two things I did not do, since you didn't ask: no $VERSION/Changes bump for
+  the release that carries this fix, and the stale copies under
+  Matplotlib-Simple-0.31/ still contain the old each @keys (dzil regenerates
+  those).
+
+✻ Churned for 21m 5s
+
+※ recap: Goal was making Matplotlib::Simple work on Perl 5.10 again: fixed the `each @keys` line and added test.all.perls.pl, which now passes 208 tests on 5.10.1 and 5.44.0. Next: bump $VERSION and add a Changes entry for the release. (disable recaps in /config)
+
+❯ expand README.md so that it has more "coverage" of use cases for each helper  
+  subroutine, like `scatter`, `plot`, and so on.  Don't ask for permission to   
+  read files/directories if there are no modifications                          
+
+  Made 1 scratchpad edit +20, searched for 2 patterns, read 7 files, ran 4 shell commands (ctrl+o to expand)
+
+● Background command "perl -e '
+my @b; open my $fh,"&lt;","lib/Matplotlib/Simple.pm";
+my @l = &lt;$fh&gt;;
+my @subs;
+for my $i (0..$#l) { push @subs, [$i, $1] if $l[$i] =~ /^sub ([a-z_0-9]+)/ }
+push @subs, [scalar @l, "EOF"];
+for my $s (0..$#subs-1) {
+  my ($start,$name) = @{$subs[$s]}; my $end = $subs[$s+1][0];
+  next unless $name =~ /_helper$/;
+  my %k;
+  for my $i ($start..$end-1) {
+    my $line = $l[$i];
+    while ($line =~ /\$plot-&gt;\{\s*.?([\w.]+).?\s*\}/g) { $k{$1}++ }
+  }
+  print "\n== $name (lines $start-$end)\n  ", join("  ", sort keys %k), "\n";
+}
+'" completed (exit code 0)
+
+● Background command "kill %1 2&gt;/dev/null; pkill -f
+'lib/Matplotlib/Simple.pm' 2&gt;/dev/null; echo done" failed with exit code 144
+
+● Background command "perl /tmp/claude-1000/-home-con-Scripts-python-matplotlib-
+MatPlotLib-Simple/1cadbcc1-c0fb-4eb5-9e1b-0eeecfab0b66/scratchpad/keys.pl"
+completed (exit code 0)
+● Background command "cat dzil.sh 2&gt;/dev/null; echo "=== md2pod ==="; head
+-30 md2pod.pl; echo "=== longest line in Simple.pm ==="; awk '{print length}'
+lib/Matplotlib/Simple.pm | sort -rn | head -3" completed (exit code 0)
+
+● Now let me verify which options actually work before documenting them:
+
+  Made 3 scratchpad edits +979, read 2 files, ran 4 shell commands (ctrl+o to expand)
+
+● Background command "git status --short &amp;&amp; echo "=== md2pod baseline
+===" &amp;&amp; perl md2pod.pl 2&gt;&amp;1 | tail -20 &amp;&amp; echo "=== after
+===" &amp;&amp; git status --short &amp;&amp; git diff --stat" completed (exit
+code 0)
+
+● Background command "grep -n 'all_opt' lib/Matplotlib/Simple.pm | head; sed -n
+'596,640p' lib/Matplotlib/Simple.pm" completed (exit code 0)
+
+● Now I have verified ground truth. Let me expand the README, starting with a
+  plot-type index:
+
+● Update(README.md)
+  ⎿  Added 33 lines
+      202  
+      203  # Examples/Plot Types
+      204  
+      205 +Every plot type can be called two ways: through `plt` with `'p
+          +lot.type' => 'bar'`,                                          
+      206 +or through the same-named helper subroutine, `bar( ... )`, whi
+          +ch is a thin wrapper                                          
+      207 +that fills in `'plot.type'` and calls `plt` for you.  Everythi
+          +ng documented for a                                           
+      208 +plot type therefore works in either form, and works identicall
+          +y whether the plot                                            
+      209 +is alone or one panel of a `plots` grid.                      
+      210 +                                                              
+      211 +## Which helper takes which data?                             
+      212 +                                                              
+      213 +The fastest way to pick a plot type is to start from the shape
+          + of the data you                                              
+      214 +already have in Perl:                                         
+      215 +                                                              
+      216 +| `data` you have | Helpers that take it | Notes |            
+      217 +| -------- | ------- | ------- |                              
+      218 +|hash of numbers, `A => 1`|`bar`, `barh`, `pie`|one bar/wedge 
+          +per key|                                                      
+      219 +|hash of array refs, `A => [1,2,3]`|`boxplot`, `violin`, `hist
+          +`, `hexbin`, `hist2d`, `scatter`, `venn_proportional_area`|one
+          + distribution/series per key; `hexbin`, `hist2d` and `scatter`
+          + need exactly 2 (or 3) keys|                                  
+      220 +|hash of hashes, `A => { X => 1 }`|`bar`, `barh`, `colored_tab
+          +le`|grouped/stacked bars, or a matrix|                        
+      221 +|hash of `[ \@x, \@y ]` pairs|`plot`|one labelled line per key
+          +|                                                             
+      222 +|hash of arrays of `[ \@x, \@y ]` pairs|`wide`|repeated runs o
+          +f the same curve, summarised|                                 
+      223 +|hash of hashes of array refs|`scatter`|several labelled sets,
+          + each with its own x/y (and colour)|                          
+      224 +|a single array ref|`hist`, `boxplot`, `violin`|the one-series
+          + shorthand|                                                   
+      225 +|array of `[ \@x, \@y ]` pairs|`plot`, `wide`|unlabelled lines
+          +|                                                             
+      226 +|2-D array (array of array refs)|`imshow`|a raster/heatmap; st
+          +rings allowed via `stringmap`|                                
+      227 +                                                              
+      228 +A few conventions hold across all of them:                    
+      229 +                                                              
+      230 +- Keys are used in **sorted order** unless you pass `key.order
+          +` (accepted by                                                
+      231 +  every plot type except `pie`, `hist` and `imshow`).         
+      232 +- `title`, `xlabel`, `ylabel`, `suptitle`, `set_xlim`, `legend
+          +` and the rest of                                             
+      233 +  Matplotlib's `ax`/`fig`/`plt` methods are accepted by every 
+          +plot type; see                                                
+      234 +  [Options](#options).                                        
+      235 +- Anything that is not recognised is reported as an error list
+          +ing the arguments                                             
+      236 +  that *are* accepted, rather than being silently ignored.    
+      237 +                                                              
+      238  Consider the following helper subroutines to generate data to 
+           plot:
+      239  
+      240      sub linspace { # mostly written by Grok
+
+● Update(README.md)
+  ⎿  Added 5 lines, removed 2 lines
+      227  
+      228  A few conventions hold across all of them:
+      229  
+      230 -- Keys are used in **sorted order** unless you pass `key.order
+          -` (accepted by                                                
+      231 -  every plot type except `pie`, `hist` and `imshow`).         
+      230 +- Keys are used in **sorted order** unless you say otherwise. 
+          + `key.order` is                                               
+      231 +  accepted by `bar`, `barh`, `boxplot`, `violin`, `hexbin`, `h
+          +ist2d`, `plot` and                                            
+      232 +  `venn_proportional_area`; `scatter` spells the same idea `ke
+          +ys`;                                                          
+      233 +  `colored_table` uses `row.labels`/`col.labels`; `pie`, `hist
+          +`, `imshow` and                                               
+      234 +  `wide` always sort.                                         
+      235  - `title`, `xlabel`, `ylabel`, `suptitle`, `set_xlim`, `legend
+           ` and the rest of
+      236    Matplotlib's `ax`/`fig`/`plt` methods are accepted by every 
+           plot type; see
+      237    [Options](#options).
+
+● Now the bar section — adding data shapes and the missing options:
+
+● Update(README.md)
+  ⎿  Added 60 lines, removed 1 line
+      284  
+      285  ## Barplot/bar/barh
+      286  
+      287 -Plot a hash or a hash of arrays as a boxplot                  
+      287 +Plot a hash, a hash of arrays, or a hash of hashes as a bar ch
+          +art.  `bar` draws                                             
+      288 +vertical bars, `barh` horizontal ones; every option below appl
+          +ies to both.                                                  
+      289  
+      290 +### Entering data                                             
+      291 +                                                              
+      292 +`data` accepts three shapes, and the shape alone decides wheth
+          +er you get one                                                
+      293 +bar per key or a group of bars per key:                       
+      294 +                                                              
+      295 +**1. One bar per key (hash of numbers).** The simplest case — 
+          +the key is the                                                
+      296 +tick label:                                                   
+      297 +                                                              
+      298 +    bar(                                                      
+      299 +     'output.file' => '/tmp/simple.svg',                       
+      300 +     data          => { Mon => 73, Tue => 93, Wed => 77 },     
+      301 +    );                                                        
+      302 +                                                              
+      303 +**2. Groups of bars (hash of array refs).** Each key becomes a
+          + group; index `i`                                             
+      304 +of every array is one series, so `color` and `label` are array
+          +s indexed the same                                            
+      305 +way:                                                          
+      306 +                                                              
+      307 +    bar(                                                      
+      308 +     'output.file' => '/tmp/grouped.svg',                      
+      309 +     data          => {                                        
+      310 +             1941 => [ 6.6, 6.2 ],    # UK, US                         
+      311 +             1942 => [ 7.6, 26.4 ],                                    
+      312 +     },                                                        
+      313 +     color         => [ 'blue', 'gray' ],    # index 0, index 1
+      314 +     label         => [ 'UK',   'US'   ],    # legend entries  
+      315 +    );                                                        
+      316 +                                                              
+      317 +**3. Groups of bars (hash of hashes).** The same picture as (2
+          +), but the series                                             
+      318 +are named by the inner keys rather than by position, so no `la
+          +bel` is needed:                                               
+      319 +                                                              
+      320 +    bar(                                                      
+      321 +     'output.file' => '/tmp/grouped.hoh.svg',                  
+      322 +     data          => {                                        
+      323 +             1941 => { UK => 6.6, US => 6.2 },                         
+      324 +             1942 => { UK => 7.6, US => 26.4 },                        
+      325 +     },                                                        
+      326 +    );                                                        
+      327 +                                                              
+      328 +Both grouped forms accept `stacked => 1` to pile the series on
+          + top of one                                                   
+      329 +another instead of placing them side by side.                 
+      330 +                                                              
+      331 +### Error bars                                                
+      332 +                                                              
+      333 +`yerr` (natural for `bar`) and `xerr` (natural for `barh`) tak
+          +e either one                                                  
+      334 +number for every bar, or a hash keyed by the data keys.  A two
+          +-element array                                                
+      335 +gives asymmetric `[ lower, upper ]` errors:                   
+      336 +                                                              
+      337 +    bar(                                                      
+      338 +     'output.file' => '/tmp/warheads.svg',                     
+      339 +     data          => { USA => 5277, Russia => 5449 },         
+      340 +     yerr          => {                                        
+      341 +             USA    => [ 15,  29   ],    # -15, +29                    
+      342 +             Russia => [ 199, 1000 ],                                  
+      343 +     },                                                        
+      344 +     log           => 'True',                                  
+      345 +     ylabel        => '# of Nuclear Warheads',                 
+      346 +    );                                                        
+      347 +                                                              
+      348  ### Options
+      349  
+      350  | Option | Description | Example |
+
+● Update(README.md)
+  ⎿  Error editing file
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 2 lines
+      352  |color| :mpltype:`color` or list of :mpltype:`color`, optional
+           ; The colors of the bar faces. This is an alias for *facecolor
+           *. If both are given, *facecolor* takes precedence # if enteri
+           ng multiple colors, quoting isn't needed; as of version 0.23, 
+           colors can be given as a hash |`color => ['red', 'orange', 'ye
+           llow', 'green', 'blue', 'indigo', 'fuchsia'],` or a single col
+           or for all bars `color => 'red'`, or as of version 0.23 `color
+            => {A => 'red', B => 'green'}`
+      353  |edgecolor| :mpltype:`color` or list of :mpltype:`color`, opti
+           onal; The colors of the bar edges|`edgecolor         => 'black'`
+      354  |key.order|  define the keys in an order (an array reference)|
+           `'key.order'         => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],`
+      355 +|label| an array of legend labels for grouped bar plots, index
+          +ed like the data arrays; only meaningful for the hash-of-array
+          +s form, since the hash-of-hashes form takes its labels from th
+          +e inner keys|`label => ['North', 'South'],`                   
+      356  |linewidth| float or array, optional; Width of the bar edge(s)
+           . If 0, don't draw edges. Only does anything with defined `edg
+           ecolor`|`linewidth => 2,`
+      357  |log| bool, default: False; If *True*, set the y-axis to be lo
+           g scale.|`log = 'True',`
+      358 +|logscale| a synonym for `log` taking a Perl true/false value 
+          +rather than Python's `'True'`/`'False'`.  Unlike the `logscale
+          +` of `boxplot`, `hist`, `hist2d`, `plot`, `scatter` and `violi
+          +n`, this one is a scalar and not an array of axis names|`logsc
+          +ale => 1,`                                                    
+      359  |stacked| stack the groups on top of one another; default 0 = 
+           off|`stacked => 1,`
+      360  |width| float only, default: 0.8; The width(s) of the bars.  `
+           width` will be deactivated with grouped, non-stacked bar plots
+            |`width => 0.4,`
+      361  |xerr| float or array-like of shape(N,) or shape(2, N), option
+           al. If not *None*, add horizontal / vertical errorbars to the 
+           bar tips. The values are +/- sizes relative to the data:      
+             - scalar: symmetric +/- values for all bars #        - shape
+           (N,): symmetric +/- values for each bar #        - shape(2, N)
+           : Separate - and + values for each bar. First row #          c
+           ontains the lower errors, the second row contains the upper # 
+                    errors. #        - *None*: No errorbar. (Default)|`ye
+           rr                                           => {'USA'
+
+● Now boxplot — fixing the incorrect whiskers row and documenting data shapes:
+
+● Update(README.md)  ⎿  Added 34 lines, removed 7 lines
+      586  
+      587  ## boxplot
+      588  
+      589 -Plot a hash of arrays as a series of boxplots                 
+      589 +Plot a hash of arrays as a series of boxplots: one box per key
+          +, labelled with                                               
+      590 +the key and the number of points it holds.                    
+      591  
+      592 +### Entering data                                             
+      593 +                                                              
+      594 +Ordinarily `data` is a hash of array refs, one array per box: 
+      595 +                                                              
+      596 +    boxplot(                                                  
+      597 +     'output.file' => '/tmp/boxes.svg',                        
+      598 +     data          => { A => \@a, B => \@b, C => \@c },        
+      599 +    );                                                        
+      600 +                                                              
+      601 +A bare array ref is the one-box shorthand; the box gets an emp
+          +ty label:                                                     
+      602 +                                                              
+      603 +    boxplot(                                                  
+      604 +     'output.file' => '/tmp/one.box.svg',                      
+      605 +     data          => \@a,                                     
+      606 +    );                                                        
+      607 +                                                              
+      608 +Values that are undefined or non-numeric are dropped rather th
+          +an fatal, so a                                                
+      609 +column read straight out of a spreadsheet with blank cells can
+          + be handed over                                               
+      610 +as-is.  `violin` takes exactly the same two shapes, which make
+          +s swapping                                                    
+      611 +`'plot.type' => 'boxplot'` for `'plot.type' => 'violinplot'` a
+          + one-word change.                                             
+      612 +                                                              
+      613  ### options
+      614  
+      615  | Option | Description | Example |
+      616  | -------- | ------- | ------- |
+      595 -|`color` | a single color for all plots | `color => 'pink'`|  
+      596 -|`colors`| a hash, where each data point and color is a hash p
+          -air |`colors => { A => 'orange', E => 'yellow', B => 'purple' 
+          -},`|                                                          
+      597 -| `key.order`| order that the keys in the entry hash will be p
+          -lotted | `key.order = ['A', 'E', 'B']` |                      
+      598 -| `orientation`| orientation of the plot, by default `vertical
+          -`| `orientation = 'horizontal'` |                             
+      617 +|`color` | a single color for all boxes | `color => 'pink'`|  
+      618 +|`colors`| a hash pairing each data key with its own color.  E
+          +very key in `data` must appear, otherwise the call dies naming
+          + the keys that have no color |`colors => { A => 'orange', E =>
+          + 'yellow', B => 'purple' },`|                                 
+      619 +| `key.order`| order that the keys in the entry hash will be p
+          +lotted | `'key.order' => ['A', 'E', 'B']` |                   
+      620 +|`logscale`| an array of the axes to put on a log scale; only 
+          +`x` and `y` are accepted | `logscale => ['y']` |              
+      621 +|`notch`| draw a notched box (`'True'`) instead of a rectangul
+          +ar one | `notch => 'True'` |                                  
+      622 +| `orientation`| orientation of the plot, by default `vertical
+          +`| `orientation => 'horizontal'` |                            
+      623  |`showcaps`| Show the caps on the ends of whiskers; default `T
+           rue` | `showcaps => 'False',` |
+      624  | `showfliers` |Show the outliers beyond the caps; default `Tr
+           ue` | `showfliers  => 'False'` |
+      625  |`showmeans` | show means; default = `True` | `showmeans   => 
+           'False'` |
+      602 -|`whiskers`| show whiskers, default = 1| ` whiskers    => 0,`|
+      603 -                                                              
+      626 +                                                              
+      627 +`showcaps`, `showfliers`, `showmeans` and `notch` are passed s
+          +traight through to                                            
+      628 +Matplotlib, so they take Python's `'True'`/`'False'` rather th
+          +an a Perl boolean.                                            
+      629 +The `whiskers` switch belongs to [`violin`](#violin), not to `
+          +boxplot`.                                                     
+      630 +                                                              
+      631  ### single, simple plot
+      632  
+      633      my $x = generate_normal_dist( 100, 15, 3 * 10 );
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 6 lines, removed 4 lines
+      605       data          => \@a,
+      606      );
+      607  
+      608 -Values that are undefined or non-numeric are dropped rather th
+          -an fatal, so a                                                
+      609 -column read straight out of a spreadsheet with blank cells can
+          - be handed over                                               
+      610 -as-is.  `violin` takes exactly the same two shapes, which make
+          -s swapping                                                    
+      611 -`'plot.type' => 'boxplot'` for `'plot.type' => 'violinplot'` a
+          - one-word change.                                             
+      608 +Undefined values are dropped rather than fatal, so a column re
+          +ad out of a                                                   
+      609 +spreadsheet with blank cells can be handed over as-is; a value
+          + that is present                                              
+      610 +but not a number is an error naming the offending key.  ([`vio
+          +lin`](#violin)                                                
+      611 +takes exactly these two shapes as well — swapping `'plot.type'
+          + => 'boxplot'`                                                
+      612 +for `'plot.type' => 'violinplot'` is a one-word change — but i
+          +t drops                                                       
+      613 +non-numeric values silently instead of dying.)                
+      614  
+      615  ### options
+      616  
+
+● Now the empty Colored Table options section:
+
+● Update(README.md)
+  ⎿  Added 44 lines
+      787  
+      788  ## Colored Table
+      789  
+      790 +Plot a hash of hashes as a matrix, coloring each cell by its v
+          +alue.                                                         
+      791 +                                                              
+      792 +### Entering data                                             
+      793 +                                                              
+      794 +`data` is a hash of hashes: the outer key is the row, the inne
+          +r key is the                                                  
+      795 +column, and the value is the number that picks the cell's colo
+          +r.                                                            
+      796 +                                                              
+      797 +    colored_table(                                            
+      798 +     'output.file' => '/tmp/matrix.svg',                       
+      799 +     data          => {                                        
+      800 +             H => { H => 432, Cl => 427, Br => 363 },                
+      801 +             C => { H => 413, Cl => 339, Br => 276 },                
+      802 +     },                                                        
+      803 +    );                                                        
+      804 +                                                              
+      805 +The matrix does not have to be complete.  Cells with no value 
+          +are drawn in                                                  
+      806 +`undef.color` (or given a number by `default_undefined`), and 
+          +a table that only                                             
+      807 +fills one triangle — the usual shape of a pairwise-comparison 
+          +table — can be                                                
+      808 +completed by reflecting it across the diagonal with `mirror =>
+          + 1`, so that                                                  
+      809 +`$data{A}{B}` also supplies `$data{B}{A}`.                    
+      810 +                                                              
+      811 +Rows and columns are otherwise sorted; `row.labels` and `col.l
+          +abels` fix both                                               
+      812 +the order and the subset that is drawn, which is how the bond-
+          +dissociation                                                  
+      813 +example below shows the halogens only.                        
+      814 +                                                              
+      815  ### options
+      816  
+      817 +| Option | Description | Example |                            
+      818 +| -------- | ------- | ------- |                              
+      819 +|`cb_logscale`| color the cells on a log scale | `cb_logscale 
+          +=> 1` |                                                       
+      820 +|`cb_min`, `cb_max`| clamp the ends of the color scale instead
+          + of taking them from the data, so several tables can be compar
+          +ed directly | `cb_min => 100, cb_max => 500` |                
+      821 +|`cblabel`| the label on the colorbar | `cblabel => 'kJ/mol'` 
+          +|                                                             
+      822 +|`cmap`| the colormap used for coloring the cells | `cmap => '
+          +viridis'` |                                                   
+      823 +|`col.labels`| array ref: which columns to draw, in order | `'
+          +col.labels' => ['H', 'F', 'Cl', 'Br', 'I']` |                 
+      824 +|`colorbar.on`| draw the colorbar; on by default, `0` turns it
+          + off | `'colorbar.on' => 0` |                                 
+      825 +|`default_undefined`| the number to substitute wherever a cell
+          + is missing, instead of leaving it uncolored | `default_undefi
+          +ned => 0` |                                                   
+      826 +|`logscale`| an array of the axes to put on a log scale | `log
+          +scale => ['y']` |                                             
+      827 +|`mirror`| treat the table as symmetric: `$data{A}{B}` also fi
+          +lls `$data{B}{A}` | `mirror => 1` |                           
+      828 +|`row.labels`| array ref: which rows to draw, in order | `'row
+          +.labels' => ['H', 'F', 'Cl', 'Br', 'I']` |                    
+      829 +|`shared.colorbar`| 0-based indices of the subplots that shoul
+          +d share one colorbar | `'shared.colorbar' => [0,1]` |         
+      830 +|`show.numbers`| print each cell's value in the cell; off by d
+          +efault | `'show.numbers' => 1` |                              
+      831 +|`undef.color`| the color for cells that have no value | `'und
+          +ef.color' => 'white'` |                                       
+      832 +                                                              
+      833 +The colorbar options in [Color Bars](#color-bars-colorbars) — 
+          +`cbdrawedges`,                                                
+      834 +`cblocation`, `cborientation`, `cbpad` — work here too.       
+      835 +                                                              
+      836  ### Single, simple plot
+      837  
+      838  the bond dissociation energy table can be plotted:
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 9 lines, removed 7 lines
+      802       },
+      803      );
+      804  
+      805 -The matrix does not have to be complete.  Cells with no value 
+          -are drawn in                                                  
+      806 -`undef.color` (or given a number by `default_undefined`), and 
+          -a table that only                                             
+      807 -fills one triangle — the usual shape of a pairwise-comparison 
+          -table — can be                                                
+      808 -completed by reflecting it across the diagonal with `mirror =>
+          - 1`, so that                                                  
+      805 +The matrix does not have to be complete.  Cells with no value 
+          +are left out of                                               
+      806 +the color scale and drawn in `undef.color` (gray by default), 
+          +and a table that                                              
+      807 +only fills one triangle — the usual shape of a pairwise-compar
+          +ison table — can                                              
+      808 +be completed by reflecting it across the diagonal with `mirror
+          + => 1`, so that                                               
+      809  `$data{A}{B}` also supplies `$data{B}{A}`.
+      810  
+      811 -Rows and columns are otherwise sorted; `row.labels` and `col.l
+          -abels` fix both                                               
+      812 -the order and the subset that is drawn, which is how the bond-
+          -dissociation                                                  
+      813 -example below shows the halogens only.                        
+      811 +Rows and columns are otherwise taken in sorted order.  `col.la
+          +bels` chooses                                                 
+      812 +which keys are drawn and in what order, which is how the bond-
+          +dissociation                                                  
+      813 +example below shows the halogens only out of a larger table; `
+          +row.labels`                                                   
+      814 +supplies the text down the left-hand side, so it should list t
+          +he same keys in                                               
+      815 +the same order.                                               
+      816  
+      817  ### options
+      818  
+
+● Update(README.md)
+  ⎿  Added 3 lines, removed 5 lines
+      822  |`cb_min`, `cb_max`| clamp the ends of the color scale instead
+            of taking them from the data, so several tables can be compar
+           ed directly | `cb_min => 100, cb_max => 500` |
+      823  |`cblabel`| the label on the colorbar | `cblabel => 'kJ/mol'` 
+           |
+      824  |`cmap`| the colormap used for coloring the cells | `cmap => '
+           viridis'` |
+      825 -|`col.labels`| array ref: which columns to draw, in order | `'
+          -col.labels' => ['H', 'F', 'Cl', 'Br', 'I']` |                 
+      826 -|`colorbar.on`| draw the colorbar; on by default, `0` turns it
+          - off | `'colorbar.on' => 0` |                                 
+      827 -|`default_undefined`| the number to substitute wherever a cell
+          - is missing, instead of leaving it uncolored | `default_undefi
+          -ned => 0` |                                                   
+      828 -|`logscale`| an array of the axes to put on a log scale | `log
+          -scale => ['y']` |                                             
+      825 +|`col.labels`| array ref: which keys to draw, in order — this 
+          +selects the rows and the columns of the matrix, not just the h
+          +eading text | `'col.labels' => ['H', 'F', 'Cl', 'Br', 'I']` | 
+      826 +|`colorbar.on`| draw the colorbar; on by default, `0` turns it
+          + off.  Passing `cblabel` draws it regardless | `'colorbar.on' 
+          +=> 0` |                                                       
+      827  |`mirror`| treat the table as symmetric: `$data{A}{B}` also fi
+           lls `$data{B}{A}` | `mirror => 1` |
+      830 -|`row.labels`| array ref: which rows to draw, in order | `'row
+          -.labels' => ['H', 'F', 'Cl', 'Br', 'I']` |                    
+      828 +|`row.labels`| array ref of the labels printed down the left s
+          +ide; give it the same keys, in the same order, as `col.labels`
+          + | `'row.labels' => ['H', 'F', 'Cl', 'Br', 'I']` |            
+      829  |`shared.colorbar`| 0-based indices of the subplots that shoul
+           d share one colorbar | `'shared.colorbar' => [0,1]` |
+      830  |`show.numbers`| print each cell's value in the cell; off by d
+           efault | `'show.numbers' => 1` |
+      831  |`undef.color`| the color for cells that have no value | `'und
+           ef.color' => 'white'` |
+
+● Update(README.md)
+  ⎿  Added 1 line, removed 1 line
+      828  |`row.labels`| array ref of the labels printed down the left s
+           ide; give it the same keys, in the same order, as `col.labels`
+            | `'row.labels' => ['H', 'F', 'Cl', 'Br', 'I']` |
+      829  |`shared.colorbar`| 0-based indices of the subplots that shoul
+           d share one colorbar | `'shared.colorbar' => [0,1]` |
+      830  |`show.numbers`| print each cell's value in the cell; off by d
+           efault | `'show.numbers' => 1` |
+      831 -|`undef.color`| the color for cells that have no value | `'und
+          -ef.color' => 'white'` |                                       
+      831 +|`undef.color`| the color for cells that have no value; gray b
+          +y default | `'undef.color' => 'white'` |                      
+      832  
+      833  The colorbar options in [Color Bars](#color-bars-colorbars) — 
+           `cbdrawedges`,
+      834  `cblocation`, `cborientation`, `cbpad` — work here too.
+
+● Now hexbin, hist, and hist2d:
+
+● Update(README.md)
+  ⎿  Added 21 lines
+      942  Plot a hash of arrays as a hexbin
+      943  see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplo
+           t.hexbin.html
+      944  
+      945 +A hexbin answers the question a scatterplot stops answering on
+          +ce there are tens                                             
+      946 +of thousands of points: instead of drawing every point and let
+          +ting them pile up                                             
+      947 +into an indistinguishable blob, the plane is tiled with hexago
+          +ns and each one is                                            
+      948 +colored by how many points fell inside it.                    
+      949 +                                                              
+      950 +### Entering data                                             
+      951 +                                                              
+      952 +`data` is a hash of exactly **two** array refs of equal length
+          + — the first key                                              
+      953 +(sorted) is the x-axis, the second is the y-axis, and both bec
+          +ome the axis                                                  
+      954 +labels.  Use `key.order` to say which is which rather than rel
+          +ying on the sort:                                             
+      955 +                                                              
+      956 +    hexbin(                                                   
+      957 +     'output.file' => '/tmp/hex.svg',                          
+      958 +     data          => { Height => \@heights, Weight => \@weight
+          +s },                                                          
+      959 +     'key.order'   => [ 'Weight', 'Height' ],    # Weight on x 
+      960 +     cblabel       => 'people per cell',                       
+      961 +    );                                                        
+      962 +                                                              
+      963  ### options
+      964  
+      965  | Option | Description | Example |
+      966  | -------- | ------- | ------- 
+      967  | cb_logscale | colorbar log scale `from matplotlib.colors imp
+           ort LogNorm` | default 0, any value > 0 enables |
+      968 +| cblabel | the label on the colorbar, i.e. what the cell coun
+          +ts mean | `cblabel => 'observations'` |                       
+      969 +| colorbar.on | draw the colorbar; on by default, `0` turns it
+          + off | `'colorbar.on' => 0` |                                 
+      970 +| shared.colorbar | 0-based indices of the subplots that shoul
+          +d share one colorbar, so that their colors are comparable | `'
+          +shared.colorbar' => [0,1]` |                                  
+      971  |cmap| The Colormap instance or registered colormap name used 
+           to map scalar data to colors | default `gist_rainbow` |
+      972  |key.order|  define the keys in an order (an array reference)|
+           `'key.order' => ['X-rays', 'Yak Butter'],`
+      973  | marginals | integer, by default off = 0 | `marginals => 1` |
+
+● Update(README.md)
+  ⎿  Added 4 lines
+      979  | ybins | integer that accesses vertical gridsize | default is
+            15 |
+      980  | yscale.hexbin | 'linear', 'log'}, default: 'linear': Use a l
+           inear or log10 scale on the vertical axis | `'yscale.hexbin' =
+           > 'log'`|
+      981  
+      982 +`cb_logscale` and `vmin`/`vmax` are two ways of saying the sam
+          +e thing and do not                                            
+      983 +combine: a log-scaled colorbar is built from `LogNorm`, which 
+          +rejects the                                                   
+      984 +explicit range, so Matplotlib exits with an error.  Pick one. 
+      985 +                                                              
+      986  ### single, simple plot
+      987  
+      988      plt(
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 4 lines, removed 3 lines
+      979  | ybins | integer that accesses vertical gridsize | default is
+            15 |
+      980  | yscale.hexbin | 'linear', 'log'}, default: 'linear': Use a l
+           inear or log10 scale on the vertical axis | `'yscale.hexbin' =
+           > 'log'`|
+      981  
+      982 -`cb_logscale` and `vmin`/`vmax` are two ways of saying the sam
+          -e thing and do not                                            
+      983 -combine: a log-scaled colorbar is built from `LogNorm`, which 
+          -rejects the                                                   
+      984 -explicit range, so Matplotlib exits with an error.  Pick one. 
+      982 +`cb_logscale` cannot be combined with `vmin`/`vmax`: the log-s
+          +caled colorbar is                                             
+      983 +built by handing Matplotlib a `LogNorm`, and Matplotlib refuse
+          +s a `norm` and an                                             
+      984 +explicit `vmin`/`vmax` at the same time, so the generated Pyth
+          +on exits with an                                              
+      985 +error.  Use one or the other.                                 
+      986  
+      987  ### single, simple plot
+      988  
+
+● Update(README.md)
+  ⎿  Added 9 lines, removed 7 lines
+      1126  
+      1127  ## hist
+      1128  
+      1129 -Plot a hash of arrays as a series of histograms              
+      1129 +Plot a hash of arrays as a series of histograms.  Every set i
+           +s drawn into the                                             
+      1130 +same axes with a shared bin edge, so the point of `hist` is c
+           +omparing                                                     
+      1131 +distributions; `alpha` defaults to 0.5 so that the overlaps s
+           +tay readable.                                                
+      1132  
+      1133  ### options
+      1134  
+      1133 -                                                             
+      1135  | Option | Description | Example |
+      1136  | -------- | ------- | ------- |
+      1136 -|`alpha` | default 0.5; same for all sets| |                 
+      1137 -|`bins` | # nt or sequence or str, default: :rc:`hist.bins`If
+           - *bins* is an integer, it defines the number of equal-width b
+           -ins in the range. If *bins* is a sequence, it defines the bin
+           - edges, including the left edge of the first bin and the righ
+           -t edge of the last bin; in this case, bins may be unequally s
+           -paced.  All but the last  (righthand-most) bin is half-open| 
+      1138 -|`color` | a hash, where keys are the keys in data, and value
+           -s are colors | `X => 'blue'`|                                
+      1139 -|`log`| if set to > 1, the y-axis will be logarithmic |      
+      1140 -|`orientation`| {'vertical', 'horizontal'}, default: 'vertica
+           -l'|                                                          
+      1137 +|`alpha` | opacity of the bars, default 0.5; the same value i
+           +s used for all sets| `alpha => 0.25` |                       
+      1138 +|`bins` | int or sequence or str, default: :rc:`hist.bins`.  
+           +If *bins* is an integer, it defines the number of equal-width
+           + bins in the range. If *bins* is a sequence, it defines the b
+           +in edges, including the left edge of the first bin and the ri
+           +ght edge of the last bin; in this case, bins may be unequally
+           + spaced.  All but the last  (righthand-most) bin is half-open
+           +| `bins => 50` |                                             
+      1139 +|`color` | either one color for every set, or a hash pairing 
+           +each data key with its own color | `color => { X => 'blue', Y
+           + => 'orange' }` |                                            
+      1140 +|`logscale`| an array of the axes to put on a log scale, usef
+           +ul when one set is orders of magnitude rarer than another.  I
+           +t must be an array reference — `logscale => 1` is an error | 
+           +`logscale => ['y']` |                                        
+      1141 +|`orientation`| {'vertical', 'horizontal'}, default: 'vertica
+           +l'| `orientation => 'horizontal'` |                          
+      1142 +|`show.legend`| on by default; `0` suppresses the legend, whi
+           +ch is worth doing when the keys are only there to separate th
+           +e data | `'show.legend' => 0` |                              
+      1143  
+      1144  ### single, simple plot
+      1145  
+
+● Update(README.md)
+  ⎿  Added 7 lines, removed 1 line
+      1285  
+      1286  ## hist2d
+      1287  
+      1288 -Make a 2-D histogram from a hash of arrays                   
+      1288 +Make a 2-D histogram from a hash of arrays: like [`hexbin`](#
+           +hexbin), `data` is                                           
+      1289 +a hash of exactly **two** equal-length array refs, the first 
+           +(sorted) key giving                                          
+      1290 +the x-axis and the second the y-axis, and the plane is divide
+           +d into rectangular                                           
+      1291 +cells colored by how many points landed in each.  `hexbin` an
+           +d `hist2d` are                                               
+      1292 +interchangeable on the same data — hexagons tile the plane wi
+           +thout the visual                                             
+      1293 +grid artefacts of squares, while square bins are easier to re
+           +ad off against the                                           
+      1294 +axes.                                                        
+      1295  
+      1296  ### single, simple plot
+      1297      plt(
+
+● Update(README.md)
+  ⎿  Added 6 lines, removed 4 lines
+      1316  | Option | Description | Example |
+      1317  | -------- | ------- | ------- |
+      1318  |`cb_logscale`| make the colorbar log-scale | `cb_logscale =>
+             1` |
+      1319 +|`cblabel`| the label on the colorbar, i.e. what the cell cou
+           +nts mean | `cblabel => 'observations'` |                     
+      1320  |`cmap`| color map for coloring # "gist_rainbow" by default |
+              |
+      1320 -|'cmax', `cmin`| All bins that has count < *cmin* or > *cmax*
+           - will not be displayed|                                      
+      1321 -|  'density'|  density : bool, default: False|               
+      1322 -|  'key.order'|  define the keys in an order (an array refere
+           -nce)                                                         
+      1323 -| 'logscale' |    # logscale, an array of axes that will get 
+           -log scale                                                    
+      1321 +|'cmax', `cmin`| All bins that has count < *cmin* or > *cmax*
+           + will not be displayed.  `cmin => 1` is the usual way to leav
+           +e empty cells blank instead of coloring them as zero|`cmin =>
+           + 1`|                                                         
+      1322 +|  'density'|  density : bool, default: False; normalise the 
+           +counts so the plot shows a probability density instead of raw
+           + counts, which is what makes two plots of different-sized sam
+           +ples comparable|`density => 'True'`|                         
+      1323 +|  'key.order'|  define the keys in an order (an array refere
+           +nce), i.e. which key is the x-axis|`'key.order' => ['Y', 'X']
+           +`|                                                           
+      1324 +| 'logscale' |    an array of the axes that will get a log sc
+           +ale|`logscale => ['x']`|                                     
+      1325  |'show.colorbar'| self-evident, 0 or 1 | `show.colorbar` => 1
+            |
+      1326 +|`shared.colorbar`| 0-based indices of the subplots that shou
+           +ld share one colorbar | `'shared.colorbar' => [0,1]`|        
+      1327  |'vmax'| When using scalar data and no explicit *norm*, *vmin
+            * and *vmax* define the data range that the colormap cover |
+      1328  |'vmin' | # When using scalar data and no explicit *norm*, *v
+            min* and *vmax* define the data range that the colormap cover
+             |
+      1329  |'xbins'| # default 15
+
+● Background command "grep -A3 -i 'norm\|Error\|error' /tmp/probe3.log | grep -i
+-m5 'vmin\|norm.*simultan\|ValueError'" failed with exit code 1
+
+  Searched for 2 patterns, read 1 file, ran 2 shell commands (ctrl+o to expand)
+
+● Background command "awk '/cb_logscale \+ vmin/,/^####/' /tmp/probe3.log | grep
+-iE 'error|Traceback|norm|vmin' | head -12" completed (exit code 0)
+● Update(README.md)
+  ⎿  Added 3 lines, removed 4 lines
+      979  | ybins | integer that accesses vertical gridsize | default is
+            15 |
+      980  | yscale.hexbin | 'linear', 'log'}, default: 'linear': Use a l
+           inear or log10 scale on the vertical axis | `'yscale.hexbin' =
+           > 'log'`|
+      981  
+      982 -`cb_logscale` cannot be combined with `vmin`/`vmax`: the log-s
+          -caled colorbar is                                             
+      983 -built by handing Matplotlib a `LogNorm`, and Matplotlib refuse
+          -s a `norm` and an                                             
+      984 -explicit `vmin`/`vmax` at the same time, so the generated Pyth
+          -on exits with an                                              
+      985 -error.  Use one or the other.                                 
+      982 +`cb_logscale` cannot be combined with `vmin`/`vmax`.  The log-
+          +scaled colorbar is                                            
+      983 +drawn by handing Matplotlib a `LogNorm`, and an explicit range
+          + on top of that                                               
+      984 +makes the generated Python fail; use one or the other.        
+      985  
+      986  ### single, simple plot
+      987  
+
+● Now imshow and pie:
+
+● Update(README.md)
+  ⎿  Added 34 lines
+      1436  
+      1437  Plot 2D array of numbers as an image
+      1438  
+      1439 +### Entering data                                            
+      1440 +                                                             
+      1441 +`data` is a 2-D array — an array of array refs — and nothing 
+           +else; a hash is an                                           
+      1442 +error.  Row `0` is drawn at the top, so `set_ylim` reversed, 
+           +or Matplotlib's                                              
+      1443 +`invert_yaxis`, is what you want if your first row is meant t
+           +o be the bottom:                                             
+      1444 +                                                             
+      1445 +    my @grid;                                                
+      1446 +    foreach my $i (0 .. 360) {                               
+      1447 +            foreach my $j (0 .. 360) {                              
+      1448 +                    push @{ $grid[$i] }, sin($i * $pi/180) * cos($j 
+           +);                                                           
+      1449 +            }                                                       
+      1450 +    }                                                        
+      1451 +    imshow(                                                  
+      1452 +            'output.file' => '/tmp/grid.svg',                       
+      1453 +            data          => \@grid,                                
+      1454 +            cblabel       => 'sin(x) * cos(x)',                     
+      1455 +    );                                                       
+      1456 +                                                             
+      1457 +The cells may hold **strings** instead of numbers, as long as
+           + `stringmap` gives                                           
+      1458 +the meaning of each one; the strings are then numbered for co
+           +loring and the                                               
+      1459 +colorbar is replaced by a legend of the mapped names.  This i
+           +s what makes                                                 
+      1460 +`imshow` usable for categorical rasters — sequence annotation
+           +, land cover,                                                
+      1461 +state-over-time diagrams — and there is a worked example unde
+           +r                                                            
+      1462 +[Secondary Structure Prediction (DSSP)](#secondary-structure-
+           +prediction-dssp).                                            
+      1463 +                                                             
+      1464 +Because `imshow` produces a colorbar per subplot, `shared.col
+           +orbar` is often                                              
+      1465 +worth setting when several panels show the same quantity: it 
+           +gives them one                                               
+      1466 +colorbar, and hence one color scale, so the panels can be com
+           +pared.                                                       
+      1467 +                                                             
+      1468  ### options
+      1469 +                                                             
+      1470  | Option | Description | Example |
+      1471  | -------- | ------- | ------- 
+      1472  |`cblabel`| colorbar label | `cblabel => 'sin(x) * cos(x)',`
+      1473  |`cbdrawedges` |draw edges for colorbar | |
+      1474  |`cblocation` | 'left', 'right', 'top', 'bottom'| `cblocation
+             => 'left',`|
+      1475  |`cborientation`|  None, or 'vertical', 'horizontal' | 
+      1476 +|`cbpad`| fraction of the original axes between the image and
+           + the colorbar; the default 0.05 is often too big for a short,
+           + wide image | `cbpad => 0.01,`|                              
+      1477  |`cmap`| # The Colormap instance or registered colormap name 
+            used to map scalar data to colors.|
+      1478 +|`colorbar.on`| draw the colorbar; on by default, `0` turns i
+           +t off|`'colorbar.on' => 0`|                                  
+      1479 +|`shared.colorbar`| 0-based indices of the subplots that shou
+           +ld share one colorbar, and therefore one color scale|`'shared
+           +.colorbar' => [0,1]`|                                        
+      1480 +|`stringmap`| a hash giving the meaning of each string used i
+           +n `data`, which also makes string data legal|`stringmap => { 
+           +H => 'Alpha helix' }`|                                       
+      1481  |`vmax`| float |
+      1482  |`vmin`| float | 
+      1483  
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 3 lines, removed 2 lines
+      1439  ### Entering data
+      1440  
+      1441  `data` is a 2-D array — an array of array refs — and nothing 
+            else; a hash is an
+      1442 -error.  Row `0` is drawn at the top, so `set_ylim` reversed, 
+           -or Matplotlib's                                              
+      1443 -`invert_yaxis`, is what you want if your first row is meant t
+           -o be the bottom:                                             
+      1442 +error.  The generated call leaves Matplotlib's `origin` at it
+           +s default, so row                                            
+      1443 +`0` is drawn at the **top**; use `invert_yaxis` if your first
+           + row is meant to be                                          
+      1444 +the bottom of the picture:                                   
+      1445  
+      1446      my @grid;
+      1447      foreach my $i (0 .. 360) {
+
+● Update(README.md)
+  ⎿  Added 7 lines, removed 4 lines
+      1456      );
+      1457  
+      1458  The cells may hold **strings** instead of numbers, as long as
+             `stringmap` gives
+      1459 -the meaning of each one; the strings are then numbered for co
+           -loring and the                                               
+      1460 -colorbar is replaced by a legend of the mapped names.  This i
+           -s what makes                                                 
+      1461 -`imshow` usable for categorical rasters — sequence annotation
+           -, land cover,                                                
+      1462 -state-over-time diagrams — and there is a worked example unde
+           -r                                                            
+      1459 +the meaning of each one — without it, non-numeric data is an 
+           +error.  Each string                                          
+      1460 +is assigned an integer, the image is drawn with one discrete 
+           +color per string,                                            
+      1461 +and the colorbar's ticks are labelled with the names from `st
+           +ringmap` rather than                                         
+      1462 +with numbers.  (`cmap` is dropped, with a warning, when strin
+           +gs are in play,                                              
+      1463 +since the palette has to be a discrete one.)  This is what ma
+           +kes `imshow` usable                                          
+      1464 +for categorical rasters — sequence annotation, land cover, st
+           +ate-over-time                                                
+      1465 +diagrams — and there is a worked example under               
+      1466  [Secondary Structure Prediction (DSSP)](#secondary-structure-
+            prediction-dssp).
+      1467  
+      1468  Because `imshow` produces a colorbar per subplot, `shared.col
+            orbar` is often
+
+● Now the empty pie options section:
+
+● Update(README.md)
+  ⎿  Added 15 lines
+      1669  
+      1670  ## pie
+      1671  
+      1672 +Plot a hash of numbers as a pie chart: one wedge per key, siz
+           +ed by its share of                                           
+      1673 +the total.  `data` is the same simple hash that `bar` takes, 
+           +so the two are                                               
+      1674 +interchangeable — reach for `pie` when the reader should see 
+           +parts of a whole,                                            
+      1675 +and for `bar` when they should compare the parts with each ot
+           +her.                                                         
+      1676 +                                                             
+      1677 +Wedges are laid out in sorted key order and that order cannot
+           + be overridden;                                              
+      1678 +`key.order` is not accepted here.  Pie charts also never get 
+           +a legend — the                                               
+      1679 +wedges are labelled directly — so `legend` and `show.legend` 
+           +do nothing.                                                  
+      1680 +                                                             
+      1681  ### options
+      1682  
+      1683 +| Option | Description | Example |                           
+      1684 +| -------- | ------- | ------- |                             
+      1685 +|`autopct`| a Python format string for the share printed insi
+           +de each wedge; omit it and no numbers are drawn | `autopct =>
+           + '%1.1f%%'` |                                                
+      1686 +|`labeldistance`| where the key label sits, as a fraction of 
+           +the radius: `0` is the centre, `1` the edge, above `1` outsid
+           +e the pie | `labeldistance => 0.6` |                         
+      1687 +|`pctdistance`| the same scale, for the `autopct` text.  Swap
+           +ping the two — labels in, percentages out — is a readable arr
+           +angement when the labels are long | `pctdistance => 1.25` |  
+      1688 +                                                             
+      1689  ### single, simple plot
+      1690  
+      1691      plt(
+
+● Now the empty scatter options section — the biggest gap after wide:
+
+● Update(README.md)
+  ⎿  Added 71 lines
+      2147  
+      2148  ## scatter
+      2149  
+      2150 +Plot points from a hash of arrays.  Beyond x and y, a scatter
+           +plot can carry a                                             
+      2151 +third number per point as **color**, which is where most of `
+           +scatter`'s options                                           
+      2152 +go.                                                          
+      2153 +                                                             
+      2154 +### Entering data                                            
+      2155 +                                                             
+      2156 +`data` takes two shapes, and which one you passed is worked o
+           +ut from whether the                                          
+      2157 +values are arrays or hashes.                                 
+      2158 +                                                             
+      2159 +**1. One set (hash of 2 or 3 array refs).** All the arrays mu
+           +st be the same                                               
+      2160 +length.  Keys are taken in case-insensitive sorted order: the
+           + first is x, the                                             
+      2161 +second y, and a third — if present — is the value each point 
+           +is colored by, which                                         
+      2162 +also gets a colorbar.  Exactly 2 or 3 keys are allowed; anyth
+           +ing else is an                                               
+      2163 +error.  The keys become the axis labels, so naming them for t
+           +he quantity they                                             
+      2164 +hold pays off:                                               
+      2165 +                                                             
+      2166 +    scatter(                                                 
+      2167 +            'output.file' => '/tmp/scatter.svg',                    
+      2168 +            data          => {                                      
+      2169 +                    Height => \@height,    # x                      
+      2170 +                    Weight => \@weight,    # y                      
+      2171 +                    Age    => \@age,       # colour + colorbar      
+      2172 +            },                                                      
+      2173 +            color_key     => 'Age',    # say so rather than relying 
+           +n the sort                                                   
+      2174 +            cmap          => 'viridis',                             
+      2175 +    );                                                       
+      2176 +                                                             
+      2177 +Sorted order is convenient but fragile — rename a key and the
+           + axes swap.  Use                                             
+      2178 +`keys` to fix the roles positionally, or `color_key` to name 
+           +the color column                                             
+      2179 +explicitly, as above:                                        
+      2180 +                                                             
+      2181 +            keys => [ 'Weight', 'Height', 'Age' ],    # x, y, colour
+      2182 +                                                             
+      2183 +**2. Several labelled sets (hash of hashes of array refs).** 
+           +The outer key is                                             
+      2184 +the set's legend label; each inner hash is a set of 2 or 3 ar
+           +rays read exactly as                                         
+      2185 +in form 1.  This is the form to use for "the same measurement
+           +, split by group":                                           
+      2186 +                                                             
+      2187 +    scatter(                                                 
+      2188 +            'output.file' => '/tmp/by.group.svg',                   
+      2189 +            data          => {                                      
+      2190 +                    Male   => { Height => \@mh, Weight => \@mw },   
+      2191 +                    Female => { Height => \@fh, Weight => \@fw },   
+      2192 +            },                                                      
+      2193 +            'set.options' => {                                      
+      2194 +                    Male   => 'marker = "v", color = "blue"',       
+      2195 +                    Female => 'marker = "o", color = "red"',        
+      2196 +            },                                                      
+      2197 +    );                                                       
+      2198 +                                                             
+      2199 +With three inner keys, every set is colored by its own third 
+           +column against a                                             
+      2200 +shared colorbar.  `color_key` then names an **inner** key, an
+           +d it must exist in                                           
+      2201 +each set — naming a key that is not there is an error rather 
+           +than being ignored.                                          
+      2202 +                                                             
+      2203 +### options                                                  
+      2204 +                                                             
+      2205 +| Option | Description | Example |                           
+      2206 +| -------- | ------- | ------- |                             
+      2207 +|`cmap`| the colormap used when a third key colors the points
+           +; `gist_rainbow` by default | `cmap => 'viridis'` |          
+      2208 +|`color_key`| which key of `data` holds the color values, rat
+           +her than letting the sort decide.  For the multi-set form thi
+           +s is an inner key, and it must be present in every set | `col
+           +or_key => 'Age'` |                                           
+      2209 +|`colorbar.on`| draw the colorbar; on by default | `'colorbar
+           +.on' => 0` |                                                 
+      2210 +|`keys`| array ref fixing the roles of the keys positionally:
+           + x, y, then color | `keys => ['Weight', 'Height', 'Age']` |  
+      2211 +|`logscale`| an array of the axes to put on a log scale | `lo
+           +gscale => ['x', 'y']` |                                      
+      2212 +|`set.options`| arguments passed straight to Matplotlib's `ax
+           +.scatter`: `marker`, `color`, `alpha`, `s`, …  A **scalar** f
+           +or the single-set form; a **hash keyed by set name** for the 
+           +multi-set form.  Options for a set that has no data are an er
+           +ror | `'set.options' => 'marker = "v", alpha = 0.4'` |       
+      2213 +|`shared.colorbar`| 0-based indices of the subplots that shou
+           +ld share one colorbar, and hence one color scale | `'shared.c
+           +olorbar' => [0,1]` |                                         
+      2214 +|`show.legend`| on by default; `0` suppresses the legend of s
+           +et labels | `'show.legend' => 0` |                           
+      2215 +                                                             
+      2216 +`xlabel` and `ylabel` default to the names of the keys used f
+           +or x and y; set them                                         
+      2217 +explicitly to override.  The colorbar is labelled with the na
+           +me of the color key,                                         
+      2218 +which `cblabel` overrides, and the other colorbar options fro
+           +m                                                            
+      2219 +[Color Bars](#color-bars-colorbars) apply as well.           
+      2220 +                                                             
+      2221  ### single, simple plot
+      2222      scatter(
+      2223              fh            => $fh,
+
+  Read 1 file, ran 1 shell command (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 1 line, removed 3 lines
+      965  | Option | Description | Example |
+      966  | -------- | ------- | ------- 
+      967  | cb_logscale | colorbar log scale `from matplotlib.colors imp
+           ort LogNorm` | default 0, any value > 0 enables |
+      968 -| cblabel | the label on the colorbar, i.e. what the cell coun
+          -ts mean | `cblabel => 'observations'` |                       
+      969 -| colorbar.on | draw the colorbar; on by default, `0` turns it
+          - off | `'colorbar.on' => 0` |                                 
+      970 -| shared.colorbar | 0-based indices of the subplots that shoul
+          -d share one colorbar, so that their colors are comparable | `'
+          -shared.colorbar' => [0,1]` |                                  
+      968 +| cblabel | the label on the colorbar, i.e. what the cell coun
+          +ts mean; `Density` if not given | `cblabel => 'observations'` 
+          +|                                                             
+      969  |cmap| The Colormap instance or registered colormap name used 
+           to map scalar data to colors | default `gist_rainbow` |
+      970  |key.order|  define the keys in an order (an array reference)|
+           `'key.order' => ['X-rays', 'Yak Butter'],`
+      971  | marginals | integer, by default off = 0 | `marginals => 1` |
+
+● Update(README.md)
+  ⎿  Added 1 line, removed 1 line
+      1313  | Option | Description | Example |
+      1314  | -------- | ------- | ------- |
+      1315  |`cb_logscale`| make the colorbar log-scale | `cb_logscale =>
+             1` |
+      1316 -|`cblabel`| the label on the colorbar, i.e. what the cell cou
+           -nts mean | `cblabel => 'observations'` |                     
+      1316 +|`cblabel`| the label on the colorbar, i.e. what the cell cou
+           +nts mean; `Density` if not given | `cblabel => 'observations'
+           +` |                                                          
+      1317  |`cmap`| color map for coloring # "gist_rainbow" by default |
+              |
+      1318  |'cmax', `cmin`| All bins that has count < *cmin* or > *cmax*
+             will not be displayed.  `cmin => 1` is the usual way to leav
+            e empty cells blank instead of coloring them as zero|`cmin =>
+             1`|
+      1319  |  'density'|  density : bool, default: False; normalise the 
+            counts so the plot shows a probability density instead of raw
+             counts, which is what makes two plots of different-sized sam
+            ples comparable|`density => 'True'`|
+
+● Update(README.md)
+  ⎿  Added 1 line, removed 2 lines
+      1319  |  'density'|  density : bool, default: False; normalise the 
+            counts so the plot shows a probability density instead of raw
+             counts, which is what makes two plots of different-sized sam
+            ples comparable|`density => 'True'`|
+      1320  |  'key.order'|  define the keys in an order (an array refere
+            nce), i.e. which key is the x-axis|`'key.order' => ['Y', 'X']
+            `|
+      1321  | 'logscale' |    an array of the axes that will get a log sc
+            ale|`logscale => ['x']`|
+      1322 -|'show.colorbar'| self-evident, 0 or 1 | `show.colorbar` => 1
+           -|                                                            
+      1323 -|`shared.colorbar`| 0-based indices of the subplots that shou
+           -ld share one colorbar | `'shared.colorbar' => [0,1]`|        
+      1322 +|'show.colorbar'| self-evident, 0 or 1; this, and not `colorb
+           +ar.on`, is what suppresses a `hist2d` colorbar | `show.colorb
+           +ar` => 0|                                                    
+      1323  |'vmax'| When using scalar data and no explicit *norm*, *vmin
+            * and *vmax* define the data range that the colormap cover |
+      1324  |'vmin' | # When using scalar data and no explicit *norm*, *v
+            min* and *vmax* define the data range that the colormap cover
+             |
+      1325  |'xbins'| # default 15
+
+● Update(README.md)
+  ⎿  Added 3 lines, removed 6 lines
+      2203  | -------- | ------- | ------- |
+      2204  |`cmap`| the colormap used when a third key colors the points
+            ; `gist_rainbow` by default | `cmap => 'viridis'` |
+      2205  |`color_key`| which key of `data` holds the color values, rat
+            her than letting the sort decide.  For the multi-set form thi
+            s is an inner key, and it must be present in every set | `col
+            or_key => 'Age'` |
+      2206 -|`colorbar.on`| draw the colorbar; on by default | `'colorbar
+           -.on' => 0` |                                                 
+      2206  |`keys`| array ref fixing the roles of the keys positionally:
+             x, y, then color | `keys => ['Weight', 'Height', 'Age']` |
+      2207  |`logscale`| an array of the axes to put on a log scale | `lo
+            gscale => ['x', 'y']` |
+      2208  |`set.options`| arguments passed straight to Matplotlib's `ax
+            .scatter`: `marker`, `color`, `alpha`, `s`, …  A **scalar** f
+            or the single-set form; a **hash keyed by set name** for the 
+            multi-set form.  Options for a set that has no data are an er
+            ror | `'set.options' => 'marker = "v", alpha = 0.4'` |
+      2210 -|`shared.colorbar`| 0-based indices of the subplots that shou
+           -ld share one colorbar, and hence one color scale | `'shared.c
+           -olorbar' => [0,1]` |                                         
+      2211 -|`show.legend`| on by default; `0` suppresses the legend of s
+           -et labels | `'show.legend' => 0` |                           
+      2209  
+      2210  `xlabel` and `ylabel` default to the names of the keys used f
+            or x and y; set them
+      2214 -explicitly to override.  The colorbar is labelled with the na
+           -me of the color key,                                         
+      2215 -which `cblabel` overrides, and the other colorbar options fro
+           -m                                                            
+      2216 -[Color Bars](#color-bars-colorbars) apply as well.           
+      2211 +explicitly to override.  The colorbar is labelled with the na
+           +me of the color key                                          
+      2212 +itself, and takes `cbdrawedges` and `cbpad` from             
+      2213 +[Color Bars](#color-bars-colorbars).                         
+      2214  
+      2215  ### single, simple plot
+      2216      scatter(
+
+● Update(README.md)
+  ⎿  Added 2 lines, removed 2 lines
+      2291                              'plot.type'   => 'scatter',
+      2292                              title         => 'Multiple Set Scatter w
+      2293                              'set.options' => {    # arguments to ax.
+             set in data
+      2294 -                                    X => 'marker = "."',    # diamon
+      2294 +                                    X => 'marker = "."',    # point 
+      2295                                      Y => 'marker = "d"'     # diamon
+      2296                              },
+      2297 -                            color_key => 'Z',                       
+      2297 +                            color_key => 'C', # an inner key, presen
+      2298                      }
+      2299              ]
+      2300      );
+
+● Now violin — correcting the log row and documenting what it really accepts:
+
+● Update(README.md)
+  ⎿  Added 16 lines, removed 6 lines
+      2385  
+      2386  ## violin
+      2387  
+      2388 -plot a hash of array refs as violins                         
+      2388 +Plot a hash of array refs as violins: one kernel-density silh
+           +ouette per key, with                                         
+      2389 +the quartile box, the whiskers and a red dot at the mean draw
+           +n over it.  Where a                                          
+      2390 +boxplot summarises a distribution in five numbers, a violin s
+           +hows its shape, so                                           
+      2391 +bimodal data that a boxplot would hide is visible.           
+      2392  
+      2393 +`violin` and `violinplot` are the same subroutine under two n
+           +ames, and both                                               
+      2394 +accept the two data shapes described under [boxplot](#boxplot
+           +) — a hash of array                                          
+      2395 +refs, or a bare array ref for a single violin.  Non-numeric a
+           +nd undefined values                                          
+      2396 +are dropped silently.  Each x-axis label carries the number o
+           +f points that went                                           
+      2397 +into it, so a violin drawn from very few points announces its
+           +elf.                                                         
+      2398 +                                                             
+      2399  ### options
+      2400  
+      2401  | Option | Description | Example |
+      2402  | -------- | ------- | -------
+      2394 -|`color`| # a hash, where keys are the keys in data, and valu
+           -es are colors, e.g. X => 'blue'                              
+      2395 -|`colors`| match sets | `colors       => { E => 'yellow', B =
+           -> 'purple', A => 'green' }`|                                 
+      2396 -|`key.order`| determine key order display on x-axis|         
+      2397 -|`log`|    # if set to > 1, the y-axis will be logarithmic   
+      2398 -|`orientation`|'vertical', 'horizontal'}, default: 'vertical'
+           -|                                                            
+      2403 +|`color`| a single color for every violin |`color => 'red'`| 
+      2404 +|`colors`| a hash pairing each data key with its own color; e
+           +very key in `data` must appear | `colors       => { E => 'yel
+           +low', B => 'purple', A => 'green' }`|                        
+      2405 +|`key.order`| determine key order display on x-axis|`'key.ord
+           +er' => ['B', 'A', 'E']`|                                     
+      2406 +|`logscale`| an array of the axes to put on a log scale; only
+           + `x` and `y` are accepted.  Note this is an array reference, 
+           +not the `log => 1` scalar that `bar` takes |`logscale => ['y'
+           +]`|                                                          
+      2407 +|`orientation`|'vertical', 'horizontal'}, default: 'vertical'
+           +|`orientation => 'horizontal'`|                              
+      2408 +|`whiskers`| draw the quartile bar and whiskers over the silh
+           +ouette; on by default, `0` leaves the bare violin |`whiskers 
+           +=> 0`|                                                       
+      2409  
+      2410  ### single, simple plot
+      2411  
+
+● Now the empty wide section:
+
+● Update(README.md)
+  ⎿  Added 119 lines
+      2500  <img width="1211" height="491" alt="violin" src="https://gith
+            ub.com/user-attachments/assets/248df5e4-fd57-45d6-96da-956af0
+            a7dbfb" />
+      2501  
+      2502  ## wide
+      2503 +                                                             
+      2504 +Summarise **several runs of the same curve**.  Every run is d
+           +rawn as a faint                                              
+      2505 +line, the mean of the runs as a solid one, and one standard d
+           +eviation either side                                         
+      2506 +of the mean as a translucent ribbon.  This is the plot for re
+           +peated measurements                                          
+      2507 +— replicate experiments, repeated simulations, one trace per 
+           +subject — where a                                            
+      2508 +`plot` of every line on top of the others would be an unreada
+           +ble thicket and a                                            
+      2509 +`plot` of the mean alone would hide how much the runs disagre
+           +e.                                                           
+      2510 +                                                             
+      2511 +The runs do not have to share an x grid: each group's runs ar
+           +e interpolated onto                                          
+      2512 +101 evenly spaced points spanning that group's own x range be
+           +fore the mean and                                            
+      2513 +the standard deviation are taken, so runs of different length
+           +s, or sampled at                                             
+      2514 +different x values, can be summarised together.              
+      2515 +                                                             
+      2516 +### Entering data                                            
+      2517 +                                                             
+      2518 +**1. Labelled groups (hash).** Each key is a group and become
+           +s the legend label;                                          
+      2519 +its value is an array of runs, and each run is a `[ \@x, \@y 
+           +]` pair — the same                                           
+      2520 +pair `plot` uses:                                            
+      2521 +                                                             
+      2522 +    my @x = 0 .. 100;                                        
+      2523 +    wide(                                                    
+      2524 +            'output.file' => 'output.images/single.wide.png',       
+      2525 +            data          => {                                      
+      2526 +                    Clinical => [                                   
+      2527 +                            [ [@x], [@y1] ],    # run 1             
+      2528 +                            [ [@x], [@y2] ],    # run 2             
+      2529 +                            [ [@x], [@y3] ],    # run 3             
+      2530 +                    ],                                              
+      2531 +                    HGI => [                                        
+      2532 +                            [ [@x], [@z1] ],                        
+      2533 +                            [ [@x], [@z2] ],                        
+      2534 +                    ],                                              
+      2535 +            },                                                      
+      2536 +            color         => {          # one color per group       
+      2537 +                    Clinical => 'blue',                             
+      2538 +                    HGI      => 'green',                            
+      2539 +            },                                                      
+      2540 +            title         => 'Visualization of similar lines plotted
+           +together',                                                   
+      2541 +    );                                                       
+      2542 +                                                             
+      2543 +**2. One unlabelled group (array).** Drop the enclosing hash 
+           +and pass the array                                           
+      2544 +of runs directly; `color` is then a single color rather than 
+           +a hash:                                                      
+      2545 +                                                             
+      2546 +    wide(                                                    
+      2547 +            'output.file' => 'output.images/single.array.png',      
+      2548 +            data          => [                                      
+      2549 +                    [ [@x], [@y1] ],                                
+      2550 +                    [ [@x], [@y2] ],                                
+      2551 +                    [ [@x], [@y3] ],                                
+      2552 +            ],                                                      
+      2553 +            color         => 'red',                                 
+      2554 +    );                                                       
+      2555 +                                                             
+      2556 +A group with a single run is legal — it just produces a line 
+           +with a                                                       
+      2557 +zero-width ribbon — which is convenient when one group has re
+           +plicates and                                                 
+      2558 +another does not.                                            
+      2559 +                                                             
+      2560  ### options
+      2561 +                                                             
+      2562 +| Option | Description | Example |                           
+      2563 +| -------- | ------- | ------- |                             
+      2564 +|`color`| for hash data, a hash of one color per group; for a
+           +rray data, a single color.  Groups with no entry fall back to
+           + Matplotlib's `b` (blue), so a partial hash is allowed | `col
+           +or => { Clinical => 'blue', HGI => 'green' }` |              
+      2565 +|`show.legend`| on by default, and only the hash form has lab
+           +els to show; `0` suppresses it | `'show.legend' => 0` |      
+      2566 +                                                             
+      2567 +`wide` accepts the usual axes options — `title`, `xlabel`, `y
+           +label`, `set_xlim`                                           
+      2568 +and the rest — but **not** `logscale` or `key.order`: use Mat
+           +plotlib's own                                                
+      2569 +`set_yscale => '"log"'` for a log axis, and note that the gro
+           +ups are drawn in                                             
+      2570 +hash order.                                                  
+      2571 +                                                             
+      2572  ### single, simple plot
+      2573 +                                                             
+      2574 +The two calls above each produce one panel.  Since `wide` is 
+           +a `plt` wrapper, the                                         
+      2575 +same hash works as an element of `plots`:                    
+      2576 +                                                             
+      2577 +    plt(                                                     
+      2578 +            'output.file' => 'output.images/wide.png',              
+      2579 +            ncols         => 2,                                     
+      2580 +            suptitle      => 'Replicate runs, summarised',          
+      2581 +            plots         => [                                      
+      2582 +                    {                                               
+      2583 +                            'plot.type' => 'wide',                  
+      2584 +                            data        => \%runs,      # hash of gr
+      2585 +                            color       => { Clinical => 'blue', HGI
+      2586 +                            title       => 'Two groups, mean +/- 1 s
+      2587 +                            xlabel      => 'time',                  
+      2588 +                            ylabel      => 'signal',                
+      2589 +                    },                                              
+      2590 +                    {                                               
+      2591 +                            'plot.type'   => 'wide',                
+      2592 +                            data          => $runs{Clinical},    # j
+           +abelled                                                      
+      2593 +                            color         => 'red',                 
+      2594 +                            'show.legend' => 0,                     
+      2595 +                            title         => 'One group, no legend',
+      2596 +                    },                                              
+      2597 +            ],                                                      
+      2598 +    );                                                       
+      2599 +                                                             
+      2600  ### multiple plots
+      2601 +                                                             
+      2602 +Because a `wide` panel collapses many lines into one summary,
+           + it composes well                                            
+      2603 +with the plot types that show the same data another way.  Her
+           +e the runs are                                               
+      2604 +summarised on the left and their endpoint distribution is dra
+           +wn beside them:                                              
+      2605 +                                                             
+      2606 +    plt(                                                     
+      2607 +            'output.file' => 'output.images/wide.and.violin.png',   
+      2608 +            ncols         => 2,                                     
+      2609 +            plots         => [                                      
+      2610 +                    {                                               
+      2611 +                            'plot.type' => 'wide',                  
+      2612 +                            data        => \%runs,                  
+      2613 +                            color       => { Clinical => 'blue', HGI
+      2614 +                            title       => 'Runs over time',        
+      2615 +                    },                                              
+      2616 +                    {                                               
+      2617 +                            'plot.type' => 'violinplot',            
+      2618 +                            data        => \%endpoints,    # hash of
+           +s                                                            
+      2619 +                            colors      => { Clinical => 'blue', HGI
+      2620 +                            title       => 'Final values',          
+      2621 +                    },                                              
+      2622 +            ],                                                      
+      2623 +    );                                                       
+      2624 +                                                             
+      2625  # Advanced
+      2626  ## Notes in Files
+      2627  
+● Update(README.md)
+  ⎿  Added 17 lines, removed 19 lines
+      2517  
+      2518  **1. Labelled groups (hash).** Each key is a group and become
+            s the legend label;
+      2519  its value is an array of runs, and each run is a `[ \@x, \@y 
+            ]` pair — the same
+      2520 -pair `plot` uses:                                            
+      2520 +pair [`plot`](#plot) uses:                                   
+      2521  
+      2522      my @x = 0 .. 100;
+      2523 +    my %runs;                                                
+      2524 +    foreach my $group ('Clinical', 'HGI') {                  
+      2525 +            my $shift = $group eq 'HGI' ? 1 : 0;                     
+      2526 +            foreach my $replicate (1 .. 3) {                         
+      2527 +                    push @{ $runs{$group} }, [                               
+      2528 +                            [@x],                                                 
+           +   # x                                                       
+      2529 +                            [ map { $shift + sin($_/10) + rand_between(-0.2, 0.2) 
+           +x ] # y                                                      
+      2530 +                    ];                                                       
+      2531 +            }                                                        
+      2532 +    }                                                        
+      2533      wide(
+      2534              'output.file' => 'output.images/single.wide.png',
+      2525 -            data          => {                                       
+      2526 -                    Clinical => [                                            
+      2527 -                            [ [@x], [@y1] ],    # run 1                           
+      2528 -                            [ [@x], [@y2] ],    # run 2                           
+      2529 -                            [ [@x], [@y3] ],    # run 3                           
+      2530 -                    ],                                                       
+      2531 -                    HGI => [                                                 
+      2532 -                            [ [@x], [@z1] ],                                      
+      2533 -                            [ [@x], [@z2] ],                                      
+      2534 -                    ],                                                       
+      2535 -            },                                                       
+      2535 +            data          => \%runs,                                 
+      2536              color         => {          # one color per group
+      2537                      Clinical => 'blue',
+      2538                      HGI      => 'green',
+      2539              },
+      2540              title         => 'Visualization of similar lines plotted 
+            together',
+      2541 +            xlabel        => 'time',                                 
+      2542 +            ylabel        => 'signal',                               
+      2543      );
+      2544  
+      2543 -**2. One unlabelled group (array).** Drop the enclosing hash 
+           -and pass the array                                           
+      2544 -of runs directly; `color` is then a single color rather than 
+           -a hash:                                                      
+      2545 +**2. One unlabelled group (array).** Drop the enclosing hash 
+           +and pass one group's                                         
+      2546 +array of runs directly; `color` is then a single color rather
+           + than a hash:                                                
+      2547  
+      2548      wide(
+      2549              'output.file' => 'output.images/single.array.png',
+      2548 -            data          => [                                       
+      2549 -                    [ [@x], [@y1] ],                                         
+      2550 -                    [ [@x], [@y2] ],                                         
+      2551 -                    [ [@x], [@y3] ],                                         
+      2552 -            ],                                                       
+      2550 +            data          => $runs{Clinical},                        
+      2551              color         => 'red',
+      2552      );
+      2553  
+
+● Update(README.md)
+  ⎿  Added 23 lines, removed 8 lines
+      2569  
+      2570  ### single, simple plot
+      2571  
+      2572 -The two calls above each produce one panel.  Since `wide` is 
+           -a `plt` wrapper, the                                         
+      2573 -same hash works as an element of `plots`:                    
+      2572 +Both calls above go through the `wide` wrapper; naming the ty
+           +pe explicitly to                                             
+      2573 +`plt` is equivalent and takes exactly the same options:      
+      2574  
+      2575      plt(
+      2576 +            'output.file' => 'output.images/single.wide.png',        
+      2577 +            'plot.type'   => 'wide',                                 
+      2578 +            data          => \%runs,                                 
+      2579 +            color         => { Clinical => 'blue', HGI => 'green' }, 
+      2580 +    );                                                       
+      2581 +                                                             
+      2582 +### multiple plots                                           
+      2583 +                                                             
+      2584 +As an element of `plots`, a `wide` panel is just another plot
+           + hash — here the                                             
+      2585 +labelled groups sit beside one group on its own:             
+      2586 +                                                             
+      2587 +    plt(                                                     
+      2588              'output.file' => 'output.images/wide.png',
+      2589              ncols         => 2,
+      2590              suptitle      => 'Replicate runs, summarised',
+      2591              plots         => [
+      2592                      {
+      2593                              'plot.type' => 'wide',
+      2582 -                            data        => \%runs,      # hash of groups of runs  
+      2594 +                            data        => \%runs,               # hash of groups 
+           +runs                                                         
+      2595                              color       => { Clinical => 'blue', HGI => 'green' },
+      2596                              title       => 'Two groups, mean +/- 1 s.d.',
+      2597                              xlabel      => 'time',
+     ...
+      2607              ],
+      2608      );
+      2609  
+      2598 -### multiple plots                                           
+      2610 +Because a `wide` panel collapses many lines into one summary,
+           + it also composes                                            
+      2611 +well with a plot type that shows the same data another way.  
+           +Here the runs are                                            
+      2612 +summarised on the left and the distribution of their final va
+           +lues is drawn beside                                         
+      2613 +them:                                                        
+      2614  
+      2600 -Because a `wide` panel collapses many lines into one summary,
+           - it composes well                                            
+      2601 -with the plot types that show the same data another way.  Her
+           -e the runs are                                               
+      2602 -summarised on the left and their endpoint distribution is dra
+           -wn beside them:                                              
+      2603 -                                                             
+      2615 +    my %endpoints;                                           
+      2616 +    foreach my $group (keys %runs) {                         
+      2617 +            @{ $endpoints{$group} } = map { $_->[1][-1] } @{ $runs{$g
+           +roup} };                                                     
+      2618 +    }                                                        
+      2619      plt(
+      2620              'output.file' => 'output.images/wide.and.violin.png',
+      2621              ncols         => 2,
+
+● Now a worked twinx example for plot, which had the option documented but never
+  shown:
+
+● Update(README.md)
+  ⎿  Added 35 lines
+      1907  Common axes options such as `title`, `xlabel`, `ylabel`, and 
+            `legend` are
+      1908  accepted here too, exactly as for the other plot types.
+      1909  
+      1910 +### Two y-axes with `twinx`                                  
+      1911 +                                                             
+      1912 +Series measured in different units, or on wildly different sc
+           +ales, flatten each                                           
+      1913 +other when they share a y-axis.  `twinx` moves the named seri
+           +es onto a second                                             
+      1914 +y-axis on the right, and `twinx.args` labels it:             
+      1915 +                                                             
+      1916 +    plt(                                                     
+      1917 +            'output.file' => '/tmp/twinx.svg',                       
+      1918 +            'plot.type'   => 'plot',                                 
+      1919 +            data          => {                                       
+      1920 +                    Temperature => [ [@t], [@celsius] ],                     
+      1921 +                    Pressure    => [ [@t], [@hPa]     ],                     
+      1922 +            },                                                       
+      1923 +            twinx         => 'Pressure',                        # ont
+           +o the right axis                                             
+      1924 +            'twinx.args'  => { Pressure => { ylabel => 'hPa' } },    
+      1925 +            ylabel        => 'degrees C',                       # the
+           + left axis                                                   
+      1926 +            xlabel        => 'hour',                                 
+      1927 +    );                                                       
+      1928 +                                                             
+      1929 +`twinx => 'Pressure'` is shorthand for the single-series case
+           +; to twin more than                                          
+      1930 +one series, pass a hash whose keys are the series to move — `
+           +twinx => { Pressure                                          
+      1931 +=> 1, Humidity => 1 }`.  With array data the same options are
+           + given by index                                              
+      1932 +instead of by key:                                           
+      1933 +                                                             
+      1934 +    plt(                                                     
+      1935 +            'output.file' => '/tmp/twinx.arr.svg',                   
+      1936 +            'plot.type'   => 'plot',                                 
+      1937 +            data          => [                                       
+      1938 +                    [ [@t], [@celsius] ],    # index 0, left axis            
+      1939 +                    [ [@t], [@hPa]     ],    # index 1                       
+      1940 +            ],                                                       
+      1941 +            twinx         => 1,                              # index 
+           +1 goes right                                                 
+      1942 +            'twinx.args'  => { 1 => { ylabel => 'hPa' } },           
+      1943 +    );                                                       
+      1944 +                                                             
+      1945  A `plot` spec is an ordinary plot hash, so it can be dropped 
+            straight into the
+      1946  [`p`](#the-p-argument) argument — on its own for a single sub
+            plot, or alongside
+      1947  other hashes to overlay or to fill a grid of subplots.
+
+● Now let me verify the new examples run exactly as written in the README:
+
+  Made 1 scratchpad edit +340, searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+● Found a real trap worth documenting. Let me confirm the rule:
+
+  Made 1 scratchpad edit +31, ran 1 shell command (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 22 lines
+      178  
+      179  `sharex` and `sharey` are both implemented at the plot, rather
+            than subplot, level.  See Matplotlib's documentation for more
+            clarity.
+      180  
+      181 +### Quoting text: commas and apostrophes                      
+      182 +                                                              
+      183 +`title`, `suptitle`, `xlabel`, `ylabel`, `set_title`, `set_xla
+          +bel` and                                                      
+      184 +`set_ylabel` are quoted for you — but only when the text conta
+          +ins no comma, no                                              
+      185 +apostrophe and no double quote.  Anything else is passed throu
+          +gh to Python                                                  
+      186 +untouched, on the assumption that you are supplying Python syn
+          +tax of your own,                                              
+      187 +which is what makes a raw string such as                      
+      188 +                                                              
+      189 +    xlabel => 'r"$\it{anno}$ $\it{domini}$"',    # italics, vi
+          +a mathtext                                                    
+      190 +                                                              
+      191 +possible in the first place.  The practical consequence is tha
+          +t a plain-English                                             
+      192 +label with a comma or an apostrophe in it has to carry its own
+          + quotes:                                                      
+      193 +                                                              
+      194 +    title => 'Two groups: mean and s.d.',     # fine, no comma
+      195 +    title => '"Two groups, mean and s.d."',   # comma: quote i
+          +t yourself                                                    
+      196 +    title => '"war\'s end"',                  # apostrophe: li
+          +kewise                                                        
+      197 +                                                              
+      198 +Without those quotes the generated Python is a syntax error ra
+          +ther than a                                                   
+      199 +mislabelled plot, so the mistake is loud.  Every other option 
+          +is passed through                                             
+      200 +as written, so text inside `legend`, `text` and friends is Pyt
+          +hon syntax                                                    
+      201 +throughout: `legend => 'loc = "upper left"'`.                 
+      202 +                                                              
+      203  # Color Bars (colorbars)
+      204  
+      205  Colarbar args attempt to match matplotlib closely
+
+● Update(README.md)
+  ⎿  Error editing file
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 1 line, removed 1 line
+      2650                              'plot.type' => 'wide',
+      2651                              data        => \%runs,               # hash of groups 
+            runs
+      2652                              color       => { Clinical => 'blue', HGI => 'green' },
+      2653 -                            title       => 'Two groups, mean +/- 1 s.d.',         
+      2653 +                            title       => '"Two groups, mean +/- 1 s.d."', # comm
+           +quoted                                                       
+      2654                              xlabel      => 'time',
+      2655                              ylabel      => 'signal',
+      2656                      },
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Now re-running to confirm every README example works:
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 1 line, removed 1 line
+      2659                              data          => $runs{Clinical},    # just the runs, 
+            abelled
+      2660                              color         => 'red',
+      2661                              'show.legend' => 0,
+      2662 -                            title         => 'One group, no legend',              
+      2662 +                            title         => 'One group with no legend',          
+      2663                      },
+      2664              ],
+      2665      );
+
+  Read 1 file, ran 3 shell commands (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 6 lines, removed 4 lines
+      1948              xlabel        => 'hour',
+      1949      );
+      1950  
+      1951 -`twinx => 'Pressure'` is shorthand for the single-series case
+           -; to twin more than                                          
+      1952 -one series, pass a hash whose keys are the series to move — `
+           -twinx => { Pressure                                          
+      1953 -=> 1, Humidity => 1 }`.  With array data the same options are
+           - given by index                                              
+      1954 -instead of by key:                                           
+      1951 +`twinx => 'Pressure'` is shorthand for the single-series case
+           +.  To twin more than                                         
+      1952 +one series, pass a hash whose keys are the series to move:   
+      1953  
+      1954 +    twinx => { Pressure => 1, Humidity => 1 },               
+      1955 +                                                             
+      1956 +With array data the same options are given by index instead o
+           +f by key:                                                    
+      1957 +                                                             
+      1958      plt(
+      1959              'output.file' => '/tmp/twinx.arr.svg',
+      1960              'plot.type'   => 'plot',
+
+  Ran 3 shell commands (ctrl+o to expand)
+● Update(README.md)
+  ⎿  Added 3 lines, removed 3 lines
+      251  
+      252  - Keys are used in **sorted order** unless you say otherwise. 
+            `key.order` is
+      253    accepted by `bar`, `barh`, `boxplot`, `violin`, `hexbin`, `h
+           ist2d`, `plot` and
+      254 -  `venn_proportional_area`; `scatter` spells the same idea `ke
+          -ys`;                                                          
+      255 -  `colored_table` uses `row.labels`/`col.labels`; `pie`, `hist
+          -`, `imshow` and                                               
+      256 -  `wide` always sort.                                         
+      254 +  `venn_proportional_area`; `scatter` spells the same idea `ke
+          +ys`; and                                                      
+      255 +  `colored_table` uses `row.labels`/`col.labels`.  `pie`, `his
+          +t` and `wide` take                                            
+      256 +  no ordering option at all, and `imshow` has no keys to order
+          +.                                                             
+      257  - `title`, `xlabel`, `ylabel`, `suptitle`, `set_xlim`, `legend
+           ` and the rest of
+      258    Matplotlib's `ax`/`fig`/`plt` methods are accepted by every 
+           plot type; see
+      259    [Options](#options).
+
+● Update(README.md)
+  ⎿  Added 3 lines, removed 3 lines
+      1693  interchangeable — reach for `pie` when the reader should see 
+            parts of a whole,
+      1694  and for `bar` when they should compare the parts with each ot
+            her.
+      1695  
+      1696 -Wedges are laid out in sorted key order and that order cannot
+           - be overridden;                                              
+      1697 -`key.order` is not accepted here.  Pie charts also never get 
+           -a legend — the                                               
+      1698 -wedges are labelled directly — so `legend` and `show.legend` 
+           -do nothing.                                                  
+      1696 +Wedges are laid out in sorted key order and that order cannot
+           + be overridden:                                              
+      1697 +`key.order` is not among the options `pie` accepts.  Nor is a
+           + legend added — the                                          
+      1698 +wedges carry their own labels — so `show.legend` is not accep
+           +ted either.                                                  
+      1699  
+      1700  ### options
+      1701  
+
+● Let me review the full diff of my README changes for consistency:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 1 line, removed 1 line
+      238  | `data` you have | Helpers that take it | Notes |
+      239  | -------- | ------- | ------- |
+      240  |hash of numbers, `A => 1`|`bar`, `barh`, `pie`|one bar/wedge 
+           per key|
+      241 -|hash of array refs, `A => [1,2,3]`|`boxplot`, `violin`, `hist
+          -`, `hexbin`, `hist2d`, `scatter`, `venn_proportional_area`|one
+          - distribution/series per key; `hexbin`, `hist2d` and `scatter`
+          - need exactly 2 (or 3) keys|                                  
+      241 +|hash of array refs, `A => [1,2,3]`|`boxplot`, `violin`, `hist
+          +`, `hexbin`, `hist2d`, `scatter`, `venn_proportional_area`|one
+          + distribution/series per key; `hexbin` and `hist2d` need exact
+          +ly 2 keys (x and y), `scatter` 2 or 3, `venn_proportional_area
+          +` 2 or 3|                                                     
+      242  |hash of hashes, `A => { X => 1 }`|`bar`, `barh`, `colored_tab
+           le`|grouped/stacked bars, or a matrix|
+      243  |hash of `[ \@x, \@y ]` pairs|`plot`|one labelled line per key
+           |
+      244  |hash of arrays of `[ \@x, \@y ]` pairs|`wide`|repeated runs o
+           f the same curve, summarised|
+
+  Read 1 file, ran 1 shell command (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 24 lines, removed 3 lines
+      1145  
+      1146  ## hist
+      1147  
+      1148 -Plot a hash of arrays as a series of histograms.  Every set i
+           -s drawn into the                                             
+      1149 -same axes with a shared bin edge, so the point of `hist` is c
+           -omparing                                                     
+      1150 -distributions; `alpha` defaults to 0.5 so that the overlaps s
+           -tay readable.                                                
+      1148 +Plot a hash of arrays as a series of histograms, one per key,
+           + drawn over each                                             
+      1149 +other in the same axes — `alpha` defaults to 0.5 so that the 
+           +overlaps stay                                                
+      1150 +readable.  A single array ref is the one-set shorthand.  Valu
+           +es must be numeric:                                          
+      1151 +unlike `boxplot` and `violin`, a non-numeric value here is an
+           + error.                                                      
+      1152  
+      1153 +Each set is binned separately, so with `bins => 50` two sets 
+           +covering different                                           
+      1154 +ranges get 50 bins each over their own range rather than a co
+           +mmon set of edges.                                           
+      1155 +When the sets must line up exactly — which is what makes the 
+           +bar heights                                                  
+      1156 +comparable — pass the edges themselves rather than a count:  
+      1157 +                                                             
+      1158 +    hist(                                                    
+      1159 +            'output.file' => '/tmp/hist.svg',                        
+      1160 +            data          => { E => \@e, B => \@b },                 
+      1161 +            bins          => [ map { 10 * $_ } 0 .. 20 ],    # shared
+           + edges, 0..200                                               
+      1162 +    );                                                       
+      1163 +                                                             
+      1164 +`bins` and `color` also accept a **hash keyed by set**, for w
+           +hen one                                                      
+      1165 +distribution wants different treatment from the others:      
+      1166 +                                                             
+      1167 +            bins  => { E => 50, B => 20 },                           
+      1168 +            color => { E => 'orange', B => 'black' },                
+      1169 +                                                             
+      1170 +The legend is on by default when there is more than one set a
+           +nd off when there is                                         
+      1171 +only one; `show.legend` overrides that either way.           
+      1172 +                                                             
+      1173  ### options
+      1174  
+      1175  | Option | Description | Example |
+
+● Update(README.md)
+  ⎿  Added 1 line, removed 1 line
+      1175  | Option | Description | Example |
+      1176  | -------- | ------- | ------- |
+      1177  |`alpha` | opacity of the bars, default 0.5; the same value i
+            s used for all sets| `alpha => 0.25` |
+      1178 -|`bins` | int or sequence or str, default: :rc:`hist.bins`.  
+           -If *bins* is an integer, it defines the number of equal-width
+           - bins in the range. If *bins* is a sequence, it defines the b
+           -in edges, including the left edge of the first bin and the ri
+           -ght edge of the last bin; in this case, bins may be unequally
+           - spaced.  All but the last  (righthand-most) bin is half-open
+           -| `bins => 50` |                                             
+      1178 +|`bins` | int or sequence or str, default: :rc:`hist.bins`.  
+           +If *bins* is an integer, it defines the number of equal-width
+           + bins in the range. If *bins* is a sequence, it defines the b
+           +in edges, including the left edge of the first bin and the ri
+           +ght edge of the last bin; in this case, bins may be unequally
+           + spaced.  All but the last  (righthand-most) bin is half-open
+           +.  May also be a hash keyed by set | `bins => 50` |          
+      1179  |`color` | either one color for every set, or a hash pairing 
+            each data key with its own color | `color => { X => 'blue', Y
+             => 'orange' }` |
+      1180  |`logscale`| an array of the axes to put on a log scale, usef
+            ul when one set is orders of magnitude rarer than another.  I
+            t must be an array reference — `logscale => 1` is an error | 
+            `logscale => ['y']` |
+      1181  |`orientation`| {'vertical', 'horizontal'}, default: 'vertica
+            l'| `orientation => 'horizontal'` |
+
+● Update(README.md)
+  ⎿  Added 1 line, removed 1 line
+      1179  |`color` | either one color for every set, or a hash pairing 
+            each data key with its own color | `color => { X => 'blue', Y
+             => 'orange' }` |
+      1180  |`logscale`| an array of the axes to put on a log scale, usef
+            ul when one set is orders of magnitude rarer than another.  I
+            t must be an array reference — `logscale => 1` is an error | 
+            `logscale => ['y']` |
+      1181  |`orientation`| {'vertical', 'horizontal'}, default: 'vertica
+            l'| `orientation => 'horizontal'` |
+      1182 -|`show.legend`| on by default; `0` suppresses the legend, whi
+           -ch is worth doing when the keys are only there to separate th
+           -e data | `'show.legend' => 0` |                              
+      1182 +|`show.legend`| on when `data` holds more than one set, off w
+           +hen it holds one; set it explicitly to override | `'show.lege
+           +nd' => 0` |                                                  
+      1183  
+      1184  ### single, simple plot
+      1185  
+
+● Update(README.md)
+  ⎿  Removed 1 line
+      848  |`colorbar.on`| draw the colorbar; on by default, `0` turns it
+            off.  Passing `cblabel` draws it regardless | `'colorbar.on' 
+           => 0` |
+      849  |`mirror`| treat the table as symmetric: `$data{A}{B}` also fi
+           lls `$data{B}{A}` | `mirror => 1` |
+      850  |`row.labels`| array ref of the labels printed down the left s
+           ide; give it the same keys, in the same order, as `col.labels`
+            | `'row.labels' => ['H', 'F', 'Cl', 'Br', 'I']` |
+      851 -|`shared.colorbar`| 0-based indices of the subplots that shoul
+          -d share one colorbar | `'shared.colorbar' => [0,1]` |         
+      851  |`show.numbers`| print each cell's value in the cell; off by d
+           efault | `'show.numbers' => 1` |
+      852  |`undef.color`| the color for cells that have no value; gray b
+           y default | `'undef.color' => 'white'` |
+      853  
+
+● Let me verify the new hist examples run, then check the remainder of the diff:
+
+  Made 1 scratchpad edit +50, ran 2 shell commands (ctrl+o to expand)
+
+● Update(README.md)
+  ⎿  Added 5 lines, removed 3 lines
+      2272              },
+      2273      );
+      2274  
+      2275 -With three inner keys, every set is colored by its own third 
+           -column against a                                             
+      2276 -shared colorbar.  `color_key` then names an **inner** key, an
+           -d it must exist in                                           
+      2277 -each set — naming a key that is not there is an error rather 
+           -than being ignored.                                          
+      2275 +With three inner keys, every set is colored by its own third 
+           +column and the                                               
+      2276 +figure gets a single colorbar, drawn from the last set plotte
+           +d — so read the                                              
+      2277 +colors across sets only when the color columns cover comparab
+           +le ranges.                                                   
+      2278 +`color_key` then names an **inner** key, and it must exist in
+           + every set: naming a                                         
+      2279 +key that is not there is an error rather than being quietly i
+           +gnored.                                                      
+      2280  
+      2281  ### options
+      2282  
+
+● Update(README.md)
+  ⎿  Added 4 lines, removed 3 lines
+      2644  |`show.legend`| on by default, and only the hash form has lab
+            els to show; `0` suppresses it | `'show.legend' => 0` |
+      2645  
+      2646  `wide` accepts the usual axes options — `title`, `xlabel`, `y
+            label`, `set_xlim`
+      2647 -and the rest — but **not** `logscale` or `key.order`: use Mat
+           -plotlib's own                                                
+      2648 -`set_yscale => '"log"'` for a log axis, and note that the gro
+           -ups are drawn in                                             
+      2649 -hash order.                                                  
+      2647 +and the rest — but **not** `logscale` or `key.order`.  For a 
+           +log axis use                                                 
+      2648 +Matplotlib's own `set_yscale => '"log"'`.  Since there is no 
+           +`key.order`, the                                             
+      2649 +groups are drawn in Perl's hash order, which is arbitrary and
+           + differs between                                             
+      2650 +runs: give each group an explicit `color` if you need the sam
+           +e picture twice.                                             
+      2651  
+      2652  ### single, simple plot
+      2653  
+
+● Now regenerate and run the full verification once more:
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+● Done. The README grew by ~600 lines, and everything documented was verified by
+  running it.
+
+  What each helper gained
+
+  ┌───────────┬────────────┬────────────────────────────────────────────────┐
+  │  Helper   │   Before   │                      Now                       │
+  ├───────────┼────────────┼────────────────────────────────────────────────┤
+  │           │ 4 empty    │ Full section: what the plot is (faint runs +   │
+  │ wide      │ headings   │ mean + ±1 s.d. ribbon), both data shapes,      │
+  │           │            │ interpolation behaviour, options, 4 examples   │
+  ├───────────┼────────────┼────────────────────────────────────────────────┤
+  │           │ empty ###  │ Both data shapes (2/3-key hash;                │
+  │ scatter   │ options    │ hash-of-hashes), the x/y/colour role rules,    │
+  │           │            │ keys vs color_key, full options table          │
+  ├───────────┼────────────┼────────────────────────────────────────────────┤
+  │ pie       │ empty ###  │ Intro, options table (autopct, labeldistance,  │
+  │           │ options    │ pctdistance)                                   │
+  ├───────────┼────────────┼────────────────────────────────────────────────┤
+  │ Colored   │ empty ###  │ Data shape, mirror, missing-cell behaviour,    │
+  │ Table     │ options    │ 11-row options table                           │
+  ├───────────┼────────────┼────────────────────────────────────────────────┤
+  │ bar/barh  │ options    │ "Entering data" (3 shapes), "Error bars",      │
+  │           │ only       │ label + logscale rows                          │
+  ├───────────┼────────────┼────────────────────────────────────────────────┤
+  │ hist      │ 5 thin     │ Per-set binning trap + shared-edge fix,        │
+  │           │ rows       │ per-set bins/color hashes, legend defaults     │
+  ├───────────┼────────────┼────────────────────────────────────────────────┤
+  │ boxplot   │ options    │ Data shapes, logscale/notch rows               │
+  │           │ only       │                                                │
+  ├───────────┼────────────┼────────────────────────────────────────────────┤
+  │ imshow    │ 7 rows     │ Data shape, origin/row-order, stringmap        │
+  │           │            │ semantics, 4 new rows                          │
+  ├───────────┼────────────┼────────────────────────────────────────────────┤
+  │ hexbin,   │ options    │ What the plot is for, data shape,              │
+  │ hist2d    │ only       │ cblabel/cmin/density explained,                │
+  │           │            │ cb_logscale+vmin conflict                      │
+  ├───────────┼────────────┼────────────────────────────────────────────────┤
+  │ violin    │ 5 thin     │ Intro contrasting it with boxplot, corrected   │
+  │           │ rows       │ options                                        │
+  ├───────────┼────────────┼────────────────────────────────────────────────┤
+  │ plot      │ already    │ New "Two y-axes with twinx" section — the      │
+  │           │ strong     │ option was documented but never shown          │
+  └───────────┴────────────┴────────────────────────────────────────────────┘
+
+  Plus two cross-cutting additions: a "Which helper takes which data?" table
+  indexing every plot type by the Perl data shape you already have, and "Quoting
+  text: commas and apostrophes" under Options.
+
+  Errors found and fixed
+
+  The docs claimed four things the code rejects. I probed 119 option/shape
+  combinations against the real module to find them:
+
+  - boxplot's whiskers — belongs to violin; boxplot dies on it. Replaced with
+  logscale.
+  - violin's and hist's log — both die; the option is logscale => ['y'] (an
+  array ref, not a scalar — bar's is a scalar, which is now stated).
+  - The scatter multi-set example's color_key => 'Z' against inner keys A,B,C —
+  dies with "Z" isn't defined for set "X". Now color_key => 'C'.
+
+  The comma rule surfaced from my own examples failing: title => 'Two groups, 
+  mean' generates ax.set_title(Two groups, mean), a Python SyntaxError.
+  Auto-quoting is skipped whenever the text contains a comma, apostrophe or
+  double quote — that's what lets xlabel => 'r"$\it{anno}$"' work, and it's now
+  documented with the workaround.
+
+  Verified
+
+  - 22 README examples run verbatim (/tmp/readme.out), including all wide and
+  twinx snippets.
+  - perl md2pod.pl regenerates README.pod and the module POD cleanly — POD test
+  ok, Changes byte-identical. One POD break I hit along the way (a backticked
+  span wrapped across lines, whose continuation started =>, which the POD-repair
+  pass read as a command paragraph) is fixed.
+  - prove t/*.t: 208 tests pass; 5.10.1 still compiles.
+
+  Options that exist in code but don't work
+
+  Not documented, since documenting them would be documenting a bug — but you
+  may want to look at them:
+
+  - violin: medians and edgecolor are read and defaulted, but absent from %opt,
+  so passing either dies. edgecolor is also never used — set_edgecolor('black')
+  is hardcoded.
+  - pie: key.order is read by pie_helper but not registered, so it dies both at
+  top level and inside plots.
+  - colored_table: default_undefined is defaulted, but the line that used it is
+  commented out — cells always become np.nan.
+  - colorbar.on is honoured by imshow and colored_table, but ignored by hexbin
+  and hist2d (they always draw; only show.colorbar suppresses hist2d). scatter
+  ignores colorbar.on, show.legend and shared.colorbar entirely.
+
+✻ Worked for 1h 38m 27s
+
+※ recap: Goal was fixing Matplotlib::Simple for Perl 5.10 and improving its docs; both are done, with the `each @keys` fix, a new test.all.perls.pl multi-perl script, and a ~600-line README expansion, all verified. Next: commit, or address the broken options I listed. (disable recaps in /config)
