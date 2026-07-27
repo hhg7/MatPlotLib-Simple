@@ -1,10 +1,6 @@
-# Abstract
-
-Access Matplotlib from Perl; providing consistent user interface between different plot types
-
 # NAME
 
-Access Matplotlib from Perl; providing consistent user interface between different plot types
+Matplotlib::Simple - Access Matplotlib from Perl; providing consistent user interface between different plot types
 
 # Synopsis
 
@@ -2786,6 +2782,12 @@ all files will be written to `$fh->filename`; be sure to put `execute => 0` unle
     );
 
 # Changes
+
+## 0.311 2026-07-27 CDT
+
+Improved README and testing, bug fixes
+
+Back-compatible to Perl-5.10, which the 0.31 broke
 
 ## 0.31 2026-07-25 CDT
 

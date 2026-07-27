@@ -2675,13 +2675,9 @@ __END__
 # from md2pod.pl πατερ ημων ο εν τοις ουρανοις, ἁγιασθήτω τὸ ὄνομά σου
 =encoding utf8
 
-=head1 Abstract
-
-Access Matplotlib from Perl; providing consistent user interface between different plot types
-
 =head1 NAME
 
-Access Matplotlib from Perl; providing consistent user interface between different plot types
+Matplotlib::Simple - Access Matplotlib from Perl; providing consistent user interface between different plot types
 
 =head1 Synopsis
 
@@ -5715,6 +5711,12 @@ all files will be written to C<< $fh-E<gt>filename >>; be sure to put C<< execut
  );
 
 =head1 Changes
+
+=head2 0.311 2026-07-27 CDT
+
+Improved README and testing, bug fixes
+
+Back-compatible to Perl-5.10, which the 0.31 broke
 
 =head2 0.31 2026-07-25 CDT
 

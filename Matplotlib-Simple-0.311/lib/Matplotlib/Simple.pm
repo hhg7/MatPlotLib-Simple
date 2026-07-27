@@ -244,6 +244,7 @@ my %opt = (
 	],
 	pie_helper => [
 	 'autopct',    # percent wise
+	 'key.order',
 	 #labeldistance and pctdistance are ratios of the radius; therefore they vary between 0 for the center of the pie and 1 for the edge of the pie, and can be set to greater than 1 to place text outside the pie https://matplotlib.org/stable/gallery/pie_and_polar_charts/pie_features.html
 	 'labeldistance',
 	 'pctdistance',
@@ -274,7 +275,9 @@ my %opt = (
 	 'color',      # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
 	 'colorbar.on',# only draw colorbar if colorbar is on
 	 'colors',
+	 'edgecolor',
 	 'key.order',
+	 'medians',
 	 'logscale',   # array: "x" and/or "y"
 	 'orientation',# {'vertical', 'horizontal'}, default: 'vertical'
 	 'whiskers'
@@ -2672,13 +2675,9 @@ __END__
 # from md2pod.pl πατερ ημων ο εν τοις ουρανοις, ἁγιασθήτω τὸ ὄνομά σου
 =encoding utf8
 
-=head1 Abstract
-
-Access Matplotlib from Perl; providing consistent user interface between different plot types
-
 =head1 NAME
 
-Access Matplotlib from Perl; providing consistent user interface between different plot types
+Matplotlib::Simple - Access Matplotlib from Perl; providing consistent user interface between different plot types
 
 =head1 Synopsis
 
@@ -2886,9 +2885,15 @@ label with a comma or an apostrophe in it has to carry its own quotes:
  title => '"war\'s end"',                  # apostrophe: likewise
 
 Without those quotes the generated Python is a syntax error rather than a
-mislabelled plot, so the mistake is loud.  Every other option is passed through
-as written, so text inside C<legend>, C<text> and friends is Python syntax
-throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
+mislabelled plot, so the mistake is loud.
+
+Use B<double> quotes when quoting text yourself.  C<suptitle> in particular is
+emitted twice — once for the subplot and once for the figure — and the second
+pass runs its own quoting rules over the text, which turns single-quoted text
+into C<plt.suptitle(''a, b'')>.  Double quotes survive both passes.
+
+Every other option is passed through as written, so text inside C<legend>, C<text>
+and friends is Python syntax throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
 
 =head1 Color Bars (colorbars)
 
@@ -5706,6 +5711,12 @@ all files will be written to C<< $fh-E<gt>filename >>; be sure to put C<< execut
  );
 
 =head1 Changes
+
+=head2 0.311 2026-07-27 CDT
+
+Improved README and testing, bug fixes
+
+Back-compatible to Perl-5.10, which the 0.31 broke
 
 =head2 0.31 2026-07-25 CDT
 

@@ -12,6 +12,8 @@ lib/Matplotlib/Simple.pm
 t/01.all.tests.t
 t/02.interface.t
 t/03.coverage.t
+t/04.options.t
+t/05.generated.python.t
 t/output.images/add.single.svg
 t/output.images/bar.sub.self.svg
 t/output.images/bar.sub.svg
