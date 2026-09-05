@@ -6,7 +6,7 @@ use autodie ':all';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.311;
+our $VERSION = 0.312;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Cwd 'getcwd';
@@ -287,6 +287,23 @@ my %opt = (
 	  'show.legend',  # be default on; should be 0 if off
 	],
 );
+sub py_str {
+	# Render a Perl string as a Python single-quoted string literal.
+	#
+	# Legend labels, colorbar labels and the like are user data (data keys,
+	# group names), so a name such as "Farmer's" would otherwise close the
+	# literal early and emit unparseable Python. Backslashes are doubled
+	# first, which also makes a mathtext label like '$\alpha$' survive as
+	# written instead of being read as a Python escape.
+	my ($str) = @_;
+	$str = $str // '';
+	$str =~ s/\\/\\\\/g;	# backslash first, or the escapes below get doubled
+	$str =~ s/'/\\'/g;
+	$str =~ s/\n/\\n/g;
+	$str =~ s/\r/\\r/g;
+	$str =~ s/\t/\\t/g;
+	return "'$str'";
+}
 sub write_data {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
@@ -797,7 +814,7 @@ sub colored_table_helper {
 	}
 	$plot->{'colorbar.on'} = $plot->{'colorbar.on'} // 1;
 	if (defined $plot->{cblabel}) {
-		say {$args->{fh}} "fig.colorbar(img, label = '$plot->{cblabel}')";
+		say {$args->{fh}} 'fig.colorbar(img, label = ' . py_str($plot->{cblabel}) . ')';
 	} else {
 		say {$args->{fh}} "fig.colorbar(img)" if $plot->{'colorbar.on'};
 	}
@@ -887,8 +904,11 @@ sub hexbin_helper {
 		 . " points.";
 	  die 'The length of both keys must be equal.';
 	}
-	$plot->{xlabel} = $plot->{xlabel} // $keys[0];
-	$plot->{ylabel} = $plot->{ylabel} // $keys[1];
+	# quoted here because the key is data: the pass-through path that title and
+	# label text otherwise take cannot tell an apostrophe from Python of the
+	# user's own, and leaves it bare. See py_str.
+	$plot->{xlabel} = $plot->{xlabel} // py_str($keys[0]);
+	$plot->{ylabel} = $plot->{ylabel} // py_str($keys[1]);
 	$plot->{cmap}   = $plot->{cmap}   // 'gist_rainbow';
 	my $options =
 	", gridsize = ($plot->{xbins}, $plot->{ybins}), cmap = '$plot->{cmap}'"
@@ -1040,7 +1060,7 @@ sub hist_helper {
 		}
 		say {$args->{fh}} 'd = [' . join (',', @{ $plot->{data}{$set} }) . ']';
 		if ($plot->{'show.legend'}) {
-			say { $args->{fh} } "ax$args->{ax}.hist(d, alpha = $plot->{alpha}, label = '$set' $options $set_options)";
+			say { $args->{fh} } "ax$args->{ax}.hist(d, alpha = $plot->{alpha}, label = " . py_str($set) . " $options $set_options)";
 		} else {
 			say { $args->{fh} } "ax$args->{ax}.hist(d, alpha = $plot->{alpha} $options $set_options)";
 		}
@@ -1100,8 +1120,11 @@ sub hist2d_helper {
 		 . " points.";
 	  die 'The length of both keys must be equal.';
 	}
-	$plot->{xlabel} = $plot->{xlabel} // $keys[0];
-	$plot->{ylabel} = $plot->{ylabel} // $keys[1];
+	# quoted here because the key is data: the pass-through path that title and
+	# label text otherwise take cannot tell an apostrophe from Python of the
+	# user's own, and leaves it bare. See py_str.
+	$plot->{xlabel} = $plot->{xlabel} // py_str($keys[0]);
+	$plot->{ylabel} = $plot->{ylabel} // py_str($keys[1]);
 	$plot->{cmap}   = $plot->{cmap}   // 'gist_rainbow';
 	my $options = ", cmap = '$plot->{cmap}'"; # these args go to the plt.hist call
 	if ( $plot->{cb_logscale} ) {
@@ -1203,7 +1226,7 @@ sub hist2d_helper {
 	}
 #	say { $args->{fh} } "cbar = fig.colorbar(im$ax $opts)" if $plot->{'colorbar.on'};
 	if ( defined $plot->{cblabel} ) {
-	  say { $args->{fh} } "plt.colorbar(im$ax, label = '$plot->{cblabel}' $opts)";
+	  say { $args->{fh} } "plt.colorbar(im$ax, label = " . py_str($plot->{cblabel}) . " $opts)";
 	} else {
 	  say { $args->{fh} } "plt.colorbar(im$ax, label = 'Density' $opts)";
 	}
@@ -1613,7 +1636,7 @@ sub plot_helper {
 		}
 		my $label = '';
 		if ( $plot->{'show.legend'} ) {
-			$label = ",label = '$set'";
+			$label = ',label = ' . py_str($set);
 		}
 		my $ax = "ax$args->{ax}";
 		if (grep {$set eq $_} @twinx) { # this set has
@@ -1734,12 +1757,13 @@ sub scatter_helper {
 			say { $args->{fh} } 'z = [' . join( ',', @{ $plot->{data}{$color_key} } ) . ']';
 			say { $args->{fh} }
 			  "im = ax$ax.scatter(x, y, c = z, cmap = '$plot->{cmap}' $options)";
-			say { $args->{fh} } "fig.colorbar(im, label = '$color_key' $cb_opts)";
+			say { $args->{fh} } "fig.colorbar(im, label = " . py_str($color_key) . " $cb_opts)";
 		} else {
 			say { $args->{fh} } "ax$ax.scatter(x, y $options)";
 		}
-		$plot->{xlabel} = $plot->{xlabel} // $keys[0];
-		$plot->{ylabel} = $plot->{ylabel} // $keys[1];
+		# quoted here because the key is data; see py_str above
+		$plot->{xlabel} = $plot->{xlabel} // py_str($keys[0]);
+		$plot->{ylabel} = $plot->{ylabel} // py_str($keys[1]);
 	} elsif ( $plot_type eq 'multiple' ) { # multiple sets
 		my @undefined_opts;
 		foreach my $set ( sort keys %{ $plot->{'set.options'} } ) {
@@ -1794,17 +1818,18 @@ sub scatter_helper {
 				}
 				say { $args->{fh} } 'z = [' . join( ',', @{ $plot->{data}{$set}{$color_key} } ) . ']';
 				unless ( $options =~ m/label\s*=/ ) {
-					$options .= ", label = '$set'";
+					$options .= ', label = ' . py_str($set);
 				}
 				say { $args->{fh} }
 				"im = ax$ax.scatter(x, y, c = z, cmap = '$plot->{cmap}' $options)";
 			} else {
-				say { $args->{fh} }	"ax$ax.scatter(x, y, label = '$set' $options)";
+				say { $args->{fh} }	"ax$ax.scatter(x, y, label = " . py_str($set) . " $options)";
 			}
-			$plot->{xlabel} = $plot->{xlabel} // $keys[0];
-			$plot->{ylabel} = $plot->{ylabel} // $keys[1];
+			# quoted here because the key is data; see py_str above
+			$plot->{xlabel} = $plot->{xlabel} // py_str($keys[0]);
+			$plot->{ylabel} = $plot->{ylabel} // py_str($keys[1]);
 	  }
-	  say { $args->{fh} } "plt.colorbar(im, label = '$color_key')"  if defined $color_key;
+	  say { $args->{fh} } 'plt.colorbar(im, label = ' . py_str($color_key) . ')'  if defined $color_key;
 	}
 }
 
@@ -1957,6 +1982,98 @@ sub violin_helper {
 	}
 }
 
+sub check_wide_runs {
+	# Validate one group's runs for "wide", naming the offending run.
+	#
+	# A group is an ARRAY of [ \@x, \@y ] pairs. Getting that shape wrong --
+	# passing "plot"'s single [ \@x, \@y ] pair, say -- otherwise dies deep
+	# inside the writer with "Can't use string ("0") as an ARRAY ref", which
+	# says nothing about which group was malformed.
+	my ( $runs, $where, $current_sub ) = @_;
+	if ( ref $runs ne 'ARRAY' ) {
+		my $got = ref $runs ? ( ref $runs ) . ' reference' : 'a scalar';
+		die "$current_sub: $where must be an ARRAY of [ \\\@x, \\\@y ] pairs, not $got";
+	}
+	if ( scalar @{$runs} == 0 ) {
+		die "$current_sub: $where holds no runs";
+	}
+	foreach my $i ( 0 .. $#{$runs} ) {
+		my $run = $runs->[$i];
+		unless (( ref $run eq 'ARRAY' )
+			&& ( scalar @{$run} == 2 )
+			&& ( ref $run->[0] eq 'ARRAY' )
+			&& ( ref $run->[1] eq 'ARRAY' ) ) {
+			die "$current_sub: run $i of $where must be [ \\\@x, \\\@y ]; a group is an ARRAY of such pairs, so a lone pair needs one more ARRAY around it";
+		}
+		my $n_x = scalar @{ $run->[0] };
+		my $n_y = scalar @{ $run->[1] };
+		if ( $n_x != $n_y ) {
+			die "$current_sub: run $i of $where has $n_x x values but $n_y y values";
+		}
+		if ( $n_x == 0 ) {
+			die "$current_sub: run $i of $where is empty";
+		}
+		foreach my $axis ( 0, 1 ) {    # 0 = x, 1 = y
+			my @bad = grep { !looks_like_number($_) } @{ $run->[$axis] };
+			next if scalar @bad == 0;
+			my $name = $axis == 0 ? 'x' : 'y';
+			# only the first few, so a wholly non-numeric run does not print itself
+			my $shown = join '", "', @bad[ 0 .. min( $#bad, 4 ) ];
+			die "$current_sub: run $i of $where has non-numeric $name value(s): \"$shown\"";
+		}
+	}
+}
+sub write_wide_group {
+	# Emit the Python drawing one group of runs: every run faint, the mean of
+	# the runs solid, and mean +/- 1 standard deviation as a ribbon.
+	#
+	# The runs need not share an x grid, so they are interpolated onto 101
+	# evenly spaced points (the number the documentation promises) spanning
+	# the group's own x range. Two properties of np.interp drive the code
+	# below: it needs its sample points ascending, and by default it holds the
+	# end values flat outside them. Left alone, the first silently returns a
+	# flat line for a run whose x descends, and the second folds an invented
+	# horizontal line into the mean and the s.d. wherever a run stops short of
+	# the group's range. So each run is sorted by x first, and asked for NaN
+	# outside its own range; the summary below then averages, at each point,
+	# only the runs that actually reach it.
+	my ($args) = @_;
+	my ( $fh, $ax, $runs, $color, $label ) =
+	  @{$args}{qw(fh ax runs color label)};
+	my ( $min_x, $max_x ) = ( 'inf', '-inf' );
+	foreach my $run ( @{$runs} ) {
+		$min_x = min( $min_x, @{ $run->[0] } );
+		$max_x = max( $max_x, @{ $run->[0] } );
+	}
+	my $py_color = py_str($color);
+	say {$fh} 'ys = []';
+	say {$fh} "base_x = np.linspace($min_x, $max_x, 101)";
+	foreach my $run ( @{$runs} ) {
+		say {$fh} 'x = [' . join( ',', @{ $run->[0] } ) . ']';
+		say {$fh} 'y = [' . join( ',', @{ $run->[1] } ) . ']';
+		say {$fh} "order = np.argsort(x, kind = 'stable')";
+		say {$fh} 'x = np.asarray(x)[order]';
+		say {$fh} 'y = np.asarray(y)[order]';
+		say {$fh} "ax$ax.plot(x, y, $py_color, alpha=0.15)";
+		say {$fh} 'ys.append(np.interp(base_x, x, y, left = np.nan, right = np.nan))';
+	}
+	say {$fh} 'ys = np.array(ys)';
+	say {$fh} 'covered = ~np.isnan(ys)';    # which runs reach each point of base_x
+	say {$fh} 'n_runs = covered.sum(axis = 0)';
+	say {$fh} 'divisor = np.maximum(n_runs, 1)';    # a point no run reaches would divide by 0
+	say {$fh} 'mean_ys = np.where(covered, ys, 0.0).sum(axis = 0) / divisor';
+	say {$fh} 'var_ys = np.where(covered, (ys - mean_ys) ** 2, 0.0).sum(axis = 0) / divisor';
+	say {$fh} 'std = np.where(n_runs > 0, np.sqrt(var_ys), np.nan)';
+	say {$fh} 'mean_ys = np.where(n_runs > 0, mean_ys, np.nan)';    # after var_ys, which needs the unmasked mean
+	say {$fh} 'ys_upper = mean_ys + std';
+	say {$fh} 'ys_lower = mean_ys - std';
+	if ( defined $label ) {
+		say {$fh} "ax$ax.plot(base_x, mean_ys, $py_color, label = " . py_str($label) . ')';
+	} else {
+		say {$fh} "ax$ax.plot(base_x, mean_ys, $py_color)";
+	}
+	say {$fh} "ax$ax.fill_between(base_x, ys_lower, ys_upper, color=$py_color, alpha=0.3)";
+}
 sub wide_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
@@ -1988,64 +2105,32 @@ sub wide_helper {
 	say { $args->{fh} } 'import numpy as np';
 	my $ax       = $args->{ax} // '';
 	my $ref_type = ref $plot->{data};
-	if ( $ref_type eq 'HASH' ) {    # multiple groups, no label
+	if ( $ref_type eq 'HASH' ) {    # one labelled group per key
+		if ( ( defined $plot->{color} ) && ( ref $plot->{color} ne 'HASH' ) ) {
+			die "$current_sub: \"data\" is a HASH of groups, so \"color\" must be a HASH of one color per group";
+		}
 		foreach my $group ( keys %{ $plot->{data} } ) {
-			my $color = $plot->{color}{$group} // 'b';
-			say { $args->{fh} } 'ys = []';
-			my ( $min_x, $max_x ) = ( 'inf', '-inf' );
-			foreach my $run ( 0 .. scalar @{ $plot->{data}{$group} } - 1 ) {
-				$min_x = min( $min_x, @{ $plot->{data}{$group}[$run][0] } );
-				$max_x = max( $max_x, @{ $plot->{data}{$group}[$run][0] } );
-			}
-			say { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)";
-			foreach my $run ( 0 .. scalar @{ $plot->{data}{$group} } - 1 ) {
-				say { $args->{fh} } 'x = ['
-				. join( ',', @{ $plot->{data}{$group}[$run][0] } ) . ']';
-				say { $args->{fh} } 'y = ['
-				. join( ',', @{ $plot->{data}{$group}[$run][1] } ) . ']';
-				say { $args->{fh} } "ax$ax.plot(x, y, '$color', alpha=0.15)";
-				say { $args->{fh} } 'y = np.interp(base_y, x, y)';
-				say { $args->{fh} } 'ys.append(y)';
-			}
-			say { $args->{fh} } 'ys = np.array(ys)';
-			say { $args->{fh} } 'mean_ys = ys.mean(axis=0)';
-			say { $args->{fh} } 'std = ys.std(axis=0)';
-			say { $args->{fh} } 'ys_upper = mean_ys + std';
-			say { $args->{fh} } 'ys_lower = mean_ys - std';
-			if ( $plot->{'show.legend'} > 0 ) {
-				say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color', label = '$group')";
-			} else {
-				say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color')";
-			}
-			say { $args->{fh} }
-		"ax$ax.fill_between(base_y, ys_lower, ys_upper, color='$color', alpha=0.3)";
+			check_wide_runs( $plot->{data}{$group}, "group \"$group\"", $current_sub );
+			write_wide_group({
+				fh    => $args->{fh},
+				ax    => $ax,
+				runs  => $plot->{data}{$group},
+				color => $plot->{color}{$group} // 'b',
+				label => $plot->{'show.legend'} ? $group : undef
+			});
 		}
-	} elsif ( $ref_type eq 'ARRAY' ) {
-		my $color = $plot->{color} // 'b';
-		say { $args->{fh} } 'ys = []';
-		my ( $min_x, $max_x ) = ( 'inf', '-inf' );
-		foreach my $run ( 0 .. scalar @{ $plot->{data} } - 1 ) {
-			$min_x = min( $min_x, @{ $plot->{data}[$run][0] } );
-			$max_x = max( $max_x, @{ $plot->{data}[$run][0] } );
+	} elsif ( $ref_type eq 'ARRAY' ) {    # one unlabelled group
+		if ( ref $plot->{color} ) {
+			die "$current_sub: \"data\" is one unlabelled group, so \"color\" must be a single color, not a " . ( ref $plot->{color} ) . ' reference';
 		}
-		say { $args->{fh} } "base_y = np.linspace($max_x, $min_x, 101)";
-		foreach my $run ( 0 .. scalar @{ $plot->{data} } - 1 ) {
-			say { $args->{fh} } 'x = ['
-			  . join( ',', @{ $plot->{data}[$run][0] } ) . ']';
-			say { $args->{fh} } 'y = ['
-			  . join( ',', @{ $plot->{data}[$run][1] } ) . ']';
-			say { $args->{fh} } "ax$ax.plot(x, y, '$color', alpha=0.15)";
-			say { $args->{fh} } 'y = np.interp(base_y, x, y)';
-			say { $args->{fh} } 'ys.append(y)';
-		}
-		say { $args->{fh} } 'ys = np.array(ys)';
-		say { $args->{fh} } 'mean_ys = ys.mean(axis=0)';
-		say { $args->{fh} } 'std = ys.std(axis=0)';
-		say { $args->{fh} } 'ys_upper = mean_ys + std';
-		say { $args->{fh} } 'ys_lower = mean_ys - std';
-		say { $args->{fh} } "ax$ax.plot(base_y, mean_ys, '$color')";
-		say { $args->{fh} }
-		"ax$ax.fill_between(base_y, ys_lower, ys_upper, color='$color', alpha=0.3)";
+		check_wide_runs( $plot->{data}, '"data"', $current_sub );
+		write_wide_group({
+			fh    => $args->{fh},
+			ax    => $ax,
+			runs  => $plot->{data},
+			color => $plot->{color} // 'b',
+			label => undef    # the array form carries no group name to label
+		});
 	} else {
 	  die "$current_sub cannot take ref type \"$ref_type\" for \"data\"";
 	}
@@ -5516,7 +5601,11 @@ C<plot> of the mean alone would hide how much the runs disagree.
 The runs do not have to share an x grid: each group's runs are interpolated onto
 101 evenly spaced points spanning that group's own x range before the mean and
 the standard deviation are taken, so runs of different lengths, or sampled at
-different x values, can be summarised together.
+different x values, can be summarised together.  A run is first sorted by x, so
+it may be entered in any order; and it counts towards the mean and the ribbon
+only between its own first and last x, so a run that stops early narrows the
+summary to the runs that continue rather than being held flat at its last
+value.
 
 =head3 Entering data
 
@@ -5546,6 +5635,15 @@ pair L<#plot> uses:
      xlabel        => 'time',
      ylabel        => 'signal',
  );
+
+which makes the image:
+
+
+=for html
+<p>
+<img width="651" height="491" alt="wide single" src="output.images/single.wide.png" />
+<p>
+
 
 B<2. One unlabelled group (array).> Drop the enclosing hash and pass one group's
 array of runs directly; C<color> is then a single color rather than a hash:
@@ -5618,6 +5716,13 @@ labelled groups sit beside one group on its own:
      ],
  );
 
+
+=for html
+<p>
+<img width="651" height="491" alt="wide subplots" src="output.images/wide.png" />
+<p>
+
+
 Because a C<wide> panel collapses many lines into one summary, it also composes
 well with a plot type that shows the same data another way.  Here the runs are
 summarised on the left and the distribution of their final values is drawn beside
@@ -5645,6 +5750,17 @@ them:
          },
      ],
  );
+
+
+=for html
+<p>
+<img width="651" height="491" alt="wide and violin" src="output.images/wide.and.violin.png" />
+<p>
+
+
+The three images above are written by C<wide.example.pl> in the git repository
+(it is not shipped in the CPAN distribution); re-run it from the repository root
+with C<perl -Ilib wide.example.pl> to regenerate them.
 
 =head1 Advanced
 
@@ -5711,6 +5827,30 @@ all files will be written to C<< $fh-E<gt>filename >>; be sure to put C<< execut
  );
 
 =head1 Changes
+
+=head2 0.312 2026-09-04 CDT
+
+=head3 C<wide> summaries
+
+C<wide> now sorts each run by x before interpolating it. C<np.interp> requires its sample points in ascending order, and nothing enforced that, so a run whose x descended (or was otherwise unordered) was summarised as a flat line while the faint raw run underneath drew correctly — a wrong picture that looked authoritative.
+
+A run now counts towards the mean and the ribbon only between its own first and last x. C<np.interp> holds the end values flat outside the sample points, so a run that stopped short of the group's x range used to contribute an invented horizontal line to both the mean and the standard deviation; a run ending halfway could double the apparent spread over the second half. The summary at each point is now taken over the runs that actually reach it, which is what the documented support for "runs of different lengths, or sampled at different x values" always promised.
+
+C<wide> now rejects malformed C<data> with a message naming the group and the run, instead of dying inside the writer with C<Can't use string ("0") as an ARRAY ref>. Passing C<plot>'s single C<[ \@x, \@y ]> pair where a group of runs belongs, an empty group, mismatched x and y lengths, and non-numeric values are each reported. Giving C<color> as a hash for array data, or as a single color for hash data, is also caught rather than dying on a bad dereference.
+
+=head3 Labels taken from data keys
+
+Text that comes from the data — legend labels, colorbar labels, and the C<xlabel>/C<ylabel> that C<scatter>, C<hexbin> and C<hist2d> default from their keys — is now written as a properly escaped Python string literal. A key containing an apostrophe, such as C<Farmer's>, previously closed the literal early and the generated script would not parse. Because backslashes are escaped too, a mathtext label such as C<$\alpha$> now reaches matplotlib as written instead of being read as a Python escape. Title and label text passed by the caller is unchanged: it is still Python syntax, so a comma or a quote in it must still be quoted by the caller.
+
+=head3 Testing
+
+The error-path assertions in the test suite were passing regardless of what the code did. C<Devel::Confess> appends a stack trace in which every frame prints its own arguments, one of which is the regular expression handed to C<throws_ok>/C<dies_like>, so the exception always contained a copy of the pattern it was being matched against. Both helpers now match the exception's message alone. All the assertions they guard still pass, so the module's messages were correct — only the harness was blind.
+
+Regression tests were added for the fixes above: the C<wide> summary is checked numerically (three runs of the same straight line, entered ascending, descending, and covering only half the range, must summarise to that line with a zero-width ribbon), along with the six C<wide> error paths and the two guards in the generated Python; and the generated-Python parser gate now covers an apostrophe in a data key for C<wide>, C<plot>, C<hist>, C<scatter> and C<hist2d>.
+
+=head3 Documentation
+
+The C<wide> section of the README now shows the three figures its examples produce. They are written by C<wide.example.pl> in the git repository, which runs the documented code with a fixed seed so the committed images can be regenerated.
 
 =head2 0.311 2026-07-27 CDT
 

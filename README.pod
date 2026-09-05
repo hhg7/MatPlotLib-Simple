@@ -2841,7 +2841,11 @@ C<plot> of the mean alone would hide how much the runs disagree.
 The runs do not have to share an x grid: each group's runs are interpolated onto
 101 evenly spaced points spanning that group's own x range before the mean and
 the standard deviation are taken, so runs of different lengths, or sampled at
-different x values, can be summarised together.
+different x values, can be summarised together.  A run is first sorted by x, so
+it may be entered in any order; and it counts towards the mean and the ribbon
+only between its own first and last x, so a run that stops early narrows the
+summary to the runs that continue rather than being held flat at its last
+value.
 
 =head3 Entering data
 
@@ -2871,6 +2875,15 @@ pair L<#plot> uses:
      xlabel        => 'time',
      ylabel        => 'signal',
  );
+
+which makes the image:
+
+
+=for html
+<p>
+<img width="651" height="491" alt="wide single" src="output.images/single.wide.png" />
+<p>
+
 
 B<2. One unlabelled group (array).> Drop the enclosing hash and pass one group's
 array of runs directly; C<color> is then a single color rather than a hash:
@@ -2943,6 +2956,13 @@ labelled groups sit beside one group on its own:
      ],
  );
 
+
+=for html
+<p>
+<img width="651" height="491" alt="wide subplots" src="output.images/wide.png" />
+<p>
+
+
 Because a C<wide> panel collapses many lines into one summary, it also composes
 well with a plot type that shows the same data another way.  Here the runs are
 summarised on the left and the distribution of their final values is drawn beside
@@ -2970,6 +2990,17 @@ them:
          },
      ],
  );
+
+
+=for html
+<p>
+<img width="651" height="491" alt="wide and violin" src="output.images/wide.and.violin.png" />
+<p>
+
+
+The three images above are written by C<wide.example.pl> in the git repository
+(it is not shipped in the CPAN distribution); re-run it from the repository root
+with C<perl -Ilib wide.example.pl> to regenerate them.
 
 =head1 Advanced
 
@@ -3036,6 +3067,30 @@ all files will be written to C<< $fh-E<gt>filename >>; be sure to put C<< execut
  );
 
 =head1 Changes
+
+=head2 0.312 2026-09-04 CDT
+
+=head3 C<wide> summaries
+
+C<wide> now sorts each run by x before interpolating it. C<np.interp> requires its sample points in ascending order, and nothing enforced that, so a run whose x descended (or was otherwise unordered) was summarised as a flat line while the faint raw run underneath drew correctly — a wrong picture that looked authoritative.
+
+A run now counts towards the mean and the ribbon only between its own first and last x. C<np.interp> holds the end values flat outside the sample points, so a run that stopped short of the group's x range used to contribute an invented horizontal line to both the mean and the standard deviation; a run ending halfway could double the apparent spread over the second half. The summary at each point is now taken over the runs that actually reach it, which is what the documented support for "runs of different lengths, or sampled at different x values" always promised.
+
+C<wide> now rejects malformed C<data> with a message naming the group and the run, instead of dying inside the writer with C<Can't use string ("0") as an ARRAY ref>. Passing C<plot>'s single C<[ \@x, \@y ]> pair where a group of runs belongs, an empty group, mismatched x and y lengths, and non-numeric values are each reported. Giving C<color> as a hash for array data, or as a single color for hash data, is also caught rather than dying on a bad dereference.
+
+=head3 Labels taken from data keys
+
+Text that comes from the data — legend labels, colorbar labels, and the C<xlabel>/C<ylabel> that C<scatter>, C<hexbin> and C<hist2d> default from their keys — is now written as a properly escaped Python string literal. A key containing an apostrophe, such as C<Farmer's>, previously closed the literal early and the generated script would not parse. Because backslashes are escaped too, a mathtext label such as C<$\alpha$> now reaches matplotlib as written instead of being read as a Python escape. Title and label text passed by the caller is unchanged: it is still Python syntax, so a comma or a quote in it must still be quoted by the caller.
+
+=head3 Testing
+
+The error-path assertions in the test suite were passing regardless of what the code did. C<Devel::Confess> appends a stack trace in which every frame prints its own arguments, one of which is the regular expression handed to C<throws_ok>/C<dies_like>, so the exception always contained a copy of the pattern it was being matched against. Both helpers now match the exception's message alone. All the assertions they guard still pass, so the module's messages were correct — only the harness was blind.
+
+Regression tests were added for the fixes above: the C<wide> summary is checked numerically (three runs of the same straight line, entered ascending, descending, and covering only half the range, must summarise to that line with a zero-width ribbon), along with the six C<wide> error paths and the two guards in the generated Python; and the generated-Python parser gate now covers an apostrophe in a data key for C<wide>, C<plot>, C<hist>, C<scatter> and C<hist2d>.
+
+=head3 Documentation
+
+The C<wide> section of the README now shows the three figures its examples produce. They are written by C<wide.example.pl> in the git repository, which runs the documented code with a fixed seed so the committed images can be regenerated.
 
 =head2 0.311 2026-07-27 CDT
 
