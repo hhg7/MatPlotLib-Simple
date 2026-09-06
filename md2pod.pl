@@ -133,86 +133,6 @@ sub balance_pod_over_back ($pod) {
 	return join "\n", @out;
 }
 
-# Write a CPAN::Changes::Spec-conformant "Changes" file from the "# Changes"
-# section of README.md, so that the change log and the documentation can never
-# drift apart.  Returns the number of releases written.
-sub write_changes_file ($md_text, $outfile, $dist) {
-	my @md_lines = split /\n/, $md_text;
-	my $fi = first_index {$_ =~ m/^#\h+Changes\h*$/} @md_lines;
-	if ($fi == -1) {
-		die "Could not find a \"# Changes\" heading in README.md";
-	}
-	open my $out, '>', $outfile;
-	# Write the mandatory CPAN::Changes::Spec header
-	say $out "Revision history for $dist\n";
-	my ($needs_bullet, $in_code_block, $n_releases) = (0, 0, 0);
-	my @undated;
-	foreach my $i ($fi+1..$#md_lines) {
-		my $line = $md_lines[$i];
-		# stop at the next top-level heading, e.g. "# COPYRIGHT AND LICENSE"
-		last if $line =~ m/^#\h+\S/;
-		# Toggle markdown code blocks (```)
-		if ($line =~ m/^```/) {
-			$in_code_block = !$in_code_block;
-			next;
-		}
-		next if !$in_code_block && $line =~ m/^\h*(?:-{3,}|\*{3,}|_{3,})\h*$/; # horizontal rules
-		if ($line =~ m/^##\h+v?([0-9][0-9._]*)\h*(.*)$/) { # Versions, e.g. "## 0.31" or "## 0.31 2026-07-24"
-			my ($version, $date) = ($1, $2);
-			$date =~ s/^\h+|\h+$//g;
-			$version =~ s/\.$//;
-			if ($date eq '') {
-				# CPAN::Changes requires a date on every release; flag the
-				# missing ones rather than writing an unparsable release line
-				$date = 'Unknown Release Date';
-				push @undated, $version;
-			}
-			say $out "$version $date";
-			$n_releases++;
-			$needs_bullet = 1;
-		} elsif ($line =~ m/^###\h+(.+)/) { # Groups, e.g. "### Cross-platform support"
-			say $out " [$1]";
-			$needs_bullet = 1;
-		} elsif ($line =~ m/^####\h+(.+)/) { # Sub-Groups, e.g. "#### Bug fixes"
-			# CPAN Spec doesn't formally have sub-groups, so we format it as a distinct bulleted header
-			say $out " - $1:";
-			$needs_bullet = 1;
-		} elsif ($line =~ m/^\h*[-*]\h+(.+)/) { # explicit Markdown bullets
-			say $out " - $1";
-			$needs_bullet = 0;
-		} elsif ($line =~ m/^\h*$/) { # empty lines
-			say $out '';
-			$needs_bullet = 1; # Reset so the next text block gets a bullet
-		} else { # normal text or indented code
-			# If it's 4-space indented code from Markdown, keep it indented for CPAN
-			if ($in_code_block || $line =~ m/^\h{4,}\S/) {
-				my $code_line = $line;
-				$code_line =~ s/^\h+//; # strip leading space to normalize
-				say $out "     $code_line";
-			} else {
-				# Strip formatting like **bold**, which CPAN::Changes keeps as raw text
-				$line =~ s/\*\*(.+?)\*\*/$1/g;
-				if ($needs_bullet) {
-					say $out " - $line";
-					$needs_bullet = 0;
-				} else {
-					say $out "   $line"; # Continuation of the previous bullet
-				}
-			}
-		}
-	}
-	close $out;
-	if ($n_releases == 0) {
-		die "no releases (\"## <version>\" headings) were found under \"# Changes\" in README.md";
-	}
-	if (scalar @undated > 0) {
-		say STDERR "Warning: no release date in README.md for version(s) " .
-			join (', ', @undated) . '; wrote "Unknown Release Date" for them.';
-		say STDERR 'Add a date after the version, e.g. "## 0.31 2026-07-24", to fix this.';
-	}
-	return $n_releases;
-}
-
 sub insert_file_into_another {
 #
 # this sub inserts some lines from a donating file into a receiving file
@@ -305,7 +225,6 @@ my $md = file2string('README.md');
 # Ensure headings are separated from preceding blocks so the converter's list
 # detection terminates correctly before them
 $md = ensure_blank_before_headings($md);
-my $md_later = $md; # keep a table-free copy for the "Changes" file
 my @md = split /\n/, $md;
 my @idx = grep {$md[$_] =~ m/\|.+\|/} 0..$#md; # indices with tables
 my @table_end = grep {
@@ -426,8 +345,5 @@ close $t;
 
 pod_file_ok( 'lib/Matplotlib/Simple.pm' );
 
-my $outfile = 'Changes';
-my $n_releases = write_changes_file($md_later, $outfile, 'Matplotlib-Simple');
-say "Successfully generated '$outfile' ($n_releases releases) from 'README.md'";
-changes_file_ok($outfile);
+changes_file_ok('Changes'); # hand-maintained; no longer generated from README.md
 done_testing();
