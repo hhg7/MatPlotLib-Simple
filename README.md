@@ -1200,6 +1200,18 @@ distribution wants different treatment from the others:
 The legend is on by default when there is more than one set and off when there is
 only one; `show.legend` overrides that either way.
 
+Every subplot drawn with `hist` reports the range of its bin heights on STDOUT,
+over all of the sets drawn into it, as
+
+    plot 0 hist range = [1, 12]
+
+where the number is the subplot's index — `plot 1` is the second subplot of a
+figure — and the range is `[shortest bar, tallest bar]`.  The heights are
+matplotlib's, counted as the figure is drawn: this module does not bin the data,
+so there is no way to know them without asking.  Nothing about the figure
+changes because they are reported; the file written to `output.file` is the
+same either way.
+
 ### options
 
 | Option | Description | Example |

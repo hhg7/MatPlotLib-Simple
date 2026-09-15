@@ -3,7 +3,7 @@
 require 5.010;
 use strict;
 use warnings FATAL => 'all';
-use autodie ':all';
+use autodie ':default';   # ':all' would need IPC::System::Simple, for a system() this never calls
 use feature 'say';
 use File::Spec;
 use File::Temp 'tempfile';

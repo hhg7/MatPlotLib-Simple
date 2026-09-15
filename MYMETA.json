@@ -36,14 +36,17 @@
             "Data::Printer" : "0",
             "Devel::Confess" : "0",
             "Devel::Size" : "0",
-            "IPC::System::Simple" : "0",
             "JSON::MaybeXS" : "0",
             "MIME::Base64" : "0",
             "Scalar::Util" : "1.22",
+            "perl" : "5.010"
+         }
+      },
+      "test" : {
+         "requires" : {
             "Test::Exception" : "0",
             "Test::More" : "0",
-            "autodie" : "0",
-            "perl" : "5.010"
+            "autodie" : "0"
          }
       }
    },

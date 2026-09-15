@@ -4,6 +4,9 @@ author:
   - 'David E. Condon <dec986@gmail.com>'
 build_requires:
   ExtUtils::MakeMaker: '0'
+  Test::Exception: '0'
+  Test::More: '0'
+  autodie: '0'
 configure_requires:
   ExtUtils::MakeMaker: '6.58'
 dynamic_config: 0
@@ -22,13 +25,9 @@ requires:
   Data::Printer: '0'
   Devel::Confess: '0'
   Devel::Size: '0'
-  IPC::System::Simple: '0'
   JSON::MaybeXS: '0'
   MIME::Base64: '0'
   Scalar::Util: '1.22'
-  Test::Exception: '0'
-  Test::More: '0'
-  autodie: '0'
   perl: '5.010'
 version: '0.313'
 x_serialization_backend: 'CPAN::Meta::YAML version 0.020'

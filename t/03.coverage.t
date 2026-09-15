@@ -13,6 +13,7 @@ use warnings FATAL => 'all';
 use feature 'say';
 use File::Temp qw(tempfile tempdir);
 use File::Spec;
+use Capture::Tiny 'capture';
 use Matplotlib::Simple;
 use Test::More;
 
@@ -424,7 +425,11 @@ for my $case (@type_cases) {
 	like( $py, qr/plt\.subplots\(\s*1\s*,\s*2\b/, 'plots array + ncols=2 makes a 1x2 grid' );
 	like( $py, qr/suptitle\(/,                    'suptitle emitted for the figure' );
 	like( $py, qr/sharex\s*=\s*1/,                'sharex passed to subplots' );
-	like( $py, qr/^ax0\.hist\(/m,                 'first subplot on ax0' );
+	# Which axis a subplot lands on is the point here, so the pattern takes the
+	# hist call at the start of its line or after an "=": hist's call is
+	# assigned to the (counts, edges, patches) tuple its height range is
+	# reported from. Either alternative keeps "ax1" from matching in "max1".
+	like( $py, qr/(?:^|= )ax0\.hist\(/m,          'first subplot on ax0' );
 	like( $py, qr/ax1\.boxplot\(/,                'second subplot on ax1' );
 }
 
@@ -438,8 +443,8 @@ for my $case (@type_cases) {
 		p => [ { 'plot.type' => 'hist', data => { A => [@g1] } }, { 'plot.type' => 'hist', data => { B => [@g2] } } ],
 		'output.file' => outfile('p.flat.svg'),
 	);
-	like( $flat, qr/^ax0\.hist\(/m, 'p flat: subplot 0 on ax0' );
-	like( $flat, qr/^ax1\.hist\(/m, 'p flat: subplot 1 on ax1' );
+	like( $flat, qr/(?:^|= )ax0\.hist\(/m, 'p flat: subplot 0 on ax0' );
+	like( $flat, qr/(?:^|= )ax1\.hist\(/m, 'p flat: subplot 1 on ax1' );
 
 	# mixed: an inner array is one subplot with overlays
 	my $mixed = gen_py(
@@ -450,8 +455,48 @@ for my $case (@type_cases) {
 		ncols         => 1,
 		'output.file' => outfile('p.mixed.svg'),
 	);
-	is( count_matches( $mixed, qr/^ax1\.hist\(/m ), 2, 'p mixed: inner array overlays two plots on ax1' );
+	is( count_matches( $mixed, qr/(?:^|= )ax1\.hist\(/m ), 2, 'p mixed: inner array overlays two plots on ax1' );
 	like( $mixed, qr/plt\.subplots\(\s*2\s*,\s*1\b/, 'p mixed: ncols=1 derives a 2x1 grid' );
+}
+
+# ============================================================================
+# 9a. hist reports the range of its bin heights on STDOUT.
+#
+#     The heights are matplotlib's and not this module's: nothing here bins the
+#     data, so the range can only be read out of what hist() returns as the
+#     figure is drawn, and printed back by plt() from the script's captured
+#     STDOUT. Twelve 0s, a 1 and a 2 in three bins stand 12, 1, 1 high, so the
+#     range is [1, 12]; 1 .. 8 in two bins is [4, 4].
+# ============================================================================
+{
+	my @spec = (
+		p => [
+			{ 'plot.type' => 'hist', data => { A => [ (0) x 12, 1, 2 ] }, bins => 3 },
+			{ 'plot.type' => 'hist', data => { B => [ 1 .. 8 ] },         bins => 2 },
+		],
+		ncols => 1,
+	);
+	my $py = gen_py( @spec, 'output.file' => outfile('hist.range.svg') );
+	like( $py, qr/^hist_counts0 = \[\]$/m,            'ax0 opens a list of bin heights' );
+	like( $py, qr/^hist_counts0 \+= list\(hist_n\)$/m, 'ax0 keeps what hist returned' );
+	like( $py, qr/^\tprint\(f'plot 0 hist range = /m, 'ax0 prints its range' );
+	like( $py, qr/^\tprint\(f'plot 1 hist range = /m, 'ax1 prints its own range' );
+
+	# The counts are printed and nothing else: the figure must not change
+	# because the range is reported, so nothing may hand them to matplotlib.
+	is( count_matches( $py, qr/^.*\bax\d+\.\w+\(.*hist_counts/m ), 0,
+		'the bin heights are never passed to matplotlib' );
+
+	SKIP: {
+		skip 'matplotlib >= 3.10 not available; skipping the executed range report', 2
+			unless $mpl_available;
+		# capture, because the report arrives on the suite's own STDOUT.
+		my ($stdout) = capture {
+			plt( @spec, 'output.file' => outfile('hist.range.run.svg'), execute => 1 );
+		};
+		like( $stdout, qr/^plot 0 hist range = \[1, 12\]$/m, 'ax0 reports [1, 12]' );
+		like( $stdout, qr/^plot 1 hist range = \[4, 4\]$/m,  'ax1 reports [4, 4]' );
+	}
 }
 
 # ============================================================================

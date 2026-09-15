@@ -1280,6 +1280,10 @@ sub hist_helper {
 	} else {
 		$plot->{'show.legend'} = $plot->{'show.legend'} // 0;
 	}
+	# Every bin height drawn into this subplot, for the range reported on
+	# STDOUT below. Named for the subplot because a figure's subplots all write
+	# into the one script, in order, and each has to report its own range.
+	say {$args->{fh}} "hist_counts$args->{ax} = []";
 	foreach my $set ( sort keys %{ $plot->{data} } ) {
 		my @non_numeric = grep {not looks_like_number($_)} @{ $plot->{data}{$set} };
 		if (scalar @non_numeric > 0) {
@@ -1298,12 +1302,27 @@ sub hist_helper {
 			}
 		}
 		say {$args->{fh}} 'd = [' . join (',', @{ $plot->{data}{$set} }) . ']';
+		# hist() returns (counts, bin edges, patches); the counts are the only
+		# way to know a bin's height, since matplotlib, not this module, does
+		# the binning. Naming them changes nothing about what is drawn.
 		if ($plot->{'show.legend'}) {
-			say { $args->{fh} } "ax$args->{ax}.hist(d, alpha = $plot->{alpha}, label = " . py_str($set) . " $options $set_options)";
+			say { $args->{fh} } "hist_n, hist_edges, hist_patches = ax$args->{ax}.hist(d, alpha = $plot->{alpha}, label = " . py_str($set) . " $options $set_options)";
 		} else {
-			say { $args->{fh} } "ax$args->{ax}.hist(d, alpha = $plot->{alpha} $options $set_options)";
+			say { $args->{fh} } "hist_n, hist_edges, hist_patches = ax$args->{ax}.hist(d, alpha = $plot->{alpha} $options $set_options)";
 		}
+		say {$args->{fh}} "hist_counts$args->{ax} += list(hist_n)";
 	}
+	# The range of the bin heights, on STDOUT and nowhere else: nothing here is
+	# handed to matplotlib, so the figure written to "output.file" is exactly
+	# what it was without this. plt() prints the script's STDOUT back out.
+
+	# "%g" because hist() hands back its counts as float64, and "[1, 12]" for a
+	# tally of whole things is what was counted; "[1.0, 12.0]" reads as though
+	# it were not.
+	# An empty subplot has no bins at all, and min() of an empty list raises
+	# ValueError, so there is nothing to report.
+	say {$args->{fh}} "if len(hist_counts$args->{ax}) > 0:";
+	say {$args->{fh}} "\tprint(f'plot $args->{ax} hist range = [{min(hist_counts$args->{ax}):g}, {max(hist_counts$args->{ax}):g}]')";
 }
 
 sub hist2d_helper {
@@ -2975,6 +2994,14 @@ sub plt {
 			}
 			die 'python3 ' . $fh->filename . " $why";
 		}
+		# What the script printed, which capture{} above took out of the
+		# terminal. The script reports things the caller has no other way to
+		# learn -- the range of a hist's bin heights, a hist2d's density range,
+		# both computed by matplotlib as it draws -- and those lines were
+		# captured and then dropped on the floor on every successful run, so
+		# only a *failing* run ever showed them. Already newline-terminated by
+		# python, hence print and not say.
+		print $stdout if length $stdout;
 		say 'will write ' . "\e[36;103m$args->{'output.file'}\e[0m" if defined $args->{'output.file'};
 	} else { # not running yet
 		say 'will write ' . "\e[36;103m$args->{'output.file'}\e[0m" if defined $args->{'output.file'};
@@ -4398,6 +4425,18 @@ distribution wants different treatment from the others:
 
 The legend is on by default when there is more than one set and off when there is
 only one; C<show.legend> overrides that either way.
+
+Every subplot drawn with C<hist> reports the range of its bin heights on STDOUT,
+over all of the sets drawn into it, as
+
+ plot 0 hist range = [1, 12]
+
+where the number is the subplot's index — C<plot 1> is the second subplot of a
+figure — and the range is C<[shortest bar, tallest bar]>.  The heights are
+matplotlib's, counted as the figure is drawn: this module does not bin the data,
+so there is no way to know them without asking.  Nothing about the figure
+changes because they are reported; the file written to C<output.file> is the
+same either way.
 
 =head3 options
 

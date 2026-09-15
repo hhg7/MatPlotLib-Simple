@@ -113,13 +113,43 @@ and discarded the Python error, which is the only thing that says which option
 was at fault. Removing `autodie` is what made that branch live. Keep the
 captured output in the message.
 
-### The test suite still uses it
+### The test suite still uses it, at `:default`
 
-`t/01.all.tests.t` uses `autodie ':all'`; `t/debug.pl` and `t/make.SHA.sum.pl`
-use `:default`. `autodie` and `IPC::System::Simple` therefore stay in
-`dist.ini`'s prerequisites — `:all` pulls in `IPC::System::Simple` for
-`system`. Dropping them because `lib/` no longer needs them would break the
-suite on a machine that does not happen to have them.
+`t/01.all.tests.t` uses `autodie ':default'`, and so do `t/debug.pl` and
+`t/make.SHA.sum.pl` (neither of which ships — `MANIFEST.SKIP` excludes every
+`.pl` but `Makefile.PL`).
+
+**Do not put `:all` back in a test.** `:all` loads `IPC::System::Simple` at
+compile time whether or not any `system()` is ever fatalised — verified by
+hiding the module from `@INC`, where `use autodie ':default'` loads and
+`use autodie ':all'` dies with "IPC::System::Simple required for
+Fatalised/autodying system()". `t/01.all.tests.t` asked for `:all` while
+calling only `open`, `close`, `mkdir` and `unlink`, all of which `:default`
+covers, so the tag cost a non-core prerequisite and bought nothing.
+`IPC::System::Simple` was dropped from `dist.ini` in 0.313; a test that needs
+`:all` has to put it back.
+
+`autodie` itself is declared under `[Prereqs / TestRequires]`, not as a runtime
+prerequisite: `lib/` has not used it since 0.313. It is still declared at all
+because it is core only from perl 5.010001, and this distribution supports
+5.010.
+
+That is the general rule for `dist.ini`: **`[Prereqs]` is what
+`lib/Matplotlib/Simple.pm` loads, and nothing else.** Anything only `t/` needs
+— `autodie`, `Test::More`, `Test::Exception` — goes under
+`[Prereqs / TestRequires]`, so that installing the module does not drag in the
+suite's dependencies. The check is cheap: hide the test-only modules from
+`@INC` and render a plot.
+
+    perl -e 'BEGIN { unshift @INC, sub {
+        die "hidden\n" if $_[1] =~ m{^(autodie|Test/More|Test/Exception)\.pm$} } }
+        use lib "lib"; use Matplotlib::Simple;
+        bar("output.file" => "/tmp/x.svg", data => { A => 1, B => 2 })'
+
+The scripts in the repository root and in `t/` that are not `.t` files
+(`md2pod.pl` uses `Test::More`, `Markdown::To::POD`, `HTML::Table` and more)
+declare nothing: they do not ship, so their dependencies are the author's
+problem, not an installer's.
 
 ## Layout
 

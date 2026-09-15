@@ -22,7 +22,19 @@ Revision history for Matplotlib-Simple
 
  - The generated script is now run as `system('python3', $file)` rather than `system("python3 $file")`. The one-argument form goes through the shell and splits on whitespace, so a temp directory with a space in its name -- ordinary under `C:\Users\<name>\AppData\Local\Temp` on MSWin32 -- ran python3 against a truncated path.
 
+ [`hist` reports how tall its bars are]
+
+ - Every subplot drawn with `plot.type => 'hist'` now says the range of its bin heights on STDOUT as it is drawn: `plot 0 hist range = [1, 12]`, over all of the sets drawn into that subplot, `plot 1` being the second subplot of the figure. The heights are matplotlib's -- this module hands it the data and the bins and is told nothing back -- so reading them off the figure by eye was the only way to have them. Nothing is passed to matplotlib to report them, and the file written to `output.file` is byte-for-byte the file that was written before.
+
+ - A successful run's STDOUT is no longer thrown away. The generated script is run inside `capture`, and what it printed was passed on only when it *failed*: `hist2d` has printed its density range since it was added, in 0.09 (commit 651c239), and nobody has ever seen one. Both ranges now reach the terminal.
+
  [Packaging]
+
+ - `IPC::System::Simple` is no longer a prerequisite. Nothing used it directly; it was pulled in by `use autodie ':all'` in `t/01.all.tests.t`, which loads it at compile time whether or not a `system()` is ever fatalised. That test calls only `open`, `close`, `mkdir` and `unlink`, all covered by `:default`, so it now asks for `:default` and the module -- which is not core -- no longer has to be installed to use or test this distribution.
+
+ - `Test::More` and `Test::Exception` moved from the runtime prerequisites to the test prerequisites, where they belong: both are used only by `t/`, and neither is loaded by `lib/Matplotlib/Simple.pm`. Installing the module no longer asks for them. `[Prereqs]` in `dist.ini` is now exactly what the module loads, which was checked by hiding every test-only prerequisite from `@INC` and rendering a plot.
+
+ - `autodie` moved from the runtime prerequisites to the test prerequisites, which is what it now is: `lib/Matplotlib/Simple.pm` stopped using it in this release. It is still declared rather than assumed, because it is core only from perl 5.010001 and this distribution supports 5.010.
 
  - `META.yml` and `META.json` now carry a `provides` field naming the one module the distribution installs, `Matplotlib::Simple`, and the version it installs. Both files shipped without one, which is the CPANTS `meta_yml_has_provides` failure: a tool that wants to know what this tarball claims to index had to unpack it and scan `lib/` to find out. `dist.ini` gained `[MetaProvides::Package]`, which fills the field in from the gathered `.pm` files.
 
