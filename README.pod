@@ -249,6 +249,30 @@ rather than leaving you to wonder whether the documentation lied:
  "notch" isn't defined for plot.type "plot"
          "notch" is a defined keyword, but for plot.type boxplot
 
+=head3 A C<plot.type> that isn't defined
+
+C<plot.type> is the one argument whose I<value> comes from a fixed list, and a
+misspelling in it is answered the same way:
+
+ plt(
+    'output.file' => 'counts.svg',
+    'plot.type'   => 'barr',
+    data          => { Matthew => 18345, Mark => 11304 },
+ );
+ 
+ "barr" isn't a defined plot.type, perhaps you meant one of these defined
+ plot types: (bar, barh)
+
+The type is checked before the options are, because an unrecognised type leaves
+no per-type list to check them against.  A type given for a subplot, or for an
+C<add> graph, says which one it was:
+
+ "violn" isn't a defined plot.type at subplot 1, perhaps you meant one of
+ these defined plot types: (violin)
+ 
+ "pye" isn't a defined plot.type for an "add" graph at subplot 1, perhaps
+ you meant one of these defined plot types: (pie)
+
 =head1 Color Bars (colorbars)
 
 Colarbar args attempt to match matplotlib closely
@@ -1304,6 +1328,18 @@ distribution wants different treatment from the others:
 
 The legend is on by default when there is more than one set and off when there is
 only one; C<show.legend> overrides that either way.
+
+Every subplot drawn with C<hist> reports the range of its bin heights on STDOUT,
+over all of the sets drawn into it, as
+
+ plot 0 hist range = [1, 12]
+
+where the number is the subplot's index — C<plot 1> is the second subplot of a
+figure — and the range is C<[shortest bar, tallest bar]>.  The heights are
+matplotlib's, counted as the figure is drawn: this module does not bin the data,
+so there is no way to know them without asking.  Nothing about the figure
+changes because they are reported; the file written to C<output.file> is the
+same either way.
 
 =head3 options
 
