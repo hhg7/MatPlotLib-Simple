@@ -325,18 +325,21 @@ foreach my $type ( sort keys %OPTIONS ) {
 #    Each of these has been documented for the wrong plot type at some point;
 #    the boundary is asserted so that the documentation cannot drift back.
 # ============================================================================
+# The 5th field is the plot type(s) the option does belong to, which the
+# refusal is expected to name: the whole point of refusing "notch" at a line
+# plot is to say where "notch" does work.
 my @NOT_ACCEPTED = (
-	[ 'boxplot',    'whiskers',    0,       'whiskers belongs to violin' ],
-	[ 'violinplot', 'log',         1,       'violin takes logscale, not log' ],
-	[ 'hist',       'log',         1,       'hist takes logscale, not log' ],
-	[ 'wide',       'logscale',    ['y'],   'wide has no logscale' ],
-	[ 'wide',       'key.order',   ['A'],   'wide has no key.order' ],
-	[ 'boxplot',    'bins',        5,       'bins belongs to hist' ],
-	[ 'pie',        'stacked',     1,       'stacked belongs to bar' ],
-	[ 'plot',       'notch',       'True',  'notch belongs to boxplot' ],
+	[ 'boxplot',    'whiskers',    0,       'whiskers belongs to violin', 'violin, violinplot' ],
+	[ 'violinplot', 'log',         1,       'violin takes logscale, not log', 'bar, barh' ],
+	[ 'hist',       'log',         1,       'hist takes logscale, not log', 'bar, barh' ],
+	[ 'wide',       'logscale',    ['y'],   'wide has no logscale', 'bar, barh, boxplot' ],
+	[ 'wide',       'key.order',   ['A'],   'wide has no key.order', 'bar, barh, boxplot' ],
+	[ 'boxplot',    'bins',        5,       'bins belongs to hist', 'hist' ],
+	[ 'pie',        'stacked',     1,       'stacked belongs to bar', 'bar, barh' ],
+	[ 'plot',       'notch',       'True',  'notch belongs to boxplot', 'boxplot' ],
 );
 foreach my $case (@NOT_ACCEPTED) {
-	my ( $type, $opt, $val, $why ) = @{$case};
+	my ( $type, $opt, $val, $why, $belongs_to ) = @{$case};
 	my ( $ok, $result ) = try_py(
 		'plot.type' => $type,
 		data        => $DATA{$type},
@@ -344,10 +347,84 @@ foreach my $case (@NOT_ACCEPTED) {
 	);
 	if ($ok) {
 		ok( 0, "$type: $opt is refused ($why)" );
-	} else {
-		like( $result, qr/aren't defined|not recognized|are accepted/,
-			"$type: $opt is refused with the list of accepted options ($why)" );
+		next;
 	}
+	like( $result, qr/\Q"$opt" isn't defined for plot.type "$type"\E/,
+		"$type: $opt is refused, naming the option and the plot type ($why)" );
+	like( $result, qr/\Q"$opt" is a defined keyword, but for plot.type \E\Q$belongs_to\E/,
+		"$type: the refusal of $opt says where $opt does belong ($why)" );
+}
+
+# ============================================================================
+# 2a. A misspelled option is refused with the options it resembles.
+#
+#     The suggestions are drawn from the plot type's own list, so the same
+#     misspelling gets a different answer at a different plot type; that is
+#     the property worth asserting, since a global list would suggest options
+#     that go on to be refused by the helper.
+# ============================================================================
+my @MISSPELT = (
+	# type, what was typed, what the message must offer, why
+	[ 'bar',        'xlim',        'set_xlim',    'set_xlim is reached by its matplotlib name' ],
+	[ 'bar',        'widht',       'width',       'two characters transposed' ],
+	[ 'bar',        'keyorder',    'key.order',   'the separator dropped' ],
+	[ 'plot',       'show_legend', 'show.legend', 'an underscore for the dot' ],
+	[ 'hist',       'bins_',       'bins',        'a trailing underscore' ],
+	[ 'scatter',    'colorkey',    'color_key',   'the separator dropped the other way' ],
+	[ 'boxplot',    'orientaton',  'orientation', 'a dropped letter' ],
+	[ 'imshow',     'cmpa',        'cmap',        'two characters transposed' ],
+	[ 'hexbin',     'cb_label',    'cblabel',     'an underscore too many' ],
+);
+foreach my $case (@MISSPELT) {
+	my ( $type, $typed, $meant, $why ) = @{$case};
+	my ( $ok, $result ) = try_py(
+		'plot.type' => $type,
+		data        => $DATA{$type},
+		$typed      => 1,
+	);
+	if ($ok) {
+		ok( 0, "$type: $typed is refused ($why)" );
+		next;
+	}
+	my ($line) = grep { /\Q"$typed" isn't defined\E/ } split /\n/, $result;
+	$line = '' unless defined $line;
+	like( $line, qr/perhaps you meant one of these defined keywords: \([^)]*\b\Q$meant\E\b/,
+		"$type: \"$typed\" is refused with \"$meant\" among the suggestions ($why)" );
+}
+
+# The suggestions are per-plot-type, not one global list: "bins" is a hist
+# option, so hist offers it and boxplot must not.
+{
+	my ( undef, $at_hist ) = try_py(
+		'plot.type' => 'hist',
+		data        => $DATA{hist},
+		'bins_'     => 1,
+	);
+	my ( undef, $at_boxplot ) = try_py(
+		'plot.type' => 'boxplot',
+		data        => $DATA{boxplot},
+		'bins_'     => 1,
+	);
+	my ($hist_line)    = grep { /perhaps you meant/ } split /\n/, $at_hist;
+	my ($boxplot_line) = grep { /perhaps you meant/ } split /\n/, $at_boxplot;
+	like( $hist_line, qr/\bbins\b/, 'hist suggests "bins" for "bins_"' );
+	unlike( $boxplot_line // '', qr/\bbins\b/,
+		'boxplot does not suggest "bins", which boxplot does not take' );
+}
+
+# A keyword resembling nothing at all still dies, and says so rather than
+# offering a suggestion it does not have.
+{
+	my ( $ok, $result ) = try_py(
+		'plot.type' => 'bar',
+		data        => $DATA{bar},
+		'zzqqxx'    => 1,
+	);
+	ok( !$ok, 'an option resembling nothing dies' );
+	like( $result, qr/\Q"zzqqxx" isn't defined for plot.type "bar"\E/,
+		'an option resembling nothing is named in the message' );
+	unlike( $result, qr/perhaps you meant/,
+		'an option resembling nothing is not given a made-up suggestion' );
 }
 
 # An option that belongs to no plot type at all must die for every type.

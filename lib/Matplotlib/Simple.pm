@@ -2,11 +2,10 @@
 use strict;
 use feature 'say';
 use warnings FATAL => 'all';
-use autodie ':all';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.3121;
+our $VERSION = 0.313;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Cwd 'getcwd';
@@ -262,7 +261,7 @@ my %opt = (
 	 'key.order',   # array ref: the order (and hence the set labels) of the sets
 	 'set_colors',  # array ref of colors, one per set, e.g. ['red','green']
 	],
-	scatter_helper => [
+	scatter_helper => [@cb_arg,
 	 'color_key',    # which of data keys is the color key
 	 'cmap',         # for 3-set scatterplots; default "gist_rainbow"
 	 'colorbar.on',  # only draw colorbar if colorbar is on
@@ -288,6 +287,211 @@ my %opt = (
 	  'show.legend',  # be default on; should be 0 if off
 	],
 );
+# plot.type => the %opt key holding that type's own keywords. "plt" dispatches
+# on the same pairing (%dispatch, inside plt), but the option lists are needed
+# out here too, so that a keyword rejected before dispatch can still be
+# reported against the list for the type the caller actually asked for.
+my %opt_key_of_type = (
+	bar                    => 'barplot_helper',
+	barh                   => 'barplot_helper',
+	boxplot                => 'boxplot_helper',
+	colored_table          => 'colored_table_helper',
+	hexbin                 => 'hexbin_helper',
+	hist                   => 'hist_helper',
+	hist2d                 => 'hist2d_helper',
+	imshow                 => 'imshow_helper',
+	pie                    => 'pie_helper',
+	plot                   => 'plot_helper',
+	scatter                => 'scatter_helper',
+	venn_proportional_area => 'venn_proportional_area_helper',
+	violin                 => 'violin_helper',
+	violinplot             => 'violin_helper',
+	wide                   => 'wide_helper',
+);
+my @all_opt;
+my %types_of_opt;    # keyword => array of the plot types whose own list has it
+foreach my $type ( sort keys %opt_key_of_type ) {
+	foreach my $keyword ( @{ $opt{ $opt_key_of_type{$type} } } ) {
+		push @all_opt, $keyword;
+		next if grep { $_ eq $type } @{ $types_of_opt{$keyword} // [] };
+		push @{ $types_of_opt{$keyword} }, $type;
+	}
+}
+sub edit_distance {
+	# Optimal string alignment distance between two strings.
+	#
+	# Levenshtein with one extra case: two adjacent characters swapped count
+	# as one edit, not two, because "widht" for "width" and "hsit" for "hist"
+	# are the commonest way to mistype a keyword and a plain Levenshtein
+	# threshold tight enough to be useful misses them.
+	#
+	# Three rows of the matrix are kept, since the transposition case reaches
+	# two rows back; that is the only difference from the usual two-row form.
+	my ( $x, $y ) = @_;
+	my @prev2;
+	my @prev = ( 0 .. length $y );
+	foreach my $i ( 1 .. length $x ) {
+		my @cur = ($i);
+		foreach my $j ( 1 .. length $y ) {
+			my $xc   = substr( $x, $i - 1, 1 );
+			my $yc   = substr( $y, $j - 1, 1 );
+			my $cost = ( $xc eq $yc ) ? 0 : 1;
+			$cur[$j] = min(
+				$cur[ $j - 1 ] + 1,        # insertion
+				$prev[$j] + 1,             # deletion
+				$prev[ $j - 1 ] + $cost    # substitution, or a match
+			);
+			if (   ( $i > 1 )
+				&& ( $j > 1 )
+				&& ( $xc eq substr( $y, $j - 2, 1 ) )
+				&& ( $yc eq substr( $x, $i - 2, 1 ) ) ) {
+				$cur[$j] = min( $cur[$j], $prev2[ $j - 2 ] + 1 );    # transposition
+			}
+		}
+		@prev2 = @prev;
+		@prev  = @cur;
+	}
+	return $prev[ length $y ];
+}
+sub resembles {
+	# Whether $keyword is a plausible reading of the mistyped $bad.
+	#
+	# $bad and $keyword arrive already normalised (case folded, "." and "_"
+	# dropped) so that the separator slips this module invites -- "key_order"
+	# for "key.order", "show_legend" for "show.legend" -- cost nothing.
+	#
+	# Two ways in, for two kinds of mistake. Containment catches a keyword
+	# reached for by the wrong name: "xlim" for "set_xlim", "legend" for
+	# "show.legend". It is capped at 6 characters of difference, because
+	# without a cap "log" pulls in "LogFormatterExponent" and every other
+	# method with "log" buried in it. Edit distance catches the typing slips,
+	# at one edit per three characters and never fewer than one: a
+	# 4-character keyword such as "xlim" admits a single edit ("ylim"), and
+	# only from 6 characters is a second allowed. A flat threshold of 2
+	# instead matches most of the 4-character method names against each other.
+	my ( $bad, $keyword ) = @_;
+	my $difference = abs( length($keyword) - length($bad) );
+	if ( $difference <= 6 ) {
+		return 1 if index( $keyword, $bad ) >= 0;
+		return 1 if index( $bad, $keyword ) >= 0;
+	}
+	my $max_edits = int( length($bad) / 3 ) || 1;
+	return ( edit_distance( $bad, $keyword ) <= $max_edits );
+}
+sub normalise_keyword {
+	# Case folded with "." and "_" dropped, so that keywords are compared on
+	# their letters alone. This module spells the same idea both ways in
+	# different places ("cb_min" beside "cblabel"), so a caller has no way to
+	# be sure which separator a keyword uses.
+	my ($keyword) = @_;
+	$keyword = lc $keyword;
+	$keyword =~ s/[._]//g;
+	return $keyword;
+}
+sub similar_keywords {
+	# The accepted keywords that a mistyped one plausibly meant, closest
+	# first. $preferred, if given, is the plot type's own keyword list: those
+	# are ranked ahead of equally-close matplotlib method names, since a
+	# caller writing "log" at a "hist" wants "logscale", not "loglog".
+	my ( $bad, $accepted, $preferred ) = @_;
+	my $norm = normalise_keyword($bad);
+	return () if $norm eq '';
+	my %is_preferred = map { $_ => 1 } @{ $preferred // [] };
+	my ( %seen, @scored );
+	foreach my $keyword ( @{$accepted} ) {
+		next if $seen{$keyword}++;    # the accepted lists are concatenated, so they repeat
+		next unless resembles( $norm, normalise_keyword($keyword) );
+		push @scored, [ $is_preferred{$keyword} ? 0 : 1, edit_distance( $norm, normalise_keyword($keyword) ), $keyword ];
+	}
+	@scored = sort {
+		    $a->[0] <=> $b->[0]
+		 || $a->[1] <=> $b->[1]
+		 || $a->[2] cmp $b->[2]
+	} @scored;
+	# 5, measured: take every option of every plot type in turn and ask what
+	# the types that do not accept it would suggest for it (1688 cases). 82
+	# of them produce more than 5 suggestions -- up to 14 -- and in every one
+	# of the 82, everything past the 5th is a matplotlib method name that
+	# merely shares a stem ("pcolor", "Colormap", "tripcolor" for "color"),
+	# never an option of any plot type. Re-measure before raising this.
+	splice @scored, 5 if scalar @scored > 5;
+	return map { $_->[2] } @scored;
+}
+sub keywords_of_other_types {
+	# The keywords that resemble the mistyped one, are not accepted here, but
+	# are accepted by some other plot type. The caller looks each one up in
+	# %types_of_opt to say which types those are.
+	#
+	# This is the mistake the module's shape invites most. "stacked" is real,
+	# and so are "notch" and "bins" -- just not for the plot type in hand --
+	# so a bare "isn't defined" reads like the module is wrong. Naming the
+	# types that do take the keyword answers the question the caller is
+	# actually asking.
+	my ( $bad, $accepted ) = @_;
+	my $norm = normalise_keyword($bad);
+	return () if $norm eq '';
+	my %is_accepted = map { $_ => 1 } @{$accepted};
+	my @scored;
+	foreach my $keyword ( sort keys %types_of_opt ) {
+		next if $is_accepted{$keyword};
+		next unless resembles( $norm, normalise_keyword($keyword) );
+		push @scored, [ edit_distance( $norm, normalise_keyword($keyword) ), $keyword ];
+	}
+	@scored = sort { $a->[0] <=> $b->[0] || $a->[1] cmp $b->[1] } @scored;
+	# Fewer than the cap above, because each of these costs a whole line of
+	# the message, and they are drawn from the 85 keywords the plot types
+	# define between them rather than the 450-odd names a plot also accepts,
+	# so the ranking has much less to choose between.
+	splice @scored, 4 if scalar @scored > 4;
+	return map { $_->[1] } @scored;
+}
+sub bad_keyword_error {
+	# Die naming each unrecognised keyword, with the accepted keywords it
+	# resembles.
+	#
+	# The accepted set is not one list: "notch" is a boxplot keyword and
+	# "stacked" a bar keyword, and each helper validates against its own. The
+	# caller passes the list it just checked against, so the suggestions are
+	# the ones that would have worked where the caller was.
+	#
+	# args: bad       => array ref of the unrecognised keywords
+	#       accepted  => array ref of the keywords that would have been taken
+	#       preferred => array ref, optional: the subset to rank first
+	#       type      => the plot.type being drawn, when one is known
+	#       sub       => the subroutine doing the checking, named when the
+	#                    type is not known (several subplots, no one type)
+	my ($args) = @_;
+	my $where =
+	 defined $args->{type}
+	 ? "for plot.type \"$args->{type}\""
+	 : "in $args->{sub}";
+	my ( @lines, $any_help );
+	foreach my $bad ( sort @{ $args->{bad} } ) {
+		my @similar = similar_keywords( $bad, $args->{accepted}, $args->{preferred} );
+		if ( scalar @similar > 0 ) {
+			$any_help = 1;
+			push @lines, "\"$bad\" isn't defined $where, perhaps you meant one of these defined keywords: ("
+			 . join( ', ', @similar ) . ')';
+		} else {
+			push @lines, "\"$bad\" isn't defined $where";
+		}
+		foreach my $keyword ( keywords_of_other_types( $bad, $args->{accepted} ) ) {
+			$any_help = 1;
+			push @lines, "\t\"$keyword\" is a defined keyword, but for plot.type "
+			 . join( ', ', @{ $types_of_opt{$keyword} } );
+		}
+	}
+	# Nothing resembled anything, here or elsewhere, so the caller has been
+	# given no way forward: fall back to printing the whole accepted list, as
+	# this module did before it could suggest anything.
+	unless ($any_help) {
+		my %seen;
+		my @sorted = sort grep { !$seen{$_}++ } @{ $args->{accepted} };
+		p @sorted, array_max => scalar @sorted;
+		say STDERR "the keywords above are the ones defined $where.";
+	}
+	die join( "\n", @lines );
+}
 sub py_str {
 	# Render a Perl string as a Python single-quoted string literal.
 	#
@@ -354,10 +558,11 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 	  not grep { $_ eq $key } @defined_args
 	} keys %{$args};
 	if ( scalar @bad_args > 0 ) {
-		p @bad_args, array_max => scalar @bad_args;
-		say 'the above arguments are not recognized.';
-		p @defined_args, array_max => scalar @defined_args;
-		die 'The above args are accepted.';
+		bad_keyword_error({
+			bad      => \@bad_args,
+			accepted => \@defined_args,
+			sub      => $current_sub
+		});
 	}
 	$args->{ax} = $args->{ax} // 'ax';
 	foreach my $item (
@@ -439,9 +644,13 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 	} keys %{$plot};
 	my $ax = $args->{ax} // '';
 	if ( scalar @bad_opt > 0 ) {
-	  p @bad_opt;
-	  die
-	"The above arguments aren't defined for $plot->{'plot.type'} at plot position $ax";
+		bad_keyword_error({
+			bad       => \@bad_opt,
+			accepted  => \@opt,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
 	}
 	my ( %ref_counts, $plot_type );
 	foreach my $set ( keys %{ $plot->{data} } ) {
@@ -640,8 +849,13 @@ sub boxplot_helper {
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @bad_opt > 0 ) {
-		p @bad_opt;
-		die "The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
+		bad_keyword_error({
+			bad       => \@bad_opt,
+			accepted  => \@opt,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
 	}
 	$plot->{orientation} = $plot->{orientation} // 'vertical';
 	if ( $plot->{orientation} !~ m/^(?:horizontal|vertical)$/ ) {
@@ -745,12 +959,26 @@ sub colored_table_helper {
 	'ax', @{ $opt{$current_sub} });
 	my @bad_args = grep { my $key = $_; not grep {$_ eq $key} @defined_args} keys %{ $args };
 	if (scalar @bad_args > 0) {
-		p @bad_args;
-		say 'the above arguments are not recognized.';
-		p @defined_args;
-		die 'The above args are accepted.'
+		bad_keyword_error({
+			bad      => \@bad_args,
+			accepted => \@defined_args,
+			sub      => $current_sub
+		});
 	}
 	my $plot = $args->{plot};
+#	The check above is on this sub's own arguments (fh, plot, ax), not on the
+#	caller's plot keywords, which live one level down in "plot" and were going
+#	unchecked here while every other helper checked its own.
+	my @bad_opt = grep { my $key = $_; not grep {$_ eq $key} @defined_args} keys %{ $plot };
+	if (scalar @bad_opt > 0) {
+		bad_keyword_error({
+			bad       => \@bad_opt,
+			accepted  => \@defined_args,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
+	}
 	$plot->{default_undefined} = $plot->{default_undefined} // 0;
 	$plot->{mirror} = $plot->{mirror} // 0;
 #	my @data;
@@ -874,8 +1102,13 @@ sub hexbin_helper {
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @undef_args > 0 ) {
-		p @undef_args;
-		die "The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+		bad_keyword_error({
+			bad       => \@undef_args,
+			accepted  => \@opt,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
 	}
 	$plot->{cb_logscale} = $plot->{cb_logscale} // 0;
 	$plot->{marginals}   = $plot->{marginals}   // 0;
@@ -1005,8 +1238,13 @@ sub hist_helper {
 		not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @undef > 0 ) {
-		p @undef;
-		die "The above arguments aren't defined for $plot->{'plot.type'}";
+		bad_keyword_error({
+			bad       => \@undef,
+			accepted  => \@opt,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
 	}
 	my $options = '';    # these args go to the plt.hist call
 	$plot->{alpha} = $plot->{alpha} // 0.5;
@@ -1091,9 +1329,13 @@ sub hist2d_helper {
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @undef_args > 0 ) {
-	  p @undef_args;
-	  die
-	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+		bad_keyword_error({
+			bad       => \@undef_args,
+			accepted  => \@opt,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
 	}
 	$plot->{cb_logscale}     = $plot->{cb_logscale}     // 0;
 	$plot->{'show.colorbar'} = $plot->{'show.colorbar'} // 1;
@@ -1258,9 +1500,13 @@ sub imshow_helper {
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @undef_args > 0 ) {
-	  p @undef_args;
-	  die
-	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+		bad_keyword_error({
+			bad       => \@undef_args,
+			accepted  => \@opt,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
 	}
 	my $data_ref = ref $plot->{data};
 	if ($data_ref ne 'ARRAY') {
@@ -1374,9 +1620,13 @@ sub pie_helper {
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @undef_opt > 0 ) {
-	  p @undef_opt;
-	  die
-	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+		bad_keyword_error({
+			bad       => \@undef_opt,
+			accepted  => \@opt,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
 	}
 	my @key_order;
 	if ( defined $plot->{'key.order'} ) {
@@ -1426,9 +1676,13 @@ sub plot_helper {
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @bad_opt > 0 ) {
-	  p $args;
-	  p @bad_opt;
-	  die	"The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+		bad_keyword_error({
+			bad       => \@bad_opt,
+			accepted  => \@opt,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
 	}
 	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
 	foreach my $axis (@{ $plot->{logscale} }) { # x, y
@@ -1674,15 +1928,20 @@ sub scatter_helper {
 	  p @undef_args;
 	  die 'the above args are necessary, but were not defined.';
 	}
-	my @opt = (@ax_methods, @cb_arg, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
+	my @opt = (@ax_methods, @plt_methods, @fig_methods, @arg, 'ax', @{ $opt{$current_sub} });
 	my $plot      = $args->{plot};
 	@undef_args = grep {
 	  my $key = $_;
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @undef_args > 0 ) {
-		p @undef_args;
-		die "The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+		bad_keyword_error({
+			bad       => \@undef_args,
+			accepted  => \@opt,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
 	}
 	my $overall_ref = ref $plot->{data};
 	if ( $overall_ref ne 'HASH' ) {
@@ -1857,8 +2116,13 @@ sub violin_helper {
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @undef_opt > 0 ) {
-		p @undef_opt;
-		die "The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
+		bad_keyword_error({
+			bad       => \@undef_opt,
+			accepted  => \@opt,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
 	}
 	$plot->{orientation} = $plot->{orientation} // 'vertical';
 	if ( $plot->{orientation} !~ m/^(?:horizontal|vertical)$/ ) {
@@ -2099,9 +2363,13 @@ sub wide_helper {
 	  not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @undef_opt > 0 ) {
-	  p @undef_opt;
-	  die
-	"The above arguments aren't defined for $plot->{'plot.type'} using $current_sub";
+		bad_keyword_error({
+			bad       => \@undef_opt,
+			accepted  => \@opt,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
 	}
 	say { $args->{fh} } 'import numpy as np';
 	my $ax       = $args->{ax} // '';
@@ -2156,10 +2424,6 @@ sub print_type {
    	return 'single quotes';
    }
    return $type;
-}
-my @all_opt;
-foreach my $type (keys %opt) {
-	push @all_opt, @{ $opt{$type} };
 }
 sub normalise_p {
 	# "p" is a flat list of subplots: ONE array element == ONE subplot.
@@ -2299,16 +2563,31 @@ sub plt {
 		p $args;
 		die '"output.file" must be a SCALAR or string, but was given a ' . ref $args->{'output.file'};
 	}
-	my @defined_args = (@reqd_args, @ax_methods, @fig_methods, @plt_methods, @arg, @all_opt);
+	# A single plot is validated against the keywords of the type it asked
+	# for, so that a mistyped keyword is reported against "bar"'s keywords
+	# rather than the union of every type's -- which would suggest "notch"
+	# to someone drawing a bar chart. This rejects nothing new: the helper
+	# this plot dispatches to checks the same hash against the same list.
+	# "plots" and "p" carry one type per subplot and none here, so for those
+	# the union stands and each subplot is checked by its own helper.
+	my $type_opt;
+	if ( not defined $args->{plots} ) {
+		$type_opt = $opt_key_of_type{ $args->{'plot.type'} // '' };
+	}
+	my @defined_args = (@reqd_args, @ax_methods, @fig_methods, @plt_methods, @arg,
+	 defined $type_opt ? @{ $opt{$type_opt} } : @all_opt);
 	my @bad_args = grep {
 	  my $key = $_;
 	  not grep { $_ eq $key } @defined_args
 	} keys %{$args};
 	if ( scalar @bad_args > 0 ) {
-	  p @defined_args, array_max => scalar @defined_args;
-	  p @bad_args, array_max => scalar @bad_args;
-	  say STDERR 'the 2nd group of arguments are not recognized, while the 1st is the defined list';
-	  die "The above args are accepted by \"$current_sub\"";
+		bad_keyword_error({
+			bad       => \@bad_args,
+			accepted  => \@defined_args,
+			preferred => defined $type_opt ? $opt{$type_opt} : \@all_opt,
+			type      => defined $type_opt ? $args->{'plot.type'} : undef,
+			sub       => $current_sub
+		});
 	}
 	$args->{nrows} = $args->{nrow} if defined $args->{nrow}; # allow synonyms
 	$args->{ncols} = $args->{ncol} if defined $args->{ncol}; # allow synonyms
@@ -2433,7 +2712,14 @@ sub plt {
 	# Only add the layer if it isn't already present, to avoid double-encoding
 	# a filehandle that was passed in.
 	unless ( grep { /utf-?8/i } PerlIO::get_layers($fh) ) {
-		binmode $fh, ':encoding(UTF-8)';
+		# Checked by hand because this module does not "use autodie" (see
+		# CLAUDE.md): binmode reports failure by returning undef, and an
+		# unchecked failure here would stay silent until the first wide
+		# character reached the file and died as "Wide character in say".
+		# The message is autodie's own, which read
+		# "Can't binmode($fh, ':encoding(UTF-8)'): Bad file descriptor".
+		binmode( $fh, ':encoding(UTF-8)' )
+		 or die "Can't binmode(" . $fh->filename . ", ':encoding(UTF-8)'): $!";
 	}
 	say 'temp file is ' . $fh->filename;
 	say $fh 'import matplotlib.pyplot as plt';
@@ -2647,13 +2933,47 @@ sub plt {
 	$args->{execute} = $args->{execute} // 1;
 	say $fh 'plt.close()' if $args->{execute} == 0;
 	if ( $args->{execute} ) {
+		my $errno;
 		my ($stdout, $stderr, $exit) = capture {
-			system( 'python3 ' . $fh->filename )
+			# The list form, not "python3 $file": the one-argument form goes
+			# through the shell and splits on whitespace, so a temp directory
+			# with a space in it -- %TEMP% on a Windows smoker sits under
+			# C:\Users\<name>, and a user name with a space is ordinary --
+			# would run python3 against a truncated path. CLAUDE.md lists
+			# this as a known Windows gap to close on touching the code.
+			# Departs from this file's "warnings FATAL => 'all'" on purpose,
+			# for this statement only: with exec warnings fatal, a missing
+			# interpreter dies right here as "Can't exec "python3"", system()
+			# never returns, and the three failure modes below get reported
+			# two different ways. autodie raised all three as one kind of
+			# exception naming the command, which is what this restores.
+			no warnings 'exec';
+			my $status = system( 'python3', $fh->filename );
+			# Read here, not after capture(): capture() does its own file
+			# operations on the way out and they overwrite $!, which was
+			# observed to leave "failed to start:" with nothing after it.
+			$errno = "$!";
+			$status;
 		};
 		if ($exit != 0) {
 			say STDERR "STDOUT = $stdout";
 			say STDERR "STDERR = $stderr";
-			die 'python3 ' . $fh->filename . ' failed';
+			# The three ways system() reports failure, told apart because
+			# they call for different fixes: no interpreter, a killed
+			# process, and a python error. "use autodie" used to raise these
+			# through IPC::System::Simple, but it threw from inside capture(),
+			# so the two lines above -- the python traceback, the only thing
+			# that says what is actually wrong -- were never reached. See
+			# CLAUDE.md.
+			my $why;
+			if ( $exit == -1 ) {
+				$why = "failed to start: $errno";
+			} elsif ( $exit & 127 ) {
+				$why = 'died to signal ' . ( $exit & 127 );
+			} else {
+				$why = 'unexpectedly returned exit value ' . ( $exit >> 8 );
+			}
+			die 'python3 ' . $fh->filename . " $why";
 		}
 		say 'will write ' . "\e[36;103m$args->{'output.file'}\e[0m" if defined $args->{'output.file'};
 	} else { # not running yet
@@ -2685,8 +3005,13 @@ sub venn_proportional_area_helper {
 		not grep { $_ eq $key } @opt
 	} keys %{$plot};
 	if ( scalar @undef_opt > 0 ) {
-		p @undef_opt;
-		die "The above arguments aren't defined for $plot->{'plot.type'} in $current_sub";
+		bad_keyword_error({
+			bad       => \@undef_opt,
+			accepted  => \@opt,
+			preferred => $opt{$current_sub},
+			type      => $plot->{'plot.type'},
+			sub       => $current_sub
+		});
 	}
 	# matplotlib_venn only draws area-proportional diagrams for 2 or 3 sets
 	my $n_keys = scalar keys %{ $plot->{data} };
@@ -2988,6 +3313,35 @@ into C<plt.suptitle(''a, b'')>.  Double quotes survive both passes.
 
 Every other option is passed through as written, so text inside C<legend>, C<text>
 and friends is Python syntax throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
+
+=head3 An option that isn't defined
+
+Each plot type has its own list of options, so an option is only ever right or
+wrong I<for the plot type you asked for>.  An option that isn't on that list
+dies, naming what you wrote and what it resembles:
+
+ bar(
+    'output.file' => 'counts.svg',
+    data          => { Matthew => 18345, Mark => 11304 },
+    xlim          => '0, 20000',
+ );
+ 
+ "xlim" isn't defined for plot.type "bar", perhaps you meant one of these
+ defined keywords: (clim, ylim, set_xlim)
+
+The suggestions come from the list that plot type actually accepts, so the same
+misspelling gets different answers at different plot types — C<bins_> is offered
+C<bins> at a C<hist> and is not offered it at a C<boxplot>, which has no C<bins>.
+Separators are ignored when matching, so C<key_order> finds C<key.order>, and two
+transposed characters count as one mistake, so C<widht> finds C<width>.
+
+An option that is real but belongs elsewhere is the commonest case, and says so
+rather than leaving you to wonder whether the documentation lied:
+
+ plot( ..., notch => 'True' );
+ 
+ "notch" isn't defined for plot.type "plot"
+         "notch" is a defined keyword, but for plot.type boxplot
 
 =head1 Color Bars (colorbars)
 

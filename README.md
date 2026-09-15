@@ -202,6 +202,35 @@ into `plt.suptitle(''a, b'')`.  Double quotes survive both passes.
 Every other option is passed through as written, so text inside `legend`, `text`
 and friends is Python syntax throughout: `legend => 'loc = "upper left"'`.
 
+### An option that isn't defined
+
+Each plot type has its own list of options, so an option is only ever right or
+wrong *for the plot type you asked for*.  An option that isn't on that list
+dies, naming what you wrote and what it resembles:
+
+    bar(
+       'output.file' => 'counts.svg',
+       data          => { Matthew => 18345, Mark => 11304 },
+       xlim          => '0, 20000',
+    );
+
+    "xlim" isn't defined for plot.type "bar", perhaps you meant one of these
+    defined keywords: (clim, ylim, set_xlim)
+
+The suggestions come from the list that plot type actually accepts, so the same
+misspelling gets different answers at different plot types — `bins_` is offered
+`bins` at a `hist` and is not offered it at a `boxplot`, which has no `bins`.
+Separators are ignored when matching, so `key_order` finds `key.order`, and two
+transposed characters count as one mistake, so `widht` finds `width`.
+
+An option that is real but belongs elsewhere is the commonest case, and says so
+rather than leaving you to wonder whether the documentation lied:
+
+    plot( ..., notch => 'True' );
+
+    "notch" isn't defined for plot.type "plot"
+            "notch" is a defined keyword, but for plot.type boxplot
+
 # Color Bars (colorbars)
 
 Colarbar args attempt to match matplotlib closely

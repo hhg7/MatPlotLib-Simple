@@ -56,16 +56,70 @@ must still run there, because that is the part Windows actually breaks.
 
 ### Known Windows gaps
 
-Both are latent: they cannot fail on a smoker with no Python, so they have
-never shown up in a report. Fix them if you touch the surrounding code, and do
-not add anything that depends on their current shape.
+It is latent: it cannot fail on a smoker with no Python, so it has never shown
+up in a report. Fix it if you touch the surrounding code, and do not add
+anything that depends on its current shape.
 
 - The module runs `python3`, which does not exist in a stock Windows Python
   install — it is `python`, or the `py` launcher. On Windows the module is
   currently untested and non-functional whenever Python *is* present.
-- `system('python3 ' . $fh->filename)` is the one-argument form, so it goes
-  through the shell and splits on whitespace. A temp path containing a space
-  breaks it. The list form `system('python3', $fh->filename)` does not.
+
+The other gap listed here — `system('python3 ' . $fh->filename)` in the
+one-argument form, which goes through the shell and splits on whitespace, so a
+temp path containing a space broke it — was closed in 0.313. The call is now
+`system('python3', $fh->filename)`. Do not write the one-argument form back.
+
+## The module does not use `autodie`
+
+`lib/Matplotlib/Simple.pm` opened with `use autodie ':all'` until 0.313, when
+it was removed at the maintainer's request. The behaviour was required not to
+change with it, and that is the standing rule: **every builtin `autodie` was
+checking has to check itself**, so that nothing which used to die now quietly
+returns false and carries on.
+
+`:all` is the union of every tag in `%TAGS` (perl 5.44.0's `Fatal.pm` line 89,
+autodie 2.37): `open`, `close`, `binmode`, `mkdir`, `unlink`, `opendir`,
+`rename`, `system`, `exec` and the rest. The module only ever called two of
+them, and both now check their own result:
+
+- `binmode($fh, ':encoding(UTF-8)') or die ...`, keeping autodie's own wording,
+  `Can't binmode($fh, ':encoding(UTF-8)'): <$!>`.
+- `system('python3', $fh->filename)`, whose return value is sorted into the
+  same three cases autodie distinguished — failed to start, died to a signal,
+  non-zero exit.
+
+If you add a call from that list, check it in the same edit. `die` on failure;
+do not add `autodie` back.
+
+### Two traps, both of which bit once
+
+- `warnings FATAL => 'all'` makes a failed exec fatal *at* the `system()` call,
+  so `system` never returns -1 and the "failed to start" branch is unreachable.
+  The call carries a statement-scoped `no warnings 'exec'` so that all three
+  failure modes come out of one place, worded one way. Don't drop it without
+  moving the message.
+- `$!` has to be read **inside** the `capture { }` block. `Capture::Tiny` does
+  its own file operations on the way out and overwrites it; read after
+  `capture` returns, the message came out as `failed to start:` with nothing
+  after it.
+
+### `autodie` was hiding the Python traceback
+
+autodie's `system` threw from *inside* `capture { }`, so the `$exit != 0`
+branch under it — the one that prints the captured STDOUT and STDERR — was
+never reached. A generated script that failed to run reported
+`"python3" unexpectedly returned exit value 1 at .../Capture/Tiny.pm line 382`
+and discarded the Python error, which is the only thing that says which option
+was at fault. Removing `autodie` is what made that branch live. Keep the
+captured output in the message.
+
+### The test suite still uses it
+
+`t/01.all.tests.t` uses `autodie ':all'`; `t/debug.pl` and `t/make.SHA.sum.pl`
+use `:default`. `autodie` and `IPC::System::Simple` therefore stay in
+`dist.ini`'s prerequisites — `:all` pulls in `IPC::System::Simple` for
+`system`. Dropping them because `lib/` no longer needs them would break the
+suite on a machine that does not happen to have them.
 
 ## Layout
 

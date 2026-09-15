@@ -220,6 +220,35 @@ into C<plt.suptitle(''a, b'')>.  Double quotes survive both passes.
 Every other option is passed through as written, so text inside C<legend>, C<text>
 and friends is Python syntax throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
 
+=head3 An option that isn't defined
+
+Each plot type has its own list of options, so an option is only ever right or
+wrong I<for the plot type you asked for>.  An option that isn't on that list
+dies, naming what you wrote and what it resembles:
+
+ bar(
+    'output.file' => 'counts.svg',
+    data          => { Matthew => 18345, Mark => 11304 },
+    xlim          => '0, 20000',
+ );
+ 
+ "xlim" isn't defined for plot.type "bar", perhaps you meant one of these
+ defined keywords: (clim, ylim, set_xlim)
+
+The suggestions come from the list that plot type actually accepts, so the same
+misspelling gets different answers at different plot types — C<bins_> is offered
+C<bins> at a C<hist> and is not offered it at a C<boxplot>, which has no C<bins>.
+Separators are ignored when matching, so C<key_order> finds C<key.order>, and two
+transposed characters count as one mistake, so C<widht> finds C<width>.
+
+An option that is real but belongs elsewhere is the commonest case, and says so
+rather than leaving you to wonder whether the documentation lied:
+
+ plot( ..., notch => 'True' );
+ 
+ "notch" isn't defined for plot.type "plot"
+         "notch" is a defined keyword, but for plot.type boxplot
+
 =head1 Color Bars (colorbars)
 
 Colarbar args attempt to match matplotlib closely

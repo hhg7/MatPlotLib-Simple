@@ -3,9 +3,12 @@
 # The generated python must be syntactically valid python.
 #
 # This module's real output is a python script, and a code generator can emit
-# something that parses as neither python nor an error message: the failure
-# surfaces as "python3 /tmp/xxxx.py failed" with the traceback discarded, which
-# tells the caller nothing about which option was at fault.
+# something that parses as neither python nor an error message.  Since 0.313
+# the failure at least surfaces as "python3 /tmp/xxxx.py unexpectedly returned
+# exit value 1" with python's own traceback printed above it; before that,
+# autodie threw from inside capture() and the traceback was discarded entirely.
+# Either way the caller is reading a traceback to work out which option was at
+# fault, which is a worse place to find out than a failing test here.
 #
 # Parsing every generated script with python's own parser is a cheap gate for
 # that whole class of bug.  It needs python3 but not matplotlib, so it still
