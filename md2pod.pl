@@ -320,15 +320,33 @@ insert_file_into_another({
 	'receiving.end.str'   => '# σὺ δὲ τῇ πίστει ἕστηκας. μὴ ὑψηλὰ φρόνει, ἀλλὰ φοβοῦ',
 });
 
+# Rewrite the block just copied in so that it writes where a test may write.
+#
+# mpl.examples.pl spells an output file two ways: "output.images/x.png" for the
+# figures the documentation shows, and "/tmp/x.svg" for the ones it does not.
+# Both become outfile('x.svg') here -- t/01.all.tests.t defines outfile() as a
+# path under File::Spec->tmpdir -- and the test renders SVG rather than PNG.
+#
+# The "/tmp" this replaces was hardcoded, which is the rule CLAUDE.md puts above
+# every other: Windows has no /tmp, and 0.312 shipped a File::Temp DIR of '/tmp'
+# that took the whole distribution down on the smokers. The test would not have
+# failed there for want of python -- it skips without it -- but it would have on
+# any Windows box that had one.
 my $test = file2string('t/01.all.tests.t');
 my @test = split /\n/, $test;
 my $output_idx = '-inf';
 my @output_files;
 foreach my ($idx, $line) (indexed @test) {
 	$line =~ s/\.png'(,?)/.svg'$1/;
-	$line =~ s/'output\.images\//'\/tmp\//;
-	if ($line =~ m/output\.file\'\h*=\>\h+'(.+)\.svg/) {
-		push @output_files, "$1.svg" unless $1 eq '/tmp/dies_ok';
+	$line =~ s{'output\.images/([^']+)'}{outfile('$1')}g;
+	$line =~ s{'/tmp/([^']+\.svg)'}{outfile('$1')}g;
+	# The basename alone: the test maps them back through outfile() itself.
+	if ($line =~ m/output\.file'\h*=>\h*outfile\('([^']+\.svg)'\)/) {
+		# dies_ok files are written by calls that are meant to die, so there is
+		# nothing to check afterwards. They are spelled "$tmpdir/dies_ok.svg" in
+		# the hand-written half of the test and so never reach this, but the
+		# name is skipped here as well in case one is ever written this way.
+		push @output_files, $1 unless $1 =~ m/^dies_ok/;
 		next;
 	}
 	if ($line =~ m/^my \@output_files\h*=\h*.+\);$/) {
@@ -338,7 +356,7 @@ foreach my ($idx, $line) (indexed @test) {
 die 'Could not find @output_files declaration in t/01.all.tests.t' if $output_idx < 0;
 die 'no output files found' if scalar @output_files == 0;
 
-$test[$output_idx] = 'my @output_files = (\'' . join ("', '", @output_files) . "');";
+$test[$output_idx] = 'my @output_files = map { outfile($_) } (\'' . join ("', '", @output_files) . "');";
 open my $t, '>', 't/01.all.tests.t';
 say $t join ("\n", @test);
 close $t;

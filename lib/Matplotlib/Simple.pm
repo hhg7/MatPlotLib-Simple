@@ -5,7 +5,7 @@ use warnings FATAL => 'all';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.313;
+our $VERSION = 0.314;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Cwd 'getcwd';
@@ -203,10 +203,10 @@ my %opt = (
 	hist_helper => [
 	  'alpha',    # default 0.5; same for all sets
 	  'bins'
-	  , # nt or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open
+	  , # int or sequence or str, default: :rc:`hist.bins`If *bins* is an integer, it defines the number of equal-width bins in the range. If *bins* is a sequence, it defines the bin edges, including the left edge of the first bin and the right edge of the last bin; in this case, bins may be unequally spaced.  All but the last  (righthand-most) bin is half-open
 	  'color', # a hash, where keys are the keys in data, and values are colors, e.g. X => 'blue'
 	  'colorbar.on',  # only draw colorbar if colorbar is on
-	  'logscale',       # if set to > 1, the y-axis will be logarithmic
+	  'logscale',       # array of "x" and/or "y"; a scalar is refused
 	  'orientation',    # {'vertical', 'horizontal'}, default: 'vertical'
 	  'shared.colorbar', # array of 0-based indices for sharing a colorbar
 	  'show.legend'
@@ -552,6 +552,62 @@ sub py_str {
 	$str =~ s/\t/\\t/g;
 	return "'$str'";
 }
+sub py_list {
+	# The contents of a Python sequence literal: every item rendered by py_str
+	# and joined with commas, so the caller wraps it in the [] or () it needs.
+	#
+	# The sites that take this are the ones that write user data -- data keys,
+	# tick labels, set members -- into a list. Written by hand as
+	# '["' . join('","', @keys) . '"]' they broke on a key holding a double
+	# quote (a SyntaxError) and, worse, silently on one holding a backslash:
+	# a "$\alpha$" key reached matplotlib as "$<BEL>lpha$", because Python read
+	# the "\a" of a double-quoted literal as an escape.
+	return join( ',', map { py_str($_) } @_ );
+}
+sub check_key_order {
+	# Die naming the keys an ordering option asks for that "data" does not
+	# have.
+	#
+	# Without this the missing key reaches the writer as an undef and dies as
+	# "Use of uninitialized value in join or string", which names neither the
+	# key that is missing nor the option that asked for it.
+	#
+	# args: keys   => array ref of the keys the option named
+	#       data   => the data hash they must all be keys of
+	#       option => the option they came from, e.g. "key.order"
+	#       sub    => the helper doing the checking
+	my ($args) = @_;
+	my @missing = grep { not exists $args->{data}{$_} } @{ $args->{keys} };
+	return unless scalar @missing > 0;
+	p @missing;
+	die "the above keys are named in \"$args->{option}\" but are not keys of \"data\" in $args->{sub}";
+}
+sub logscale_axes {
+	# The axes a "logscale" option asks for, refusing anything that is not an
+	# axis name.
+	#
+	# The check this replaces was m/^([^xy])$/, which only ever saw one
+	# character: "xy" and "" both passed it and emitted ax.set_xyscale("log")
+	# and ax.set_scale("log"), neither of which matplotlib has. A scalar
+	# "logscale => 'y'" died inside the dereference, as
+	# "Can't use string ("y") as an ARRAY ref".
+	#
+	# "bar"/"barh" are not callers: their "logscale" is the scalar synonym for
+	# "log", documented as such.
+	my ( $logscale, $current_sub ) = @_;
+	return () unless defined $logscale;
+	if ( ref $logscale ne 'ARRAY' ) {
+		my $got = ref $logscale ? ( ref $logscale ) . ' reference' : "\"$logscale\"";
+		die "\"logscale\" must be an array of axis names, e.g. [ 'y' ], but $current_sub was given $got";
+	}
+	my @bad = grep { ( not defined $_ ) || ( $_ !~ m/^[xy]$/ ) } @{$logscale};
+	if ( scalar @bad > 0 ) {
+		p $logscale;
+		die 'only "x" and "y" are allowed in "logscale" for ' . $current_sub
+		 . ', not "' . join( '", "', map { $_ // 'undef' } @bad ) . '"';
+	}
+	return @{$logscale};
+}
 sub write_data {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
@@ -595,7 +651,8 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 		p @undef_args;
 		die 'the above args are necessary, but were not defined.';
 	}
-	my @defined_args = ( @reqd_args, @ax_methods, @fig_methods, @plt_methods, @arg, @cb_arg );
+	# "emit_plt_fig" is this sub's own argument, not a plot option; see below.
+	my @defined_args = ( @reqd_args, 'emit_plt_fig', @ax_methods, @fig_methods, @plt_methods, @arg, @cb_arg );
 	my @bad_args = grep {
 	  my $key = $_;
 	  not grep { $_ eq $key } @defined_args
@@ -626,8 +683,21 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 			$args->{args}{$item} = "'$args->{args}{$item}'";
 		}
 	}
-	my @obj  = ( $args->{ax}, 'fig', 'plt' );
-	my @args = ( \@ax_methods, \@fig_methods, \@plt_methods );
+	# Whether the "fig." and "plt." methods in this hash are written here as
+	# well as the "ax." ones. 1 (the default) is what a subplot needs, since
+	# nothing else writes them for it; plt() passes 0 for a single plot, whose
+	# hash it walks itself afterwards. Both passes used to run over that one
+	# hash, so every figure-wide and pyplot-wide option was written twice, and
+	# the second pass ran print_type over text the first had already quoted:
+	# suptitle => "'Counts, by book'" left plt.suptitle(''Counts, by book'')
+	# in the script, a SyntaxError.
+	$args->{emit_plt_fig} = $args->{emit_plt_fig} // 1;
+	my @obj  = ( $args->{ax} );
+	my @args = ( \@ax_methods );
+	if ( $args->{emit_plt_fig} ) {
+		push @obj,  'fig', 'plt';
+		push @args, \@fig_methods, \@plt_methods;
+	}
 	foreach my $i ( 0 .. $#args ) {
 		foreach my $method ( grep { defined $args->{args}{$_} } @{ $args[$i] } ) {
 			my $ref = ref $args->{args}{$method};
@@ -722,6 +792,18 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 		foreach my $k1 ( keys %{ $plot->{data} } ) {
 			@{ $new_structure{$k1} } = @{ $plot->{data}{$k1} }{@key2};
 		}
+		# The inner keys are the series, so a color given as a hash can be
+		# answered here: turn it into the positional array the series loop
+		# below reads. Given as a hash it was silently dropped, since that
+		# loop only ever looked at an ARRAY.
+		if ( ( defined $plot->{color} ) && ( ref $plot->{color} eq 'HASH' ) ) {
+			my @uncolored = grep { not defined $plot->{color}{$_} } @key2;
+			if ( scalar @uncolored > 0 ) {
+				p @uncolored;
+				die "the above series have no color defined in \"color\" in $current_sub";
+			}
+			$plot->{color} = [ @{ $plot->{color} }{@key2} ];
+		}
 		@{ $plot->{label} } = @key2;
 		$plot->{data} = \%new_structure;
 	} else {
@@ -740,8 +822,47 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 	my @key_order;
 	if ( defined $plot->{'key.order'} ) {
 	  @key_order = @{ $plot->{'key.order'} };
+	  check_key_order({
+	  	keys   => \@key_order,
+	  	data   => $plot->{data},
+	  	option => 'key.order',
+	  	sub    => $current_sub
+	  });
 	} else {
 	  @key_order = sort keys %{ $plot->{data} };
+	}
+	# A color per data key only means something for the simple form, where one
+	# key is one bar, and for the hash-of-hashes form, whose inner keys named
+	# the series and were turned into an array above. The hash-of-arrays form
+	# has nothing to key a color hash by, and used to ignore it in silence.
+	if ( ( $plot_type eq 'grouped' ) && ( ref $plot->{color} eq 'HASH' ) ) {
+		die "$current_sub: \"color\" is a HASH, but this data is a hash of arrays, whose series have no names to key it by: give one color per series as an array, e.g. color => ['red','blue']";
+	}
+	# Every value reaches the script as it stands, so a non-numeric one
+	# becomes a bare Python name: "data => { A => 'abc' }" wrote "vals = [abc]"
+	# and died as a NameError when the script ran, pointing at the generated
+	# file rather than at the data.
+	foreach my $key (@key_order) {
+		my @values = ( $plot_type eq 'simple' ) ? ( $plot->{data}{$key} ) : @{ $plot->{data}{$key} };
+		my @bad = grep { defined && !looks_like_number($_) } @values;
+		if ( scalar @bad > 0 ) {
+			p @bad;
+			die "the above values of \"$key\" are not numbers, which $current_sub needs";
+		}
+		next unless $plot_type eq 'simple';
+		die "\"$key\" has an undefined value, which $current_sub cannot plot"
+		 unless defined $plot->{data}{$key};
+	}
+	if ( $plot_type eq 'grouped' ) {
+		# One bar per key per series, so a short array leaves a series with
+		# more x positions than heights, which matplotlib rejects with a shape
+		# mismatch naming neither the key nor the length it expected.
+		my %n_values = map { $_ => scalar @{ $plot->{data}{$_} } } @key_order;
+		my %lengths = map { $_ => 1 } values %n_values;
+		if ( scalar keys %lengths > 1 ) {
+			p %n_values;
+			die "the above keys hold different numbers of values; every key of a grouped $plot->{'plot.type'} needs the same number";
+		}
 	}
 	my $options = '';    # these args go to the plt.bar call
 	if ( $plot->{'log'} || $plot->{logscale}) {
@@ -751,9 +872,9 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 		next if ( ( $c eq 'color' ) && ( $plot_type eq 'grouped' ) && ( ref $plot->{$c} ne '' ) );
 		my $ref = ref $plot->{$c};
 		if ( $ref eq '' ) {    # single color
-			$options .= ", $c = '$plot->{$c}'";
+			$options .= ", $c = " . py_str( $plot->{$c} );
 		} elsif ( $ref eq 'ARRAY' ) {
-			$options .= ", $c = [\"" . join( '","', @{ $plot->{$c} } ) . '"]';
+			$options .= ", $c = [" . py_list( @{ $plot->{$c} } ) . ']';
 		} elsif ( $ref eq 'HASH') {
 			
 		} else {
@@ -807,7 +928,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 				p @undef_args;
 				die 'the above keys were not defined in the colors hash';
 			}
-			$options .= ',color = ["' . join ('","', @{ $plot->{color} }{@key_order} ) . '"]';
+			$options .= ',color = [' . py_list( @{ $plot->{color} }{@key_order} ) . ']';
 		}
 		say { $args->{fh} } "ax$ax.$plot->{'plot.type'}(labels, vals $options)";
 	} elsif ( $plot_type eq 'grouped' ) {    # grouped bar plot; hash of array
@@ -838,7 +959,9 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 			foreach
 			  my $f ( grep { ( ref $plot->{$_} eq 'ARRAY' ) && defined $plot->{$_}[$i] } ( 'color', 'label' ) )
 			{
-				 $set_options .= ", $f = '$plot->{$f}[$i]'";
+				 # py_str: a label is a series name, which for the
+				 # hash-of-hashes form is one of the caller's own inner keys.
+				 $set_options .= ", $f = " . py_str( $plot->{$f}[$i] );
 			}
 			if ( $plot->{stacked} > 0 ) {
 				my $stack_kwarg = $plot->{'plot.type'} eq 'barh' ? 'left' : 'bottom';
@@ -854,7 +977,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 			  if $plot->{stacked} <= 0;    # for next iteration
 			  $i++;
 		}
-		my $xticks = '["' . join( '","', @key_order ) . '"]';
+		my $xticks = '[' . py_list(@key_order) . ']';
 		my $ticks  = 'yticks';
 		$ticks = 'xticks' if $plot->{'plot.type'} eq 'bar';
 		$_ /= scalar @val for @mean_pos;
@@ -912,6 +1035,12 @@ sub boxplot_helper {
 	my ( @xticks, @key_order );
 	if ( defined $plot->{'key.order'} ) {
 	  @key_order = @{ $plot->{'key.order'} };
+	  check_key_order({
+	  	keys   => \@key_order,
+	  	data   => $plot->{data},
+	  	option => 'key.order',
+	  	sub    => $current_sub
+	  });
 	} else {
 	  @key_order = sort keys %{ $plot->{data} };
 	}
@@ -925,22 +1054,22 @@ sub boxplot_helper {
 	foreach my $arg ( 'showcaps', 'showfliers', 'showmeans', 'notch') {
 	  $options .= ", $arg = $plot->{$arg}";
 	}
-	foreach my $axis (@{ $plot->{logscale} }) { # x, y
-		if ($axis =~ m/^([^xy])$/) {
-			p $plot->{logscale};
-			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
-		}
+	foreach my $axis ( logscale_axes( $plot->{logscale}, $current_sub ) ) { # x, y
 		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
 	}
 	say { $args->{fh} } 'd = []';
+	# %values, rather than writing the filtered list back into $plot->{data}:
+	# the arrays in there belong to the caller, and dropping the undefined
+	# elements in place left the caller's own array shorter than they wrote it.
+	my %values;
 	foreach my $key (@key_order) {
-		@{ $plot->{data}{$key} } = grep { defined } @{ $plot->{data}{$key} };
-		my @non_numeric = grep {!looks_like_number($_)} @{ $plot->{data}{$key} };
+		@{ $values{$key} } = grep { defined } @{ $plot->{data}{$key} };
+		my @non_numeric = grep {!looks_like_number($_)} @{ $values{$key} };
 		if (scalar @non_numeric > 0) {
 			p @non_numeric;
 			die "$key has non-numeric values";
 		}
-		say { $args->{fh} } 'd.append([' . join( ',', @{ $plot->{data}{$key} } ) . '])';
+		say { $args->{fh} } 'd.append([' . join( ',', @{ $values{$key} } ) . '])';
 	}
 	say { $args->{fh} } "bp = ax$ax.boxplot(d, patch_artist = True, $options)";
 	if ( defined $plot->{colors} ){ # every hash key should have its own color defined
@@ -953,8 +1082,8 @@ sub boxplot_helper {
 		}
 
 	# list of pre-defined colors: https://matplotlib.org/stable/gallery/color/named_colors.html
-	  print { $args->{fh} } 'colors = ["'
-		 . join( '","', @{ $plot->{colors} }{@key_order} ) . '"]' . "\n";
+	  print { $args->{fh} } 'colors = ['
+		 . py_list( @{ $plot->{colors} }{@key_order} ) . ']' . "\n";
 
 	 # the above color list will have the same order, via the above hash slice
 	  say { $args->{fh} } 'for patch, color in zip(bp["boxes"], colors):';
@@ -963,22 +1092,22 @@ sub boxplot_helper {
 	} else {
 		say { $args->{fh} } 'for pc in bp["boxes"]:';
 		if ( defined $plot->{color} ) {
-			say { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')";
+			say { $args->{fh} } "\tpc.set_facecolor(" . py_str($plot->{color}) . ')';
 		}
 		say { $args->{fh} } "\tpc.set_edgecolor('black')";
 	}
 	foreach my $key (@key_order) {
 		push @xticks, "$key ("
-		 . format_commas( scalar @{ $plot->{data}{$key} }, '%.0u' ) . ')';
+		 . format_commas( scalar @{ $values{$key} }, '%.0u' ) . ')';
 	}
 	if ( $plot->{orientation} eq 'vertical' ) {
 		say { $args->{fh} } "ax$ax.set_xticks(["
-		 . join( ',',   1 .. scalar @key_order ) . '], ["'
-		 . join( '","', @xticks ) . '"])';
+		 . join( ',',   1 .. scalar @key_order ) . '], ['
+		 . py_list(@xticks) . '])';
 	} else {
 		say { $args->{fh} } "ax$ax.set_yticks(["
-		 . join( ',',   1 .. scalar @key_order ) . '], ["'
-		 . join( '","', @xticks ) . '"])';
+		 . join( ',',   1 .. scalar @key_order ) . '], ['
+		 . py_list(@xticks) . '])';
 	}
 }
 
@@ -1022,12 +1151,17 @@ sub colored_table_helper {
 			sub       => $current_sub
 		});
 	}
-	$plot->{default_undefined} = $plot->{default_undefined} // 0;
 	$plot->{mirror} = $plot->{mirror} // 0;
 #	my @data;
 	my (@cols, @rows, %data);
 	if (defined $plot->{'col.labels'}) {
 		@cols = @{ $plot->{'col.labels'} };
+		check_key_order({
+			keys   => \@cols,
+			data   => $plot->{data},
+			option => 'col.labels',
+			sub    => $current_sub
+		});
 	} else {
 		@cols = sort keys %{ $plot->{data} };
 	}
@@ -1043,17 +1177,40 @@ sub colored_table_helper {
 		@rows = @cols; # the matrix "d" is built with one row per entry of @cols
 	}
 	my ($min, $max) = ('inf', '-inf');
+	my $n_numeric = 0;    # cells that hold a number, for the check below
 	say {$args->{fh}} 'd = []';
 	say {$args->{fh}} 'import numpy as np';
+	# What a cell with no value in "data" gets. "np.nan" is drawn in
+	# "undef.color" by the colormap's set_bad below and left blank by
+	# "show.numbers"; a "default_undefined" given by the caller is an ordinary
+	# value instead, counting towards the color scale like any other. The
+	# option was read and then ignored -- the line below assigned np.nan with
+	# "$plot->{default_undefined}" commented out beside it -- so a table asked
+	# to call its holes 0 still drew them as holes.
+	my $undefined = 'np.nan';
+	if (defined $plot->{default_undefined}) {
+		unless (looks_like_number($plot->{default_undefined})) {
+			die "\"default_undefined\" = $plot->{default_undefined} must be a number";
+		}
+		$undefined = $plot->{default_undefined};
+	}
 	foreach my $k1 (@cols) {
 		foreach my $k2 (grep {!defined $data{$k1}{$_}} @cols) {
-			$data{$k1}{$k2} = 'np.nan';#$plot->{default_undefined};
+			$data{$k1}{$k2} = $undefined;
 		}
 		foreach my $k2 (grep {looks_like_number($data{$k1}{$_})} @cols) {
 			$min = min($min, $data{$k1}{$k2});
 			$max = max($max, $data{$k1}{$k2});
+			$n_numeric++;
 		}
 		say {$args->{fh}} 'd.append([' . join (',', @{ $data{$k1} }{@cols}) . '])';
+	}
+	# Nothing to scale the colors by. $min and $max are still the strings they
+	# started as, and "plt.Normalize(inf, -inf)" is a NameError in Python,
+	# which said nothing about the table being empty.
+	if (($n_numeric == 0) && ((not defined $plot->{cb_min}) || (not defined $plot->{cb_max}))) {
+		p $plot->{data};
+		die "no cell of the above data holds a number, so $current_sub has nothing to color by";
 	}
 	$min = $plot->{cb_min} // $min;
 	$max = $plot->{cb_max} // $max;
@@ -1063,8 +1220,8 @@ sub colored_table_helper {
 	say {$args->{fh}} 'from matplotlib import colors' if $plot->{cb_logscale} > 0;
 	$plot->{'undef.color'} = $plot->{'undef.color'} // 'gray';
 	say {$args->{fh}} 'import matplotlib';
-	say {$args->{fh}} "table_cmap = matplotlib.colormaps['$plot->{cmap}'].copy()";
-	say {$args->{fh}} 'table_cmap.set_bad("' . $plot->{'undef.color'} . '")';
+	say {$args->{fh}} 'table_cmap = matplotlib.colormaps[' . py_str($plot->{cmap}) . '].copy()';
+	say {$args->{fh}} 'table_cmap.set_bad(' . py_str($plot->{'undef.color'}) . ')';
 	say {$args->{fh}} "norm = plt.Normalize($min, $max)";
 	say {$args->{fh}} 'datacolors = table_cmap(norm(d))';
 	my @options;
@@ -1085,10 +1242,17 @@ sub colored_table_helper {
 		say {$args->{fh}} "img = ax$ax.imshow(d, cmap=table_cmap $opt)";
 	}
 	$plot->{'colorbar.on'} = $plot->{'colorbar.on'} // 1;
-	if (defined $plot->{cblabel}) {
-		say {$args->{fh}} 'fig.colorbar(img, label = ' . py_str($plot->{cblabel}) . ')';
-	} else {
-		say {$args->{fh}} "fig.colorbar(img)" if $plot->{'colorbar.on'};
+	# "colorbar.on" decides, and "cblabel" only says what to write on it. A
+	# cblabel used to draw the colorbar even against "'colorbar.on' => 0",
+	# which the documentation recorded rather than fixed: nobody passes a label
+	# for a colorbar they have just turned off, so it read as a typo that the
+	# module honoured.
+	if ($plot->{'colorbar.on'}) {
+		if (defined $plot->{cblabel}) {
+			say {$args->{fh}} 'fig.colorbar(img, label = ' . py_str($plot->{cblabel}) . ')';
+		} else {
+			say {$args->{fh}} "fig.colorbar(img)";
+		}
 	}
 	say {$args->{fh}} 'img.set_visible(False)';
 	$plot->{'show.numbers'} = $plot->{'show.numbers'} // 0;
@@ -1097,20 +1261,19 @@ sub colored_table_helper {
 	say {$args->{fh}} '		if np.isnan(item):';
 	say {$args->{fh}} '			d[ri][ii] = ""';
 	if ($plot->{'show.numbers'}) {
-		say {$args->{fh}} "table = ax$ax" . '.table(cellText=d, rowLabels=["' . join ('","', @rows) . '"], colLabels = ["' . join ('","', @cols) . '"], cellColours = datacolors, loc = "center", bbox=[0,0,1,1])';
+		say {$args->{fh}} "table = ax$ax" . '.table(cellText=d, rowLabels=[' . py_list(@rows) . '], colLabels = [' . py_list(@cols) . '], cellColours = datacolors, loc = "center", bbox=[0,0,1,1])';
 	} else {
-		say {$args->{fh}} "table = ax$ax" . '.table(rowLabels=["' . join ('","', @rows) . '"], colLabels = ["' . join ('","', @cols) . '"], cellColours = datacolors, loc = "center", bbox=[0,0,1,1])';
+		say {$args->{fh}} "table = ax$ax" . '.table(rowLabels=[' . py_list(@rows) . '], colLabels = [' . py_list(@cols) . '], cellColours = datacolors, loc = "center", bbox=[0,0,1,1])';
 	}
-	foreach my $arg (grep {defined $plot->{$_}} ('title')) {
-		say {$args->{fh}} "ax$ax.$arg('$plot->{$arg}')";
-	}
-	foreach my $axis (@{ $plot->{logscale} }) { # x, y
-		if ($axis =~ m/^([^xy])$/) {
-			p $plot->{logscale};
-			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
-		}
-		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
-	}
+	# No title written here, though there was one: it emitted "ax0.title('..')",
+	# and "title" is a Text attribute of the axes rather than a method, so a
+	# colored_table given a title died with "TypeError: 'Text' object is not
+	# callable". plt() renames "title" to "set_title" for every plot type once
+	# its helper has run, which is what actually draws it.
+	# No logscale loop here, though there was one: "logscale" is not among the
+	# options colored_table accepts, so the loop could never run, and a log
+	# scale would mean nothing on a table whose axes are the row and column
+	# labels -- both sets of ticks are emptied a few lines below.
 #	say {$args->{fh}} "fig.clim(vmin = $plot->{cb_min})" if defined $plot->{cb_min};
 #	say {$args->{fh}} "fig.clim(vmax = $plot->{cb_max})" if defined $plot->{cb_max};
 	foreach my $axis ('x','y') {
@@ -1166,6 +1329,12 @@ sub hexbin_helper {
 	my @keys;
 	if ( defined $plot->{'key.order'} ) {
 		@keys = @{ $plot->{'key.order'} };
+		check_key_order({
+			keys   => \@keys,
+			data   => $plot->{data},
+			option => 'key.order',
+			sub    => $current_sub
+		});
 	} else {
 		@keys = sort keys %{ $plot->{data} };
 	}
@@ -1188,7 +1357,7 @@ sub hexbin_helper {
 	$plot->{ylabel} = $plot->{ylabel} // py_str($keys[1]);
 	$plot->{cmap}   = $plot->{cmap}   // 'gist_rainbow';
 	my $options =
-	", gridsize = ($plot->{xbins}, $plot->{ybins}), cmap = '$plot->{cmap}'"
+	", gridsize = ($plot->{xbins}, $plot->{ybins}), cmap = " . py_str($plot->{cmap})
 	;    # these args go to the plt.hist call
 	if ( $plot->{cb_logscale} ) {
 	  say { $args->{fh} } 'from matplotlib.colors import LogNorm';
@@ -1221,7 +1390,7 @@ sub hexbin_helper {
 	foreach my $o (grep {defined $plot->{$_}} ('cblocation', 'cborientation')) { #str; cblabel is handled separately below
 		my $mpl_opt = $o;
 		$mpl_opt =~ s/^cb//;
-		$opts .= ", $mpl_opt = '$plot->{$o}'";
+		$opts .= ", $mpl_opt = " . py_str( $plot->{$o} );
 	}
 	foreach my $o (grep {defined $plot->{$_}} ('cbdrawedges', 'cbpad')) { # numeric
 		die "$o = $plot->{$o} must be numeric" unless (looks_like_number($plot->{$o}));
@@ -1234,15 +1403,21 @@ sub hexbin_helper {
 		my @ax = map {"ax$_"} @{ $plot->{'shared.colorbar'} };
 		$opts .= ', ax = [' . join (',', @ax) . '] ';
 	}
-	if ( defined $plot->{cblabel} ) {
-		write_data({
-			data => $plot->{cblabel},
-			fh   => $args->{fh},
-			name => 'cblabel',
-		});
-		say { $args->{fh} } "plt.colorbar(im$ax, label = cblabel $opts)";
-	} else {
-		say { $args->{fh} } "plt.colorbar(im$ax, label = 'Density' $opts)";
+	# "colorbar.on" is read here, and not only for the shared-colorbar test
+	# above: the colorbar was drawn whatever it said, so "'colorbar.on' => 0"
+	# did nothing, and a figure sharing one colorbar between subplots got the
+	# shared one *and* the per-subplot one plt() had asked to be turned off.
+	if ( $plot->{'colorbar.on'} ) {
+		if ( defined $plot->{cblabel} ) {
+			write_data({
+				data => $plot->{cblabel},
+				fh   => $args->{fh},
+				name => 'cblabel',
+			});
+			say { $args->{fh} } "plt.colorbar(im$ax, label = cblabel $opts)";
+		} else {
+			say { $args->{fh} } "plt.colorbar(im$ax, label = 'Density' $opts)";
+		}
 	}
 }
 
@@ -1307,11 +1482,7 @@ sub hist_helper {
 			die "$ref for $arg isn't acceptable";
 		}
 	}
-	foreach my $axis (@{ $plot->{logscale} }) { # x, y
-		if ($axis =~ m/^([^xy])$/) {
-			p $plot->{logscale};
-			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
-		}
+	foreach my $axis ( logscale_axes( $plot->{logscale}, $current_sub ) ) { # x, y
 		say {$args->{fh}} "ax$args->{ax}.set_$axis" . 'scale("log")';
 	}
 	if (ref $plot->{data} eq 'ARRAY') {
@@ -1338,7 +1509,16 @@ sub hist_helper {
 		 my $arg ( grep { ref $plot->{$_} eq 'HASH' } ( 'bins', 'color' ) )
 		{
 			next unless defined $plot->{$arg}{$set};
-			if ( $plot->{$arg}{$set} =~ m/^[A-Za-z]+$/ ) {  # "Red" needs quotes
+			my $ref = ref $plot->{$arg}{$set};
+			if ( $ref eq 'ARRAY' ) {
+				# Bin edges for this set alone. The whole-plot "bins" has taken
+				# an array since it was written; per set it fell through to the
+				# numeric branch below and emitted "bins = ARRAY(0x55f0...)".
+				$set_options .= ", $arg = [" . join( ',', @{ $plot->{$arg}{$set} } ) . ']';
+			} elsif ( $ref ne '' ) {
+				p $plot->{$arg};
+				die "\"$arg\" for set \"$set\" is a $ref reference, but $current_sub takes a scalar or an array there";
+			} elsif ( $plot->{$arg}{$set} =~ m/^[A-Za-z]+$/ ) {  # "Red" needs quotes
 				$set_options .= ", $arg = '$plot->{$arg}{$set}'";
 			} else {    # I'm assuming numeric; "10" doesn't need quotes
 				$set_options .= ", $arg = $plot->{$arg}{$set}";
@@ -1410,6 +1590,12 @@ sub hist2d_helper {
 	my @keys;
 	if ( defined $plot->{'key.order'} ) {
 		@keys = @{ $plot->{'key.order'} };
+		check_key_order({
+			keys   => \@keys,
+			data   => $plot->{data},
+			option => 'key.order',
+			sub    => $current_sub
+		});
 	} else {
 		@keys = sort keys %{ $plot->{data} };
 	}
@@ -1431,7 +1617,7 @@ sub hist2d_helper {
 	$plot->{xlabel} = $plot->{xlabel} // py_str($keys[0]);
 	$plot->{ylabel} = $plot->{ylabel} // py_str($keys[1]);
 	$plot->{cmap}   = $plot->{cmap}   // 'gist_rainbow';
-	my $options = ", cmap = '$plot->{cmap}'"; # these args go to the plt.hist call
+	my $options = ', cmap = ' . py_str($plot->{cmap}); # these args go to the plt.hist call
 	if ( $plot->{cb_logscale} ) {
 		say {$args->{fh}} 'from matplotlib.colors import LogNorm';
 		# prevents "ValueError: Passing a Normalize instance simultaneously with vmin/vmax is not supported.  Please pass vmin/vmax directly to the norm when creating it"
@@ -1485,11 +1671,7 @@ sub hist2d_helper {
 	say {$args->{fh}} 'import numpy as np';
 	if ($plot->{logscale}) {
 		my %linear_axes = ('x' => 1, 'y' => 1);
-		foreach my $axis (@{ $plot->{logscale} }) { # x, y
-			if ($axis =~ m/^([^xy])$/) {
-				p $plot->{logscale};
-				die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
-			}
+		foreach my $axis ( logscale_axes( $plot->{logscale}, $current_sub ) ) { # x, y
 			say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
 			my $min = $plot->{$axis . 'min'};
 			my $max = $plot->{$axis . 'max'};
@@ -1516,7 +1698,7 @@ sub hist2d_helper {
 	foreach my $o (grep {defined $plot->{$_}} ('cblocation', 'cborientation')) { #str; cblabel is handled separately below
 		my $mpl_opt = $o;
 		$mpl_opt =~ s/^cb//;
-		$opts .= ", $mpl_opt = '$plot->{$o}'";
+		$opts .= ", $mpl_opt = " . py_str( $plot->{$o} );
 	}
 	foreach my $o (grep {defined $plot->{$_}} ('cbdrawedges', 'cbpad')) { # numeric
 		die "$o = $plot->{$o} must be numeric" unless (looks_like_number($plot->{$o}));
@@ -1530,10 +1712,16 @@ sub hist2d_helper {
 		$opts .= ', ax = [' . join (',', @ax) . '] ';
 	}
 #	say { $args->{fh} } "cbar = fig.colorbar(im$ax $opts)" if $plot->{'colorbar.on'};
-	if ( defined $plot->{cblabel} ) {
-	  say { $args->{fh} } "plt.colorbar(im$ax, label = " . py_str($plot->{cblabel}) . " $opts)";
-	} else {
-	  say { $args->{fh} } "plt.colorbar(im$ax, label = 'Density' $opts)";
+	# As in hexbin_helper: "colorbar.on" used to be read only for the shared
+	# colorbar, so "'colorbar.on' => 0" drew one anyway and the documentation
+	# had to tell the reader to use "show.colorbar" instead. Both now work, and
+	# a subplot whose colorbar plt() turns off for sharing stays off.
+	if ( $plot->{'colorbar.on'} ) {
+		if ( defined $plot->{cblabel} ) {
+		  say { $args->{fh} } "plt.colorbar(im$ax, label = " . py_str($plot->{cblabel}) . " $opts)";
+		} else {
+		  say { $args->{fh} } "plt.colorbar(im$ax, label = 'Density' $opts)";
+		}
 	}
 }
 
@@ -1575,6 +1763,17 @@ sub imshow_helper {
 		p $args;
 		die "$current_sub can only accept 2-D arrays as input in \"data\", but received $data_ref";
 	}
+	# An empty image leaves $min_val and $max_val below as the strings they
+	# start as, and "vmin = inf" is a NameError in Python rather than anything
+	# about the data.
+	my @bad_rows = grep { ref $plot->{data}[$_] ne 'ARRAY' } 0 .. $#{ $plot->{data} };
+	if (scalar @bad_rows > 0) {
+		p @bad_rows;
+		die "the above rows of \"data\" are not array references, which $current_sub needs";
+	}
+	if ((scalar @{ $plot->{data} } == 0) || (scalar grep { scalar @{$_} > 0 } @{ $plot->{data} }) == 0) {
+		die "$current_sub was given no data to draw";
+	}
 	my $non_numeric_data = 0;
 	foreach my $row (@{ $plot->{data} }) {
 		if (grep {not looks_like_number($_)} @{ $row }) {
@@ -1600,11 +1799,24 @@ sub imshow_helper {
 	my ($min_val, $max_val) = ('inf', '-inf');
 	my $opts = '';
 	if ($non_numeric_data) {
-		say { $args->{fh} } 'from matplotlib.colors import ListedColormap';
 		my @prop_cycle = ('#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2',
  '#7f7f7f', '#bcbd22', '#17becf'); #plt.rcParams['axes.prop_cycle']
-		say { $args->{fh} } 'colors = ["' . join ('","', @prop_cycle[0..(scalar keys %intmap) - 1]) . '"]';
-		say { $args->{fh} } 'this_cmap = ListedColormap(colors)';
+		my $n_strings = scalar keys %intmap;
+		if ( $n_strings > scalar @prop_cycle ) {
+			# More categories than the default property cycle has colors. The
+			# slice used to run off the end of @prop_cycle and die inside
+			# join() as "Use of uninitialized value", naming neither
+			# "stringmap" nor the number of categories, so an 11th category
+			# was an unexplained crash. A continuous colormap resampled to the
+			# number of categories gives that many distinct colors for any
+			# number of them.
+			say { $args->{fh} } 'import matplotlib';
+			say { $args->{fh} } "this_cmap = matplotlib.colormaps['gist_rainbow'].resampled($n_strings)";
+		} else {
+			say { $args->{fh} } 'from matplotlib.colors import ListedColormap';
+			say { $args->{fh} } 'colors = [' . py_list( @prop_cycle[ 0 .. $n_strings - 1 ] ) . ']';
+			say { $args->{fh} } 'this_cmap = ListedColormap(colors)';
+		}
 		warn "deleting \"$plot->{cmap}\" because string data is present" if defined $plot->{cmap};
 		delete $plot->{cmap};
 		$min_val = 0;
@@ -1625,7 +1837,7 @@ sub imshow_helper {
 	$plot->{vmax} = $plot->{vmax} // $max_val;
 	$plot->{vmin} = $plot->{vmin} // $min_val;
 	foreach my $opt (grep {defined $plot->{$_}} ('cmap')) { # strings
-		$opts .= ", $opt = '$plot->{$opt}'";
+		$opts .= ", $opt = " . py_str( $plot->{$opt} );
 	}
 	foreach my $opt (grep {defined $plot->{$_}} ('vmax', 'vmin')) { # numeric
 		$opts .= ", $opt = $plot->{$opt}";
@@ -1633,12 +1845,23 @@ sub imshow_helper {
 	say { $args->{fh} } "im$ax = ax$ax.imshow(d, aspect = 'auto' $opts)";
 	$opts = '';
 	if ($non_numeric_data) {
-		$opts .= ', ticks = [' . join (',', map {$_ + 0.5 - $_/$max_val} 0..$max_val) . ']';
+		# One tick per category, at the middle of its band of the colorbar.
+		# The colormap has one color per category and spans [0, $max_val], so
+		# category i covers [i/n, (i+1)/n] of that span and its middle sits at
+		# $max_val * (2i+1) / 2n. The formula here was "$_ + 0.5 - $_/$max_val",
+		# which divided by zero when there was a single category and put both
+		# ticks in the same place when there were two.
+		my $n_strings = $max_val + 1;
+		$opts .= ', ticks = ['
+		 . join( ',', map { $max_val * ( 2 * $_ + 1 ) / ( 2 * $n_strings ) } 0 .. $max_val ) . ']';
 	}
 	foreach my $o (grep {defined $plot->{$_}} ('cblabel', 'cblocation', 'cborientation')) { #str
 		my $mpl_opt = $o;
 		$mpl_opt =~ s/^cb//;
-		$opts .= ", $mpl_opt = '$plot->{$o}'";
+		# py_str, not "'$value'": a cblabel is prose, and "Farmer's yield"
+		# closed the literal early and left the script unparseable. Every
+		# other helper quotes its cblabel; this one did not.
+		$opts .= ", $mpl_opt = " . py_str( $plot->{$o} );
 	}
 	foreach my $o (grep {defined $plot->{$_}} ('cbdrawedges', 'cbpad')) { # numeric
 		die "$o = $plot->{$o} must be numeric" unless (looks_like_number($plot->{$o}));
@@ -1653,7 +1876,7 @@ sub imshow_helper {
 	}
 	say { $args->{fh} } "cbar = fig.colorbar(im$ax $opts)" if $plot->{'colorbar.on'};
 	if (($non_numeric_data) && ($plot->{'colorbar.on'})) {
-		say { $args->{fh} } 'cbar.ax.set_yticklabels(["' . join ('","', @ytick_labels) . '"])';
+		say { $args->{fh} } 'cbar.ax.set_yticklabels([' . py_list(@ytick_labels) . '])';
 	}
 }
 
@@ -1693,13 +1916,27 @@ sub pie_helper {
 	my @key_order;
 	if ( defined $plot->{'key.order'} ) {
 	  @key_order = @{ $plot->{'key.order'} };
+	  check_key_order({
+	  	keys   => \@key_order,
+	  	data   => $plot->{data},
+	  	option => 'key.order',
+	  	sub    => $current_sub
+	  });
 	} else {
 	  @key_order = sort keys %{ $plot->{data} };
+	}
+	# As in barplot_helper: a wedge size is written into the script as it
+	# stands, so a non-numeric one becomes a bare Python name and the script
+	# dies as a NameError with nothing to say about the data.
+	foreach my $key (@key_order) {
+		next if looks_like_number( $plot->{data}{$key} );
+		p $plot->{data};
+		die "\"$key\" is not a number, which $current_sub needs to size a wedge";
 	}
 	$plot->{autopct} = $plot->{autopct} // '';
 	my $opt = '';
 	if ( $plot->{autopct} ne '' ) {
-	$opt .= ", autopct = '$plot->{autopct}'";
+	$opt .= ", autopct = " . py_str( $plot->{autopct} );
 	}
 	foreach my $arg ( grep { defined $plot->{$_} } 'labeldistance', 'pctdistance' ) {
 	  $opt .= ", $arg = $plot->{$arg}";
@@ -1747,11 +1984,7 @@ sub plot_helper {
 		});
 	}
 	$plot->{'show.legend'} = $plot->{'show.legend'} // 1;
-	foreach my $axis (@{ $plot->{logscale} }) { # x, y
-		if ($axis =~ m/^([^xy])$/) {
-			p $plot->{logscale};
-			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
-		}
+	foreach my $axis ( logscale_axes( $plot->{logscale}, $current_sub ) ) { # x, y
 		say {$args->{fh}} "ax$args->{ax}.set_$axis" . 'scale("log")';
 	}
 	my @twinx;
@@ -1789,16 +2022,23 @@ sub plot_helper {
 			}
 		}
 		if (defined $plot->{twinx}) {
-			if (ref $plot->{twinx} eq '') {
+			my $twinx_ref = ref $plot->{twinx};
+			if ($twinx_ref eq '') {
 				die "twinx must be an array index, not \"$plot->{twinx}\"" unless $plot->{twinx} =~ m/^\d+$/;
 				@twinx = $plot->{twinx};
-			} elsif (ref $plot->{twinx} eq 'ARRAY') {
+			} elsif ($twinx_ref eq 'ARRAY') {
 				@bad_opt = grep {$_ !~ m/^\d+$/} @{ $plot->{twinx} };
 				if (scalar @bad_opt > 0) {
 					p @bad_opt;
 					die 'data that could not possibly be an array index for twinx is shown above';
 				}
 				@twinx = @{ $plot->{twinx} };
+			} else {
+				# Any other reference fell off the end of this chain and was
+				# ignored without a word, so a twinx given in the hash form
+				# ("twinx => { B => 1 }") against array data simply did not
+				# draw a second axis.
+				die "$current_sub: \"data\" is an array, so \"twinx\" is an index or an array of indices into it, not a $twinx_ref reference";
 			}
 		}
 		if (defined $plot->{'twinx.args'}) {
@@ -1876,6 +2116,12 @@ sub plot_helper {
 	my @key_order;
 	if ( defined $plot->{'key.order'} ) {
 		@key_order = @{ $plot->{'key.order'} };
+		check_key_order({
+			keys   => \@key_order,
+			data   => $plot->{data},
+			option => 'key.order',
+			sub    => $current_sub
+		});
 	} else {
 		@key_order = sort keys %{ $plot->{data} };
 	}
@@ -1887,16 +2133,22 @@ sub plot_helper {
 		}
 	}
 	if (defined $plot->{twinx}) {
-		if (ref $plot->{twinx} eq '') {
+		my $twinx_ref = ref $plot->{twinx};
+		if ($twinx_ref eq '') {
 			die "twinx \"$plot->{twinx}\" is not a key in data" unless defined $plot->{data}{ $plot->{twinx} };
 			@twinx = ($plot->{twinx});
-		} elsif (ref $plot->{twinx} eq 'HASH') {
+		} elsif ($twinx_ref eq 'HASH') {
 			@bad_opt = sort grep {!defined $plot->{data}{$_}} keys %{ $plot->{twinx} };
 			if (scalar @bad_opt > 0) {
 				p @bad_opt;
 				die 'data for undefined data keys is shown above';
 			}
 			@twinx = sort keys %{ $plot->{twinx} };
+		} else {
+			# As in the array branch above: anything else was ignored in
+			# silence, so "twinx => ['B']" against a hash of sets drew nothing
+			# and said nothing.
+			die "$current_sub: \"data\" is a hash, so \"twinx\" is a data key or a hash of them, not a $twinx_ref reference";
 		}
 	}
 	if (defined $plot->{'twinx.args'}) {
@@ -2029,7 +2281,7 @@ sub scatter_helper {
 		die 'Could not determine scatter type for the above data.';
 	}
 	$plot->{cmap} = $plot->{cmap} // 'gist_rainbow';
-	foreach my $axis (@{ $plot->{logscale} }) { # x, y 
+	foreach my $axis ( logscale_axes( $plot->{logscale}, $current_sub ) ) { # x, y 
 		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
 	}
 	if ( $plot_type eq 'single' ) { # only a single set of data
@@ -2037,6 +2289,12 @@ sub scatter_helper {
 		my ( $color_key, @keys );
 		if ( defined $plot->{'keys'} ) {
 			@keys = @{ $plot->{'keys'} };
+			check_key_order({
+				keys   => \@keys,
+				data   => $plot->{data},
+				option => 'keys',
+				sub    => $current_sub
+			});
 		} else {
 			@keys = sort { lc $a cmp lc $b } keys %{ $plot->{data} };
 		}
@@ -2078,7 +2336,7 @@ sub scatter_helper {
 			}
 			say { $args->{fh} } 'z = [' . join( ',', @{ $plot->{data}{$color_key} } ) . ']';
 			say { $args->{fh} }
-			  "im = ax$ax.scatter(x, y, c = z, cmap = '$plot->{cmap}' $options)";
+			  "im = ax$ax.scatter(x, y, c = z, cmap = " . py_str($plot->{cmap}) . " $options)";
 			say { $args->{fh} } "fig.colorbar(im, label = " . py_str($color_key) . " $cb_opts)";
 		} else {
 			say { $args->{fh} } "ax$ax.scatter(x, y $options)";
@@ -2105,6 +2363,12 @@ sub scatter_helper {
 			my @keys;
 			if ( defined $plot->{'keys'} ) {
 				 @keys = @{ $plot->{'keys'} };
+				 check_key_order({
+				 	keys   => \@keys,
+				 	data   => $plot->{data}{$set},
+				 	option => 'keys',
+				 	sub    => "$current_sub set \"$set\""
+				 });
 			} else { # automatically take the key from the first; further sets should have the same labels
 				 @keys = sort { lc $a cmp lc $b } keys %{ $plot->{data}{$set} };
 			}
@@ -2143,7 +2407,7 @@ sub scatter_helper {
 					$options .= ', label = ' . py_str($set);
 				}
 				say { $args->{fh} }
-				"im = ax$ax.scatter(x, y, c = z, cmap = '$plot->{cmap}' $options)";
+				"im = ax$ax.scatter(x, y, c = z, cmap = " . py_str($plot->{cmap}) . " $options)";
 			} else {
 				say { $args->{fh} }	"ax$ax.scatter(x, y, label = " . py_str($set) . " $options)";
 			}
@@ -2197,6 +2461,12 @@ sub violin_helper {
 	my ( @xticks, @key_order );
 	if ( defined $plot->{'key.order'} ) {
 		@key_order = @{ $plot->{'key.order'} };
+		check_key_order({
+			keys   => \@key_order,
+			data   => $plot->{data},
+			option => 'key.order',
+			sub    => $current_sub
+		});
 	} else {
 		@key_order = sort keys %{ $plot->{data} };
 	}
@@ -2207,17 +2477,26 @@ sub violin_helper {
 	my $options = '';    # these args go to the plt.hist call
 	say { $args->{fh} } 'd = []';
 	my $min_n_points = 'inf';
+	# %values, rather than writing the filtered list back into $plot->{data}:
+	# the arrays in there belong to the caller, and dropping the undefined and
+	# non-numeric elements in place left the caller's own array shorter than
+	# they wrote it.
+	my %values;
 	foreach my $key (@key_order) {
-	  @{ $plot->{data}{$key} } = grep { defined && looks_like_number($_) } @{ $plot->{data}{$key} };
+	  @{ $values{$key} } = grep { defined && looks_like_number($_) } @{ $plot->{data}{$key} };
+	  # A group left with nothing in it has no mean to draw, and the mean is
+	  # computed by dividing by this count: it died as "Use of uninitialized
+	  # value in division", which named neither the group nor the filtering
+	  # that emptied it.
+	  if ( scalar @{ $values{$key} } == 0 ) {
+	  	my $n_given = scalar @{ $plot->{data}{$key} };
+	  	die "\"$key\" has no numeric values for $current_sub to plot ($n_given value(s) given, all undefined or non-numeric)";
+	  }
 	  say { $args->{fh} } 'd.append(['
-		 . join( ',', @{ $plot->{data}{$key} } ) . '])';
-	  $min_n_points = min( scalar @{ $plot->{data}{$key} }, $min_n_points );
+		 . join( ',', @{ $values{$key} } ) . '])';
+	  $min_n_points = min( scalar @{ $values{$key} }, $min_n_points );
 	}
-	foreach my $axis (@{ $plot->{logscale} }) { # x, y
-		if ($axis =~ m/^([^xy])$/) {
-			p $plot->{logscale};
-			die "only \"x\" and \"y\" are allowed in boxplot, not \"$axis\"";
-		}
+	foreach my $axis ( logscale_axes( $plot->{logscale}, $current_sub ) ) { # x, y
 		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
 	}
 	say { $args->{fh} } "vp = ax$ax.violinplot(d, showmeans=False, points = $min_n_points, orientation = '$plot->{orientation}', showmedians = $plot->{medians})";
@@ -2230,8 +2509,8 @@ sub violin_helper {
 			die 'the above data keys have no defined color';
 		}
 		# list of pre-defined colors: https://matplotlib.org/stable/gallery/color/named_colors.html
-		say { $args->{fh} } 'colors = ["'
-		 . join( '","', @{ $plot->{colors} }{@key_order} ) . '"]';
+		say { $args->{fh} } 'colors = ['
+		 . py_list( @{ $plot->{colors} }{@key_order} ) . ']';
 
 		# the above color list will have the same order, via the above hash slice
 		say { $args->{fh} } 'for i, pc in enumerate(vp["bodies"], 1):';
@@ -2240,7 +2519,7 @@ sub violin_helper {
 	} else {
 		say { $args->{fh} } 'for pc in vp["bodies"]:';
 		if ( defined $plot->{color} ) {
-			say { $args->{fh} } "\tpc.set_facecolor('$plot->{color}')";
+			say { $args->{fh} } "\tpc.set_facecolor(" . py_str($plot->{color}) . ')';
 		}
 		say { $args->{fh} } "\tpc.set_edgecolor('black')";
 
@@ -2286,26 +2565,25 @@ sub violin_helper {
 	}
 	foreach my $key (@key_order) {
 		push @xticks, "$key ("
-		 . format_commas( scalar @{ $plot->{data}{$key} }, '%.0u' ) . ')';
+		 . format_commas( scalar @{ $values{$key} }, '%.0u' ) . ')';
+		my $mean = sum( @{ $values{$key} } ) / scalar @{ $values{$key} };
 		if ( $plot->{orientation} eq 'vertical' ) {
 			say { $args->{fh} } "ax$ax.plot("
-			  . scalar @xticks . ', '
-			  . ( sum( @{ $plot->{data}{$key} } ) / scalar @{ $plot->{data}{$key} } )
+			  . scalar @xticks . ", $mean"
 			  . ', "ro")';    # plot mean point, which is red
 		} else {                # orientation = horizontal
-			say { $args->{fh} } "ax$ax.plot("
-			 . ( sum( @{ $plot->{data}{$key} } ) / scalar @{ $plot->{data}{$key} } )
-			 . ', ' . scalar @xticks . ', "ro")';    # plot mean point, which is red
+			say { $args->{fh} } "ax$ax.plot($mean, "
+			 . scalar @xticks . ', "ro")';    # plot mean point, which is red
 		}
 	}
 	if ( $plot->{orientation} eq 'vertical' ) {
 		say { $args->{fh} } "ax$ax.set_xticks(["
-		 . join( ',',   1 .. scalar @key_order ) . '], ["'
-		 . join( '","', @xticks ) . '"])';
+		 . join( ',',   1 .. scalar @key_order ) . '], ['
+		 . py_list(@xticks) . '])';
 	} else {
 	  say { $args->{fh} } "ax$ax.set_yticks(["
-		 . join( ',',   1 .. scalar @key_order ) . '], ["'
-		 . join( '","', @xticks ) . '"])';
+		 . join( ',',   1 .. scalar @key_order ) . '], ['
+		 . py_list(@xticks) . '])';
 	}
 }
 
@@ -2468,12 +2746,25 @@ sub wide_helper {
 }
 
 sub print_type {
+	# Whether a value has to be quoted on its way into the generated Python.
 	my $str = shift;
 	my $type = 'no quotes';
 	if (looks_like_number($str)) { # numbers (e.g. 0.8) must not be quoted
 		return 'no quotes';
 	}
-	if ($str =~ m/\w+\h*=\h*["'\(]/) {
+	# Text that already carries a quote of its own is Python the caller wrote
+	# -- a quoted label ('"Counts, by book"', the form the documentation asks
+	# for when the text holds a comma), a mathtext raw string, or a whole
+	# argument list such as '0.5, 0.01, "note"'. Quoting it again nests the
+	# quotes and emits plt.suptitle(''Counts, by book''), a SyntaxError. This
+	# generalises the "keyword = <quote>" test below, which caught the same
+	# thing only when the quote followed an "=".
+	if ($str =~ m/['"]/) {
+		return 'no quotes';
+	}
+	# A keyword argument, e.g. "hspace = 0.5" or "loc = 'upper left'": already
+	# Python, whether or not its value is quoted.
+	if ($str =~ m/\w\h*=\h*\S/) {
 		return 'no quotes';
 	}
    if ($str =~ m/^\w+$/) {
@@ -2743,6 +3034,14 @@ sub plt {
 			p $args;
 			die '"shared.colobar" must be an array reference';
 		}
+		if ( scalar @{ $args->{'shared.colorbar'} } == 0 ) {
+			die '"shared.colorbar" is an empty array: it takes the 0-based indices of the subplots that share the colorbar, e.g. [0,1]';
+		}
+		my @bad_idx = grep { ( not defined $_ ) || ( $_ !~ m/^\d+$/ ) } @{ $args->{'shared.colorbar'} };
+		if ( scalar @bad_idx > 0 ) {
+			p @bad_idx;
+			die 'the above "shared.colorbar" entries are not 0-based subplot indices';
+		}
 		my $max_subplot_idx = max(@{ $args->{'shared.colorbar'} });
 		if ($max_subplot_idx > ($args->{nrows} * $args->{ncols} - 1)) {
 			p $args;
@@ -2858,20 +3157,27 @@ sub plt {
 			ax   => 0,
 			plot => $args
 		});
+		# "xlim" is not here, though it was: no keyword list accepts it, so it
+		# is refused long before this as an option that isn't defined (the
+		# documentation uses that refusal as its worked example), and the
+		# rename could never fire.
 		my %rename = (
 			xlabel => 'set_xlabel',
 			title  => 'set_title',
 			ylabel => 'set_ylabel',
 			legend => 'legend',
-			xlim   => 'set_xlim',
 		);
 		foreach my $opt ( grep { defined $rename{$_} } keys %{$args} ) {
 			$args->{ $rename{$opt} } = delete $args->{$opt};
 		}
+		# emit_plt_fig => 0: the "fig." and "plt." methods in this same hash
+		# are written by the two loops below, which quote through print_type.
+		# Letting both passes run emitted every one of them twice.
 		plot_args({
-			fh   => $fh,
-			args => $args,
-			ax   => 'ax0'
+			fh           => $fh,
+			args         => $args,
+			ax           => 'ax0',
+			emit_plt_fig => 0
 		});
 	}
 	my $ax = 0;
@@ -3123,6 +3429,12 @@ sub venn_proportional_area_helper {
 	my @keys;
 	if ( defined $plot->{'key.order'} ) {
 		@keys = @{ $plot->{'key.order'} };
+		check_key_order({
+			keys   => \@keys,
+			data   => $plot->{data},
+			option => 'key.order',
+			sub    => $current_sub
+		});
 		if ( scalar @keys != $n_keys ) {
 			p $plot;
 			die "\"key.order\" has " . scalar(@keys) . " keys, but data has $n_keys in $current_sub";
@@ -3138,18 +3450,18 @@ sub venn_proportional_area_helper {
 	foreach my $i ( 0 .. $#keys ) { # "each @array" requires perl 5.12
 		my $key  = $keys[$i];
 		my $name = "venn_ax${ax}_set$i";
-		say { $args->{fh} } "$name = set([\""
-		. join( '","', @{ $plot->{data}{$key} } ) . '"])';
+		say { $args->{fh} } "$name = set(["
+		. py_list( @{ $plot->{data}{$key} } ) . '])';
 		push @sets, $name;
 	}
 	my $opt = '';
 	if ( defined $plot->{set_colors} ) {
-		$opt .= ', set_colors=("' . join( '","', @{ $plot->{set_colors} } ) . '")';
+		$opt .= ', set_colors=(' . py_list( @{ $plot->{set_colors} } ) . ')';
 	}
 	$opt .= ", alpha=$plot->{alpha}" if defined $plot->{alpha};
 	say { $args->{fh} } "venn$n_keys(["
-	. join( ',', @sets ) . '],("'
-	. join( '","', @keys ) . "\"), ax=ax$ax$opt)";
+	. join( ',', @sets ) . '],('
+	. py_list(@keys) . "), ax=ax$ax$opt)";
 }
 # Generate wrappers dynamically
 my @wrappers = qw(bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter venn_proportional_area violin violinplot wide);
@@ -3397,10 +3709,13 @@ label with a comma or an apostrophe in it has to carry its own quotes:
 Without those quotes the generated Python is a syntax error rather than a
 mislabelled plot, so the mistake is loud.
 
-Use B<double> quotes when quoting text yourself.  C<suptitle> in particular is
-emitted twice — once for the subplot and once for the figure — and the second
-pass runs its own quoting rules over the text, which turns single-quoted text
-into C<plt.suptitle(''a, b'')>.  Double quotes survive both passes.
+Either kind of quote will do.  Up to 0.3131 a single plot wrote its figure-wide
+options twice — C<suptitle> came out once for the subplot and once for the
+figure — and the second pass ran its own quoting rules over text the first had
+already quoted, turning C<< suptitle =E<gt> "'a, b'" >> into C<plt.suptitle(''a, b'')>, a
+syntax error.  Double quotes were the documented way round it.  Each option is
+now written once, and text that already carries a quote of its own is left
+alone.
 
 Every other option is passed through as written, so text inside C<legend>, C<text>
 and friends is Python syntax throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
@@ -3525,10 +3840,15 @@ A few conventions hold across all of them:
 =over
 
 =item * Keys are used in B<sorted order> unless you say otherwise.  C<key.order> is
-accepted by C<bar>, C<barh>, C<boxplot>, C<violin>, C<hexbin>, C<hist2d>, C<plot> and
-C<venn_proportional_area>; C<scatter> spells the same idea C<keys>; and
-C<colored_table> uses C<row.labels>/C<col.labels>.  C<pie>, C<hist> and C<wide> take
-no ordering option at all, and C<imshow> has no keys to order.
+accepted by C<bar>, C<barh>, C<boxplot>, C<violin>, C<hexbin>, C<hist2d>, C<pie>,
+C<plot> and C<venn_proportional_area>; C<scatter> spells the same idea C<keys>;
+and C<colored_table> uses C<row.labels>/C<col.labels>.  C<hist> and C<wide> take no
+ordering option at all, and C<imshow> has no keys to order.
+
+=item * An ordering option naming a key that C<data> does not have is an error naming
+that key.  It used to reach the writer as an undefined value and die as C<Use
+of uninitialized value in join or string>, which named neither the key nor the
+option it came from.
 
 =item * C<title>, C<xlabel>, C<ylabel>, C<suptitle>, C<set_xlim>, C<legend> and the rest of
 Matplotlib's C<ax>/C<fig>/C<plt> methods are accepted by every plot type; see
@@ -3653,7 +3973,7 @@ gives asymmetric C<[ lower, upper ]> errors:
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>------- </td></tr>
-<tr><td>color</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed; as of version 0.23, colors can be given as a hash</td><td><code>color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],</code> or a single color for all bars <code>color => 'red'</code>, or as of version 0.23 <code>color => {A => 'red', B => 'green'}</code></td></tr>
+<tr><td>color</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed; as of version 0.23, colors can be given as a hash, whose keys are the bars of a simple hash or the *inner* keys (the series) of a hash of hashes.  A hash of arrays has no series names to key a color hash by, and says so rather than ignoring it</td><td><code>color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],</code> or a single color for all bars <code>color => 'red'</code>, or as of version 0.23 <code>color => {A => 'red', B => 'green'}</code></td></tr>
 <tr><td>edgecolor</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar edges</td><td><code>edgecolor     => 'black'</code></td></tr>
 <tr><td>key.order</td><td>define the keys in an order (an array reference)</td><td><code>'key.order'        => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],</code></td></tr>
 <tr><td>label</td><td>an array of legend labels for grouped bar plots, indexed like the data arrays; only meaningful for the hash-of-arrays form, since the hash-of-hashes form takes its labels from the inner keys</td><td><code>label => ['North', 'South'],</code></td></tr>
@@ -4162,11 +4482,12 @@ the same order.
 <tr><td><code>cblabel</code></td><td>the label on the colorbar</td><td><code>cblabel => 'kJ/mol'</code></td></tr>
 <tr><td><code>cmap</code></td><td>the colormap used for coloring the cells</td><td><code>cmap => 'viridis'</code></td></tr>
 <tr><td><code>col.labels</code></td><td>array ref: which keys to draw, in order — this selects the rows and the columns of the matrix, not just the heading text</td><td><code>'col.labels' => ['H', 'F', 'Cl', 'Br', 'I']</code></td></tr>
-<tr><td><code>colorbar.on</code></td><td>draw the colorbar; on by default, <code>0</code> turns it off.  Passing <code>cblabel</code> draws it regardless</td><td><code>'colorbar.on' => 0</code></td></tr>
+<tr><td><code>colorbar.on</code></td><td>draw the colorbar; on by default, <code>0</code> turns it off, <code>cblabel</code> or no <code>cblabel</code></td><td><code>'colorbar.on' => 0</code></td></tr>
 <tr><td><code>mirror</code></td><td>treat the table as symmetric: <code>$data{A}{B}</code> also fills <code>$data{B}{A}</code></td><td><code>mirror => 1</code></td></tr>
 <tr><td><code>row.labels</code></td><td>array ref of the labels printed down the left side; give it the same keys, in the same order, as <code>col.labels</code></td><td><code>'row.labels' => ['H', 'F', 'Cl', 'Br', 'I']</code></td></tr>
 <tr><td><code>show.numbers</code></td><td>print each cell's value in the cell; off by default</td><td><code>'show.numbers' => 1</code></td></tr>
 <tr><td><code>undef.color</code></td><td>the color for cells that have no value; gray by default</td><td><code>'undef.color' => 'white'</code></td></tr>
+<tr><td><code>default_undefined</code></td><td>the value a cell with no value takes, instead of being left empty.  It counts towards the color scale like any other value, so <code>undef.color</code> no longer applies to those cells</td><td><code>default_undefined => 0</code></td></tr>
 </tbody>
 </table>
 
@@ -4743,7 +5064,7 @@ the range for the density min and max is reported to stdout
 <tr><td>'density'</td><td>density : bool, default: False; normalise the counts so the plot shows a probability density instead of raw counts, which is what makes two plots of different-sized samples comparable</td><td><code>density => 'True'</code></td></tr>
 <tr><td>'key.order'</td><td>define the keys in an order (an array reference), i.e. which key is the x-axis</td><td><code>'key.order' => ['Y', 'X']</code></td></tr>
 <tr><td>'logscale'</td><td>an array of the axes that will get a log scale</td><td><code>logscale => ['x']</code></td></tr>
-<tr><td>'show.colorbar'</td><td>self-evident, 0 or 1; this, and not <code>colorbar.on</code>, is what suppresses a <code>hist2d</code> colorbar</td><td><code>show.colorbar</code> => 0</td></tr>
+<tr><td>'show.colorbar'</td><td>self-evident, 0 or 1; a synonym for <code>colorbar.on</code>, either of which suppresses the colorbar (before 0.3132 only this one did)</td><td><code>show.colorbar</code> => 0</td></tr>
 <tr><td>'vmax'</td><td>When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover</td><td></td></tr>
 <tr><td>'vmin'</td><td># When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover</td><td></td></tr>
 <tr><td>'xbins'</td><td># default 15</td><td></td></tr>
@@ -5129,9 +5450,10 @@ the total.  C<data> is the same simple hash that C<bar> takes, so the two are
 interchangeable — reach for C<pie> when the reader should see parts of a whole,
 and for C<bar> when they should compare the parts with each other.
 
-Wedges are laid out in sorted key order and that order cannot be overridden:
-C<key.order> is not among the options C<pie> accepts.  Nor is a legend added — the
-wedges carry their own labels — so C<show.legend> is not accepted either.
+Wedges are laid out in sorted key order unless C<key.order> says otherwise, and
+a C<key.order> that names only some of the keys draws only those wedges.  No
+legend is added — the wedges carry their own labels — so C<show.legend> is not
+among the options C<pie> accepts.
 
 =head3 options
 
@@ -5141,6 +5463,7 @@ wedges carry their own labels — so C<show.legend> is not accepted either.
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
 <tr><td><code>autopct</code></td><td>a Python format string for the share printed inside each wedge; omit it and no numbers are drawn</td><td><code>autopct => '%1.1f%%'</code></td></tr>
+<tr><td><code>key.order</code></td><td>array ref: the order the wedges are laid out in.  Naming only some of the keys draws only those wedges</td><td><code>'key.order' => ['Fri','Sat','Sun']</code></td></tr>
 <tr><td><code>labeldistance</code></td><td>where the key label sits, as a fraction of the radius: <code>0</code> is the centre, <code>1</code> the edge, above <code>1</code> outside the pie</td><td><code>labeldistance => 0.6</code></td></tr>
 <tr><td><code>pctdistance</code></td><td>the same scale, for the <code>autopct</code> text.  Swapping the two — labels in, percentages out — is a readable arrangement when the labels are long</td><td><code>pctdistance => 1.25</code></td></tr>
 </tbody>
@@ -5902,7 +6225,7 @@ which makes the image:
 
 =for html
 <p>
-<img alt="single venn" src="output.images/single.venn.png" />
+<img width="467" height="491" alt="single venn" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/single.venn.png" />
 <p>
 
 
@@ -5944,7 +6267,7 @@ which makes the following figure:
 
 =for html
 <p>
-<img alt="venn diagrams" src="output.images/venn.png" />
+<img width="651" height="409" alt="venn diagrams" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/venn.png" />
 <p>
 
 
@@ -6131,7 +6454,7 @@ which makes the image:
 
 =for html
 <p>
-<img width="651" height="491" alt="wide single" src="output.images/single.wide.png" />
+<img width="651" height="491" alt="wide single" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/single.wide.png" />
 <p>
 
 
@@ -6209,7 +6532,7 @@ labelled groups sit beside one group on its own:
 
 =for html
 <p>
-<img width="651" height="491" alt="wide subplots" src="output.images/wide.png" />
+<img width="651" height="491" alt="wide subplots" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/wide.png" />
 <p>
 
 
@@ -6244,7 +6567,7 @@ them:
 
 =for html
 <p>
-<img width="651" height="491" alt="wide and violin" src="output.images/wide.and.violin.png" />
+<img width="651" height="491" alt="wide and violin" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/wide.and.violin.png" />
 <p>
 
 

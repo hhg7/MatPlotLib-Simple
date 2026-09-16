@@ -212,10 +212,13 @@ label with a comma or an apostrophe in it has to carry its own quotes:
 Without those quotes the generated Python is a syntax error rather than a
 mislabelled plot, so the mistake is loud.
 
-Use B<double> quotes when quoting text yourself.  C<suptitle> in particular is
-emitted twice — once for the subplot and once for the figure — and the second
-pass runs its own quoting rules over the text, which turns single-quoted text
-into C<plt.suptitle(''a, b'')>.  Double quotes survive both passes.
+Either kind of quote will do.  Up to 0.3131 a single plot wrote its figure-wide
+options twice — C<suptitle> came out once for the subplot and once for the
+figure — and the second pass ran its own quoting rules over text the first had
+already quoted, turning C<< suptitle =E<gt> "'a, b'" >> into C<plt.suptitle(''a, b'')>, a
+syntax error.  Double quotes were the documented way round it.  Each option is
+now written once, and text that already carries a quote of its own is left
+alone.
 
 Every other option is passed through as written, so text inside C<legend>, C<text>
 and friends is Python syntax throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
@@ -340,10 +343,15 @@ A few conventions hold across all of them:
 =over
 
 =item * Keys are used in B<sorted order> unless you say otherwise.  C<key.order> is
-accepted by C<bar>, C<barh>, C<boxplot>, C<violin>, C<hexbin>, C<hist2d>, C<plot> and
-C<venn_proportional_area>; C<scatter> spells the same idea C<keys>; and
-C<colored_table> uses C<row.labels>/C<col.labels>.  C<pie>, C<hist> and C<wide> take
-no ordering option at all, and C<imshow> has no keys to order.
+accepted by C<bar>, C<barh>, C<boxplot>, C<violin>, C<hexbin>, C<hist2d>, C<pie>,
+C<plot> and C<venn_proportional_area>; C<scatter> spells the same idea C<keys>;
+and C<colored_table> uses C<row.labels>/C<col.labels>.  C<hist> and C<wide> take no
+ordering option at all, and C<imshow> has no keys to order.
+
+=item * An ordering option naming a key that C<data> does not have is an error naming
+that key.  It used to reach the writer as an undefined value and die as C<Use
+of uninitialized value in join or string>, which named neither the key nor the
+option it came from.
 
 =item * C<title>, C<xlabel>, C<ylabel>, C<suptitle>, C<set_xlim>, C<legend> and the rest of
 Matplotlib's C<ax>/C<fig>/C<plt> methods are accepted by every plot type; see
@@ -468,7 +476,7 @@ gives asymmetric C<[ lower, upper ]> errors:
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>------- </td></tr>
-<tr><td>color</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed; as of version 0.23, colors can be given as a hash</td><td><code>color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],</code> or a single color for all bars <code>color => 'red'</code>, or as of version 0.23 <code>color => {A => 'red', B => 'green'}</code></td></tr>
+<tr><td>color</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed; as of version 0.23, colors can be given as a hash, whose keys are the bars of a simple hash or the *inner* keys (the series) of a hash of hashes.  A hash of arrays has no series names to key a color hash by, and says so rather than ignoring it</td><td><code>color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],</code> or a single color for all bars <code>color => 'red'</code>, or as of version 0.23 <code>color => {A => 'red', B => 'green'}</code></td></tr>
 <tr><td>edgecolor</td><td>:mpltype:<code>color</code> or list of :mpltype:<code>color</code>, optional; The colors of the bar edges</td><td><code>edgecolor     => 'black'</code></td></tr>
 <tr><td>key.order</td><td>define the keys in an order (an array reference)</td><td><code>'key.order'        => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],</code></td></tr>
 <tr><td>label</td><td>an array of legend labels for grouped bar plots, indexed like the data arrays; only meaningful for the hash-of-arrays form, since the hash-of-hashes form takes its labels from the inner keys</td><td><code>label => ['North', 'South'],</code></td></tr>
@@ -977,11 +985,12 @@ the same order.
 <tr><td><code>cblabel</code></td><td>the label on the colorbar</td><td><code>cblabel => 'kJ/mol'</code></td></tr>
 <tr><td><code>cmap</code></td><td>the colormap used for coloring the cells</td><td><code>cmap => 'viridis'</code></td></tr>
 <tr><td><code>col.labels</code></td><td>array ref: which keys to draw, in order — this selects the rows and the columns of the matrix, not just the heading text</td><td><code>'col.labels' => ['H', 'F', 'Cl', 'Br', 'I']</code></td></tr>
-<tr><td><code>colorbar.on</code></td><td>draw the colorbar; on by default, <code>0</code> turns it off.  Passing <code>cblabel</code> draws it regardless</td><td><code>'colorbar.on' => 0</code></td></tr>
+<tr><td><code>colorbar.on</code></td><td>draw the colorbar; on by default, <code>0</code> turns it off, <code>cblabel</code> or no <code>cblabel</code></td><td><code>'colorbar.on' => 0</code></td></tr>
 <tr><td><code>mirror</code></td><td>treat the table as symmetric: <code>$data{A}{B}</code> also fills <code>$data{B}{A}</code></td><td><code>mirror => 1</code></td></tr>
 <tr><td><code>row.labels</code></td><td>array ref of the labels printed down the left side; give it the same keys, in the same order, as <code>col.labels</code></td><td><code>'row.labels' => ['H', 'F', 'Cl', 'Br', 'I']</code></td></tr>
 <tr><td><code>show.numbers</code></td><td>print each cell's value in the cell; off by default</td><td><code>'show.numbers' => 1</code></td></tr>
 <tr><td><code>undef.color</code></td><td>the color for cells that have no value; gray by default</td><td><code>'undef.color' => 'white'</code></td></tr>
+<tr><td><code>default_undefined</code></td><td>the value a cell with no value takes, instead of being left empty.  It counts towards the color scale like any other value, so <code>undef.color</code> no longer applies to those cells</td><td><code>default_undefined => 0</code></td></tr>
 </tbody>
 </table>
 
@@ -1558,7 +1567,7 @@ the range for the density min and max is reported to stdout
 <tr><td>'density'</td><td>density : bool, default: False; normalise the counts so the plot shows a probability density instead of raw counts, which is what makes two plots of different-sized samples comparable</td><td><code>density => 'True'</code></td></tr>
 <tr><td>'key.order'</td><td>define the keys in an order (an array reference), i.e. which key is the x-axis</td><td><code>'key.order' => ['Y', 'X']</code></td></tr>
 <tr><td>'logscale'</td><td>an array of the axes that will get a log scale</td><td><code>logscale => ['x']</code></td></tr>
-<tr><td>'show.colorbar'</td><td>self-evident, 0 or 1; this, and not <code>colorbar.on</code>, is what suppresses a <code>hist2d</code> colorbar</td><td><code>show.colorbar</code> => 0</td></tr>
+<tr><td>'show.colorbar'</td><td>self-evident, 0 or 1; a synonym for <code>colorbar.on</code>, either of which suppresses the colorbar (before 0.3132 only this one did)</td><td><code>show.colorbar</code> => 0</td></tr>
 <tr><td>'vmax'</td><td>When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover</td><td></td></tr>
 <tr><td>'vmin'</td><td># When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover</td><td></td></tr>
 <tr><td>'xbins'</td><td># default 15</td><td></td></tr>
@@ -1944,9 +1953,10 @@ the total.  C<data> is the same simple hash that C<bar> takes, so the two are
 interchangeable — reach for C<pie> when the reader should see parts of a whole,
 and for C<bar> when they should compare the parts with each other.
 
-Wedges are laid out in sorted key order and that order cannot be overridden:
-C<key.order> is not among the options C<pie> accepts.  Nor is a legend added — the
-wedges carry their own labels — so C<show.legend> is not accepted either.
+Wedges are laid out in sorted key order unless C<key.order> says otherwise, and
+a C<key.order> that names only some of the keys draws only those wedges.  No
+legend is added — the wedges carry their own labels — so C<show.legend> is not
+among the options C<pie> accepts.
 
 =head3 options
 
@@ -1956,6 +1966,7 @@ wedges carry their own labels — so C<show.legend> is not accepted either.
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
 <tr><td><code>autopct</code></td><td>a Python format string for the share printed inside each wedge; omit it and no numbers are drawn</td><td><code>autopct => '%1.1f%%'</code></td></tr>
+<tr><td><code>key.order</code></td><td>array ref: the order the wedges are laid out in.  Naming only some of the keys draws only those wedges</td><td><code>'key.order' => ['Fri','Sat','Sun']</code></td></tr>
 <tr><td><code>labeldistance</code></td><td>where the key label sits, as a fraction of the radius: <code>0</code> is the centre, <code>1</code> the edge, above <code>1</code> outside the pie</td><td><code>labeldistance => 0.6</code></td></tr>
 <tr><td><code>pctdistance</code></td><td>the same scale, for the <code>autopct</code> text.  Swapping the two — labels in, percentages out — is a readable arrangement when the labels are long</td><td><code>pctdistance => 1.25</code></td></tr>
 </tbody>
@@ -2717,7 +2728,7 @@ which makes the image:
 
 =for html
 <p>
-<img alt="single venn" src="output.images/single.venn.png" />
+<img width="467" height="491" alt="single venn" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/single.venn.png" />
 <p>
 
 
@@ -2759,7 +2770,7 @@ which makes the following figure:
 
 =for html
 <p>
-<img alt="venn diagrams" src="output.images/venn.png" />
+<img width="651" height="409" alt="venn diagrams" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/venn.png" />
 <p>
 
 
@@ -2946,7 +2957,7 @@ which makes the image:
 
 =for html
 <p>
-<img width="651" height="491" alt="wide single" src="output.images/single.wide.png" />
+<img width="651" height="491" alt="wide single" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/single.wide.png" />
 <p>
 
 
@@ -3024,7 +3035,7 @@ labelled groups sit beside one group on its own:
 
 =for html
 <p>
-<img width="651" height="491" alt="wide subplots" src="output.images/wide.png" />
+<img width="651" height="491" alt="wide subplots" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/wide.png" />
 <p>
 
 
@@ -3059,7 +3070,7 @@ them:
 
 =for html
 <p>
-<img width="651" height="491" alt="wide and violin" src="output.images/wide.and.violin.png" />
+<img width="651" height="491" alt="wide and violin" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/wide.and.violin.png" />
 <p>
 
 

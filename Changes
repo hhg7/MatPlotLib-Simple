@@ -1,5 +1,85 @@
 Revision history for Matplotlib-Simple
 
+0.314 2026-09-16 CDT
+
+ [Text that is data is now escaped]
+
+ - A data key holding a double quote no longer writes a python syntax error. Keys, tick labels, table row and column headings and the members of a venn set were written into double-quoted python literals by hand, so `data => { 'say "hi"' => [1,2,3] }` emitted `ax0.set_xticks([1], ["say "hi" (3)"])` and the script would not parse. Every one of them goes through the same escaping the legend labels already used.
+
+ - A data key holding a backslash is no longer silently mangled. This was the worse half of the same bug, because the script still parsed: a key of `$\alpha$` -- mathtext, and the reason the escaping routine exists -- reached matplotlib as `$<BEL>lpha$`, since python reads the `\a` of a double-quoted literal as a bell character. The label drawn is now the label given.
+
+ - `imshow`'s `cblabel` is quoted like every other colorbar label. `cblabel => "Farmer's yield"` closed the literal early and left an unparseable script; `hist2d`, `hexbin`, `colored_table` and `scatter` had all quoted theirs for releases.
+
+ [Options that were accepted and then ignored]
+
+ - `'colorbar.on' => 0` now suppresses a `hexbin` or `hist2d` colorbar, which it never has: both read the option only when deciding where to attach a *shared* colorbar and drew their own regardless. A figure sharing one colorbar across subplots therefore drew the shared colorbar and each subplot's own, since `plt` turns the others off through this same option. `show.colorbar` is unchanged and remains a `hist2d` synonym.
+
+ - `colored_table`'s `'colorbar.on' => 0` is no longer overridden by passing `cblabel`, which used to draw the colorbar anyway -- documented rather than fixed, though nobody labels a colorbar they have just turned off.
+
+ - `colored_table`'s `default_undefined` replaces the cells that have no value, as its name says. The line that would have used it had been commented out, so the cells stayed `np.nan` whatever was passed. A cell given a value this way counts towards the color scale like any other, so `undef.color` no longer applies to it.
+
+ - `hist` accepts an array of bin edges per set, e.g. `bins => { A => [0,2,4,6,8] }`, which emitted `bins = ARRAY(0x55f0...)` and died as a `NameError` when python ran. The whole-plot `bins` has always taken an array.
+
+ - `bar`/`barh` colors given as a hash now color a hash-of-hashes grouped plot, keyed by the inner keys that name the series. Given for that shape the hash was dropped without a word. A hash of arrays has no series names to key it by and says so.
+
+ - `twinx` given the wrong shape for its data -- an array of indices against a hash of sets, or a hash against an array of lines -- is an error rather than a silent no-op that drew no second axis.
+
+ [Data that cannot be drawn is refused, naming what is wrong]
+
+ - A non-numeric `bar`, `barh` or `pie` value dies naming the key. It used to be written into the script as a bare python name: `data => { A => 'abc' }` emitted `vals = [abc,2]`, and the caller read a `NameError` about a temporary file. `hist`, `boxplot`, `plot` and `hist2d` have always checked.
+
+ - A grouped `bar`/`barh` whose keys hold different numbers of values dies naming the keys and their lengths, rather than handing matplotlib a series with more bar positions than bars.
+
+ - An ordering option -- `key.order`, `scatter`'s `keys`, `colored_table`'s `col.labels` -- that names a key `data` does not have dies naming the key and the option. Every one of them used to reach the writer as an undefined value and die as `Use of uninitialized value in join or string`.
+
+ - `logscale` is checked properly. The test only ever looked at one character, so `logscale => ['xy']` emitted `ax0.set_xyscale("log")` and `logscale => ['']` emitted `ax0.set_scale("log")`, neither of which matplotlib has; a scalar `logscale => 'y'` died inside perl as `Can't use string ("y") as an ARRAY ref`. All three now say what is wrong, in one place, for the seven plot types that take the option. `scatter` had no check at all.
+
+ - A `violin` group left with nothing in it after the undefined and non-numeric values are dropped dies naming the group, instead of `Use of uninitialized value in division` from the line that averages it.
+
+ - `imshow` with no data, and `colored_table` with no numeric cell, are refused. Their color range stayed at the strings it starts from and emitted `vmin = inf` and `plt.Normalize(inf, -inf)`, a `NameError` in python that says nothing about the data.
+
+ - `'shared.colorbar' => []`, and entries in it that are not subplot indices, are refused rather than dying as `Use of uninitialized value $max_subplot_idx in numeric gt`.
+
+ [Bug fixes]
+
+ - A single plot no longer emits its figure-wide and pyplot-wide options twice. Both the per-plot pass and the figure pass walked the same hash, so `suptitle` was written twice and the second pass ran its own quoting rules over text the first had already quoted: the documented workaround was to use double quotes, since `suptitle => "'a, b'"` came out as `plt.suptitle(''a, b'')`. Text that already carries a quote of its own is now left alone, so both forms work, and options such as `xscale => 'log'` -- which the first pass emitted unquoted, as `plt.xscale(log)` -- are written once and correctly.
+
+ - `imshow` draws a `stringmap` of one category, and of more than ten. One category divided by zero while placing the colorbar ticks (`Illegal division by zero`); an eleventh ran off the end of the ten-color property cycle and died as `Use of uninitialized value in join or string`. Past ten categories the colors come from a colormap resampled to the number of categories. Two categories used to put both ticks in the same place; each tick now sits in the middle of its own band.
+
+ - A `colored_table` with a `title` draws one instead of dying. It wrote `ax0.title('..')` of its own, on top of the `ax0.set_title('..')` that `plt` writes for every plot type, and `title` is a `Text` attribute of the axes rather than a method: the script died with `TypeError: 'Text' object is not callable`.
+
+ - `boxplot` and `violin` no longer edit the caller's data. Both drop the undefined (and, for `violin`, non-numeric) elements before plotting and wrote the shortened list back into the array that was passed in, so an array handed to `violin` came back shorter than it was written.
+
+ [Documentation]
+
+ - `pie` is documented as accepting `key.order`, which it has always read: the documentation said the wedge order "cannot be overridden" and that the option was not accepted.
+
+ - The quoting section no longer advises double quotes as a way round the duplicate `suptitle`, which is fixed; the `hist2d` options no longer say `show.colorbar` is the only thing that suppresses its colorbar; `colored_table` documents `default_undefined`; and `bar`'s `color` says which keys a color hash is keyed by.
+
+ [Testing]
+
+ - `t/06.escaping.and.validation.t` covers the above: a data key holding a double quote at every plot type that writes one, a mathtext key, an apostrophe in `imshow`'s `cblabel`, one, two and eleven `stringmap` categories, every refusal listed here, and that `boxplot` and `violin` leave the caller's arrays as they found them. Like `t/05.generated.python.t` it parses what it generates with python's own parser, and skips only that part when python3 is absent.
+
+ - Its `dies_with` matches the exception's message, not the whole exception, for the reason `t/03.coverage.t`'s `dies_like` has carried since 0.312 and `t/04.options.t` was fixed for in 0.313: `Devel::Confess` prints every frame's arguments, one of which is the pattern being matched, so an assertion of that shape matches the pattern against a copy of itself and passes whatever the code does. Its first draft did exactly that, and ten of its assertions could not fail.
+
+ - Every fix in this release was checked by reverting it in turn and confirming that the suite fails -- 30 reversions, 30 failures. That is what found the `dies_with` above: seven of the ten assertions it was meant to protect passed with the code they test taken out.
+
+ - The three `TODO` cases that had come true -- `pie`'s `key.order`, `violinplot`'s `medians` and `edgecolor` -- are ordinary assertions again, and the two that this release fixes (`default_undefined`, `hexbin`'s `colorbar.on`) are no longer marked `TODO`. The `suptitle` pair in `t/05.generated.python.t` is now asserted rather than expected to fail.
+
+ [Windows]
+
+ - `t/01.all.tests.t` no longer writes to a hardcoded `/tmp`. Around fifty `'output.file' => '/tmp/x.svg'` paths and a `File::Temp->new(DIR => '/tmp')` were generated into it by `md2pod.pl`, which is the one thing CLAUDE.md forbids outright -- it is what took 0.312 down on the Strawberry perl smokers. It never showed up in a report because this file skips without python3 and matplotlib, which a Windows smoker rarely has, but it would have failed on any Windows box that had both. The figures are written through `outfile()`, which is `File::Spec->catfile(File::Spec->tmpdir, ...)`; on unix that is still `/tmp`, so they land where they always did.
+
+ - `md2pod.pl` generates those paths rather than copying them, so it is what was fixed: it rewrites both of the spellings `mpl.examples.pl` uses -- `output.images/x.png` for the figures the documentation shows and `/tmp/x.svg` for the ones it does not -- into `outfile('x.svg')`, and writes the `@output_files` list as basenames mapped through the same sub. `mpl.examples.pl`'s own `File::Temp` call, which is copied into the test verbatim, now takes `File::Spec->tmpdir`.
+
+ [Dead code]
+
+ - `colored_table` no longer carries a `logscale` loop: `logscale` is not among the options it accepts, so the loop could never run, and both sets of ticks are emptied a few lines later anyway. The `xlim => 'set_xlim'` rename in `plt` is gone for the same reason -- no keyword list accepts `xlim`, and the documentation uses its refusal as a worked example.
+
+ [Documentation]
+
+ - The three figures in the `wide` section and the two in `venn_proportional_area` now appear on metacpan.org. Their `<img src>` was the repository-relative `output.images/wide.png`, which GitHub resolves against the repository but metacpan resolves against the POD's own URL: `https://metacpan.org/pod/output.images/wide.png` is a 404, so all five came out as empty grey boxes. They are now absolute `https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/` URLs, like every other figure in the documentation, and the two venn images carry the `width` and `height` they had always been missing.
+
 0.313 2026-09-15 CDT
 
  [A "plot.type" that isn't defined]

@@ -95,6 +95,16 @@ diag($venn_available ? '  matplotlib_venn: found'
 # On unix this still resolves to /tmp, so the files land where they always did.
 my $tmpdir = File::Spec->tmpdir;
 
+# Where every figure in this file is written. The block below is generated from
+# mpl.examples.pl by md2pod.pl, which rewrites that script's two spellings of an
+# output file -- "output.images/x.png" and "/tmp/x.svg" -- into outfile('x.svg'),
+# and rewrites the @output_files list at the end of the file to match. Before
+# that the generated block carried ~50 hardcoded /tmp paths, which is the one
+# thing CLAUDE.md forbids outright: they cannot work on Windows, and they were
+# invisible on the smokers only because this file skips without python and
+# matplotlib, which a Windows smoker rarely has.
+sub outfile { return File::Spec->catfile( $tmpdir, $_[0] ) }
+
 sub is_valid_svg { # mostly written by Gemini
 	my ($filepath) = @_;
 	my $expected_namespace = 'http://www.w3.org/2000/svg';
@@ -296,9 +306,12 @@ my $x = generate_normal_dist( 100, 15, 3 * 10 );
 my $y = generate_normal_dist( 85,  15, 3 * 10 );
 my $z = generate_normal_dist( 106, 15, 3 * 10 );
 my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
-my $fh = File::Temp->new( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
+# File::Spec->tmpdir, not a literal "/tmp": this line is copied verbatim into
+# t/01.all.tests.t, where a hardcoded /tmp is what took 0.312 down on Windows
+# (File::Temp dies with "Parent directory (\tmp\) does not exist" there).
+my $fh = File::Temp->new( DIR => File::Spec->tmpdir, SUFFIX => '.py', UNLINK => 0 );
 plt({
-	'output.file' => '/tmp/add.single.svg',
+	'output.file' => outfile('add.single.svg'),
 	'plot.type'       => 'plot',
 	data              => {
 		'sin(2x)'       => [
@@ -358,7 +371,7 @@ plt({
 		    [ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
 		]
 	},
-	'output.file' => '/tmp/single.wide.svg',
+	'output.file' => outfile('single.wide.svg'),
 	'plot.type'       => 'wide',
 	color             => {
 		Clinical => 'blue',
@@ -377,7 +390,7 @@ plt({
 		[ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ],
 		[ [@xw], [ map { $_ + rand_between( -0.5, 0.5 ) } @y ] ]
 	],
-	'output.file' => '/tmp/single.array.svg',
+	'output.file' => outfile('single.array.svg'),
 	'plot.type'       => 'wide',
 	color             => 'red',
 	title             => 'Visualization of similar lines plotted together',
@@ -400,13 +413,13 @@ plt({
 			title       => 'Visualization of similar lines plotted together'
 		}
 	],
-	'output.file' => '/tmp/wide.subplots.svg',
+	'output.file' => outfile('wide.subplots.svg'),
 	suptitle          => 'SubPlots',
 	fh => $fh,
 	execute           => 0,
 });
 pie({
-	'output.file' => '/tmp/single.pie.svg',
+	'output.file' => outfile('single.pie.svg'),
 	data              => {                                 # simple hash
 		Fri => 76,
 		Mon => 73,
@@ -421,7 +434,7 @@ pie({
 	execute      => 0,
 });
 plt({
-	'output.file' => '/tmp/pie.svg',
+	'output.file' => outfile('pie.svg'),
 	plots             => [
 		{
 		    data => {
@@ -483,7 +496,7 @@ plt({
 
 # single plots are simple
 plt({
-        'output.file' => '/tmp/single.boxplot.svg',
+        'output.file' => outfile('single.boxplot.svg'),
         data              => {                                     # simple hash
             E => [ 55,    @{$x}, 160 ],
             B => [ @{$y}, 140 ],
@@ -497,7 +510,7 @@ plt({
         execute      => 0,
 });
 plt({
-	'output.file' => '/tmp/boxplot.svg',
+	'output.file' => outfile('boxplot.svg'),
 	execute           => 0,
 	fh => $fh,
 	plots             => [
@@ -618,7 +631,7 @@ plt({
    set_figwidth => 12
 });
 plt({
-	'output.file' => '/tmp/single.violinplot.svg',
+	'output.file' => outfile('single.violinplot.svg'),
 	data              => {                                     # simple hash
 		A => [ 55, @{$z} ],
 		E => [ @{$y} ],
@@ -636,7 +649,7 @@ my @a = generate_normal_dist( 105, 15, 3 * 200 );
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/violin.svg',
+	'output.file' => outfile('violin.svg'),
 	plots             => [
 		{
 		    data => {
@@ -712,7 +725,7 @@ plt({
 	},
 	execute      => 0,
 	fh           => $fh,
-	'output.file' => '/tmp/single.barplot.svg',
+	'output.file' => outfile('single.barplot.svg'),
 	'plot.type'  => 'bar',
 	title        => 'Customer Calls by Days',
 	xlabel       => '# of Days',
@@ -725,13 +738,13 @@ plt({
 	},
 	execute           => 0,
 	fh => $fh,
-	'output.file' => '/tmp/single.hexbin.svg',
+	'output.file' => outfile('single.hexbin.svg'),
 	'plot.type'       => 'hexbin',
 	set_figwidth      => 12,
 	title             => 'Simple Hexbin',
 });
 plt({
-	'output.file' => '/tmp/single.hist2d.svg',
+	'output.file' => outfile('single.hist2d.svg'),
 	data              => {
 		E => @e,
 		B => @b
@@ -744,7 +757,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/hexbin.svg',
+	'output.file' => outfile('hexbin.svg'),
 	plots             => [
 		{
 			data => {
@@ -912,7 +925,7 @@ my ($min, $max) = (-9,9);
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/plots.svg',
+	'output.file' => outfile('plots.svg'),
 	plots         => [
 	{ # sin
 		data          => {
@@ -1027,7 +1040,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/plot.single.svg',
+	'output.file' => outfile('plot.single.svg'),
 	data              => {
 		'sin(x)' => [
 			[@x],                     # x
@@ -1051,7 +1064,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/plot.single.arr.svg',
+	'output.file' => outfile('plot.single.arr.svg'),
 	data              => [
 		[
 			[@x],                     # x
@@ -1075,7 +1088,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/barplots.svg',
+	'output.file' => outfile('barplots.svg'),
 	plots             => [
 		{    # simple plot
 			data => {    # simple hash
@@ -1259,7 +1272,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/single.hist.svg',
+	'output.file' => outfile('single.hist.svg'),
 	data              => {
 		E => @e,
 		B => @b,
@@ -1270,7 +1283,7 @@ plt({
 plt({
 	fh => $fh,
 	execute           => 0,
-	'output.file' => '/tmp/histogram.svg',
+	'output.file' => outfile('histogram.svg'),
    set_figwidth => 15,
    suptitle          => 'hist Examples',
 	plots             => [
@@ -1379,11 +1392,11 @@ scatter({
 		Y => [map {sin($_)} @x]
 	},
 	execute       => 0,
-	'output.file' => '/tmp/single.scatter.svg',
+	'output.file' => outfile('single.scatter.svg'),
 });
 plt({
 	fh                => $fh,
-	'output.file'     => '/tmp/scatterplots.svg',
+	'output.file'     => outfile('scatterplots.svg'),
 	execute           => 0,
 	nrows             => 2,
 	ncols             => 3,
@@ -1453,7 +1466,7 @@ imshow(
 	data          => \@imshow_data,
 	execute       => 0,
    fh            => $fh,
-	'output.file' => '/tmp/imshow.single.svg',
+	'output.file' => outfile('imshow.single.svg'),
 	set_xlim      => '0, ' . scalar @imshow_data,
 	set_ylim      => '0, ' . scalar @imshow_data,
 );
@@ -1513,7 +1526,7 @@ plt({
 	],
 	execute         => 0,
    fh              => $fh,
-	'output.file'   => '/tmp/imshow.multiple.svg',
+	'output.file'   => outfile('imshow.multiple.svg'),
 	ncols           => 2,
 	nrows           => 2,
 	set_figheight   => 6*3,# 4.8
@@ -1560,7 +1573,7 @@ colored_table({
 	execute       => 0,
 	fh            => $fh,
 	mirror        => 1,
-	'output.file' => '/tmp/single.tab.svg',
+	'output.file' => outfile('single.tab.svg'),
 	'row.labels'  => ['H', 'F', 'Cl', 'Br', 'I'],
 	'show.numbers'=> 1,
 	set_title     => 'Bond Dissociation Energy'
@@ -1568,7 +1581,7 @@ colored_table({
 plt({
 	execute       => 0,
 	fh            => $fh,
-	'output.file' => '/tmp/single.bonds.svg',
+	'output.file' => outfile('single.bonds.svg'),
 	plots         => [
 		{
 			data          => \%bond_dissociation,
@@ -1612,7 +1625,7 @@ plt({
 	execute       => 0,
 	fh            => $fh,
 	hlines        => "1,$x[0],$x[-1], linestyles = 'dashed'",
-	'output.file' => '/tmp/hlines.svg',
+	'output.file' => outfile('hlines.svg'),
 	set_xlim      => "$x[0],$x[-1]",
 	'show.legend' => 0
 });
@@ -1635,7 +1648,7 @@ plt({
 		'S' => 'bend',
 		' ' => 'Loops and irregular elements'
 	},
-	'output.file' => '/tmp/dssp.single.svg',
+	'output.file' => outfile('dssp.single.svg'),
 	scalex        => 2.4,
 	set_ylim      => '0, 1',
 	title         => 'Dictionary of Secondary Structure in Proteins (DSSP)',
@@ -1691,7 +1704,7 @@ plt({
 	execute           => 0,
 	fh                => $fh,
 	nrows             => 2,
-	'output.file'     => '/tmp/dssp.multiple.svg',
+	'output.file'     => outfile('dssp.multiple.svg'),
 	scalex            => 2.4,
 	'shared.colorbar' => [0,1], # plots 0 and 1 share a colorbar
 	suptitle          => 'Dictionary of Secondary Structure in Proteins (DSSP)',
@@ -1719,7 +1732,7 @@ for (my $pad = 0.01; $pad <= 0.09; $pad += 0.03) {
 plt(
 	execute       => 0,
 	fh            => $fh,
-	'output.file' => '/tmp/hist2d.pads.svg',
+	'output.file' => outfile('hist2d.pads.svg'),
 	plots         => \@plots,
 	ncols         => 2,
 	nrows         => 2,
@@ -1743,7 +1756,7 @@ plt(
 			[map {exp($_)} @t]
 		]
 	],
-	'output.file' => '/tmp/twinx.arr.svg',
+	'output.file' => outfile('twinx.arr.svg'),
 	'plot.type'   => 'plot',
 	'set.options' => [
 		'color = "blue"', # plot 0
@@ -1771,7 +1784,7 @@ plt(
 			[map {exp($_)} @t]
 		]
 	},
-	'output.file' => '/tmp/twinx.hash.svg',
+	'output.file' => outfile('twinx.hash.svg'),
 	'plot.type'   => 'plot',
 	'set.options' => {
 		'sin' => 'color = "blue"',
@@ -1810,7 +1823,7 @@ plt({
 		},
 	],
 	ncols         => 2,
-	'output.file' => '/tmp/key.colors.bar.svg',
+	'output.file' => outfile('key.colors.bar.svg'),
 });
 bar({
 	execute => 0,
@@ -1818,7 +1831,7 @@ bar({
 	data => {
 		A => 1, B => 2,
 	},
-	'output.file' => '/tmp/bar.sub.svg'
+	'output.file' => outfile('bar.sub.svg')
 });
 bar({
 	execute => 0,
@@ -1826,7 +1839,7 @@ bar({
 	data => {
 		C => 3, D => 4
 	},
-	'output.file' => '/tmp/bar.sub.self.svg'
+	'output.file' => outfile('bar.sub.self.svg')
 });
 barh({
 	execute => 0,
@@ -1834,7 +1847,7 @@ barh({
 	data => {
 		A => 1, B => 2,
 	},
-	'output.file' => '/tmp/barh.sub.svg'
+	'output.file' => outfile('barh.sub.svg')
 });
 boxplot({
 	execute => 0,
@@ -1842,7 +1855,7 @@ boxplot({
 	data => {
 		A => [0..9]
 	},
-	'output.file' => '/tmp/boxplot.sub.svg'
+	'output.file' => outfile('boxplot.sub.svg')
 });
 hexbin({
 	execute => 0,
@@ -1851,7 +1864,7 @@ hexbin({
 		A => [0..9],
 		B => [0..9]
 	},
-	'output.file' => '/tmp/hexbin.sub.svg'
+	'output.file' => outfile('hexbin.sub.svg')
 });
 hist({
 	execute => 0,
@@ -1859,7 +1872,7 @@ hist({
 	data => {
 		A => [0..9]
 	},
-	'output.file' => '/tmp/hist.sub.svg'
+	'output.file' => outfile('hist.sub.svg')
 });
 hist2d({
 	execute => 0,
@@ -1868,7 +1881,7 @@ hist2d({
 		A => [0..9],
 		B => [0..9]
 	},
-	'output.file' => '/tmp/hist2d.sub.svg'
+	'output.file' => outfile('hist2d.sub.svg')
 });
 plot({
 	execute => 0,
@@ -1879,10 +1892,10 @@ plot({
 			[2,3]
 		]
 	],
-	'output.file' => '/tmp/plot.sub.svg'
+	'output.file' => outfile('plot.sub.svg')
 });
 bar({
-	'output.file' => '/tmp/newline_fail.svg',
+	'output.file' => outfile('newline_fail.svg'),
 	execute       => 0,
 	fh            => $fh,
 	data          => {
@@ -1898,7 +1911,7 @@ plt({
 	execute       => 0,
 	fh            => $fh,
 	logscale      => ['x'],
-	'output.file' => '/tmp/hist2d.logscale.svg',
+	'output.file' => outfile('hist2d.logscale.svg'),
 	'plot.type'   => 'hist2d',
 });
 scatter(
@@ -1916,7 +1929,7 @@ scatter(
 	],
 	execute       => 0,
 	fh            => $fh,
-	'output.file' => '/tmp/scatter.logscale.svg',
+	'output.file' => outfile('scatter.logscale.svg'),
 	data        => {
 		A => [1..9],
 		B => [1..9]
@@ -1927,7 +1940,7 @@ hist({
 	execute       => 0,
 	fh            => $fh,
 	data          => [0..9],
-	'output.file' => '/tmp/hist.arr.svg',
+	'output.file' => outfile('hist.arr.svg'),
 });
 plt({
 	execute => 0,
@@ -1947,7 +1960,7 @@ plt({
 			data        => [0..3]
 		},
 	],
-	'output.file' => '/tmp/simple.arr.not.hash.svg'
+	'output.file' => outfile('simple.arr.not.hash.svg')
 });
 plt({
 	data => {
@@ -1989,7 +2002,7 @@ plt({
 	execute     => 0,
 	'plot.type' => 'scatter',
 	color_key   => 'MSE',
-	'output.file' => '/tmp/scatter.multiset.colorkey.svg'
+	'output.file' => outfile('scatter.multiset.colorkey.svg')
 });
 plt(
 	p => [
@@ -2014,7 +2027,7 @@ plt(
 	],
 	execute       => 0,
 	fh            => $fh,
-	'output.file' => '/tmp/p.arg.svg'
+	'output.file' => outfile('p.arg.svg')
 );
 plt({
 	fh                => $fh,
@@ -2111,10 +2124,10 @@ plt({
 			xbins           => 9
 		},
 	],
-	'output.file' => '/tmp/hist2d.svg',
+	'output.file' => outfile('hist2d.svg'),
 });
 # σὺ δὲ τῇ πίστει ἕστηκας. μὴ ὑψηλὰ φρόνει, ἀλλὰ φοβοῦ
-my @output_files = ('/tmp/add.single.svg', '/tmp/single.wide.svg', '/tmp/single.array.svg', '/tmp/wide.subplots.svg', '/tmp/single.pie.svg', '/tmp/pie.svg', '/tmp/single.boxplot.svg', '/tmp/boxplot.svg', '/tmp/single.violinplot.svg', '/tmp/violin.svg', '/tmp/single.barplot.svg', '/tmp/single.hexbin.svg', '/tmp/single.hist2d.svg', '/tmp/hexbin.svg', '/tmp/plots.svg', '/tmp/plot.single.svg', '/tmp/plot.single.arr.svg', '/tmp/barplots.svg', '/tmp/single.hist.svg', '/tmp/histogram.svg', '/tmp/single.scatter.svg', '/tmp/scatterplots.svg', '/tmp/imshow.single.svg', '/tmp/imshow.multiple.svg', '/tmp/single.tab.svg', '/tmp/single.bonds.svg', '/tmp/hlines.svg', '/tmp/dssp.single.svg', '/tmp/dssp.multiple.svg', '/tmp/hist2d.pads.svg', '/tmp/twinx.arr.svg', '/tmp/twinx.hash.svg', '/tmp/key.colors.bar.svg', '/tmp/bar.sub.svg', '/tmp/bar.sub.self.svg', '/tmp/barh.sub.svg', '/tmp/boxplot.sub.svg', '/tmp/hexbin.sub.svg', '/tmp/hist.sub.svg', '/tmp/hist2d.sub.svg', '/tmp/plot.sub.svg', '/tmp/newline_fail.svg', '/tmp/hist2d.logscale.svg', '/tmp/scatter.logscale.svg', '/tmp/hist.arr.svg', '/tmp/simple.arr.not.hash.svg', '/tmp/scatter.multiset.colorkey.svg', '/tmp/p.arg.svg', '/tmp/hist2d.svg');
+my @output_files = map { outfile($_) } ('add.single.svg', 'single.wide.svg', 'single.array.svg', 'wide.subplots.svg', 'single.pie.svg', 'pie.svg', 'single.boxplot.svg', 'boxplot.svg', 'single.violinplot.svg', 'violin.svg', 'single.barplot.svg', 'single.hexbin.svg', 'single.hist2d.svg', 'hexbin.svg', 'plots.svg', 'plot.single.svg', 'plot.single.arr.svg', 'barplots.svg', 'single.hist.svg', 'histogram.svg', 'single.scatter.svg', 'scatterplots.svg', 'imshow.single.svg', 'imshow.multiple.svg', 'single.tab.svg', 'single.bonds.svg', 'hlines.svg', 'dssp.single.svg', 'dssp.multiple.svg', 'hist2d.pads.svg', 'twinx.arr.svg', 'twinx.hash.svg', 'key.colors.bar.svg', 'bar.sub.svg', 'bar.sub.self.svg', 'barh.sub.svg', 'boxplot.sub.svg', 'hexbin.sub.svg', 'hist.sub.svg', 'hist2d.sub.svg', 'plot.sub.svg', 'newline_fail.svg', 'hist2d.logscale.svg', 'scatter.logscale.svg', 'hist.arr.svg', 'simple.arr.not.hash.svg', 'scatter.multiset.colorkey.svg', 'p.arg.svg', 'hist2d.svg');
 #my %file2SHA;
 #open my $tsv, '<', $sha_sum_filename;
 #while (<$tsv>) {

@@ -187,9 +187,8 @@ my %OPTIONS = (
 		{ opt => 'logscale',    val => ['y'],   want => qr/set_yscale\("log"\)/ },
 		{ opt => 'orientation', val => 'horizontal', want => qr/orientation = 'horizontal'/ },
 		{ opt => 'whiskers',    val => 0,       want_not => qr/\.vlines\(/ },
-		# read by violin_helper, but absent from its accepted-option list
-		{ opt => 'medians',     val => 0, todo => 'medians is read but not an accepted option' },
-		{ opt => 'edgecolor',   val => 'red', todo => 'edgecolor is read but not an accepted option' },
+		{ opt => 'medians',     val => 0 },
+		{ opt => 'edgecolor',   val => 'red' },
 	],
 	colored_table => [
 		{ opt => 'cb_logscale',  val => 1,      want => qr/LogNorm/ },
@@ -202,10 +201,10 @@ my %OPTIONS = (
 		{ opt => 'mirror',       val => 1 },
 		{ opt => 'row.labels',   val => [qw(H C)] },
 		{ opt => 'show.numbers', val => 1,      want => qr/cellText/ },
-		{ opt => 'undef.color',  val => 'white', want => qr/set_bad\("white"\)/ },
-		# defaulted, but the line that consumed it is commented out
-		{ opt => 'default_undefined', val => 0, want_not => qr/np\.nan/,
-		  todo_effect => 'default_undefined never replaces the missing cells' },
+		{ opt => 'undef.color',  val => 'white', want => qr/set_bad\('white'\)/ },
+		# a cell with no value gets this instead of np.nan, so the colormap's
+		# set_bad (and with it "undef.color") never sees it
+		{ opt => 'default_undefined', val => 0, want_not => qr/np\.nan/ },
 	],
 	hexbin => [
 		{ opt => 'cb_logscale',    val => 1,    want => qr/LogNorm/ },
@@ -220,8 +219,7 @@ my %OPTIONS = (
 		{ opt => 'ybins',          val => 9 },
 		{ opt => 'xscale.hexbin',  val => 'log', want => qr/xscale/ },
 		{ opt => 'yscale.hexbin',  val => 'log', want => qr/yscale/ },
-		{ opt => 'colorbar.on',    val => 0,    want_not => qr/colorbar/,
-		  todo_effect => 'hexbin draws its colorbar regardless of colorbar.on' },
+		{ opt => 'colorbar.on',    val => 0,    want_not => qr/colorbar/ },
 	],
 	hist => [
 		{ opt => 'alpha',       val => 0.25,   want => qr/alpha = 0\.25/ },
@@ -267,9 +265,7 @@ my %OPTIONS = (
 		{ opt => 'autopct',       val => '%1.1f%%', want => qr/autopct/ },
 		{ opt => 'labeldistance', val => 0.6,   want => qr/labeldistance/ },
 		{ opt => 'pctdistance',   val => 1.25,  want => qr/pctdistance/ },
-		# read by pie_helper, but absent from its accepted-option list
-		{ opt => 'key.order',     val => [qw(C B A)],
-		  todo => 'key.order is read but not an accepted option' },
+		{ opt => 'key.order',     val => [qw(C B A)] },
 	],
 	plot => [
 		{ opt => 'key.order',   val => [qw(B A)] },
@@ -293,7 +289,7 @@ my %OPTIONS = (
 	venn_proportional_area => [
 		{ opt => 'alpha',      val => 0.5,    want => qr/alpha=0\.5/ },
 		{ opt => 'key.order',  val => [qw(Right Left)] },
-		{ opt => 'set_colors', val => [qw(skyblue salmon)], want => qr/set_colors=\("skyblue","salmon"\)/ },
+		{ opt => 'set_colors', val => [qw(skyblue salmon)], want => qr/set_colors=\('skyblue','salmon'\)/ },
 	],
 	wide => [
 		{ opt => 'color',       val => { A => 'blue', B => 'green' }, want => qr/'blue'/ },

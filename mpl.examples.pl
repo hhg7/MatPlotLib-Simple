@@ -4,8 +4,15 @@ use strict;
 use warnings FATAL => 'all';
 use autodie ':all';
 use feature 'say';
+use File::Spec;
 use File::Temp 'tempfile';
 use Matplotlib::Simple;
+# Everything from here down is copied into t/01.all.tests.t by md2pod.pl, which
+# rewrites the two spellings of an output file -- "output.images/x.png", the
+# figures the documentation shows, and "/tmp/x.svg", the ones it does not -- into
+# outfile('x.svg'), a path under File::Spec->tmpdir.  Both spellings are what it
+# matches on, so keep writing them: a path built any other way here lands in the
+# test as a literal and stops being collected into @output_files there.
 # Λέγω οὖν, μὴ ἀπώσατο ὁ θεὸς
 sub linspace {    # mostly written by Grok
 	my ( $start, $stop, $num, $endpoint ) = @_;   # endpoint means include $stop
@@ -58,7 +65,10 @@ my $x = generate_normal_dist( 100, 15, 3 * 10 );
 my $y = generate_normal_dist( 85,  15, 3 * 10 );
 my $z = generate_normal_dist( 106, 15, 3 * 10 );
 my @x  = linspace( -2 * $pi, 2 * $pi, 100, 1 );
-my $fh = File::Temp->new( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
+# File::Spec->tmpdir, not a literal "/tmp": this line is copied verbatim into
+# t/01.all.tests.t, where a hardcoded /tmp is what took 0.312 down on Windows
+# (File::Temp dies with "Parent directory (\tmp\) does not exist" there).
+my $fh = File::Temp->new( DIR => File::Spec->tmpdir, SUFFIX => '.py', UNLINK => 0 );
 plt({
 	'output.file' => 'output.images/add.single.png',
 	'plot.type'       => 'plot',

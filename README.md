@@ -194,10 +194,13 @@ label with a comma or an apostrophe in it has to carry its own quotes:
 Without those quotes the generated Python is a syntax error rather than a
 mislabelled plot, so the mistake is loud.
 
-Use **double** quotes when quoting text yourself.  `suptitle` in particular is
-emitted twice — once for the subplot and once for the figure — and the second
-pass runs its own quoting rules over the text, which turns single-quoted text
-into `plt.suptitle(''a, b'')`.  Double quotes survive both passes.
+Either kind of quote will do.  Up to 0.3131 a single plot wrote its figure-wide
+options twice — `suptitle` came out once for the subplot and once for the
+figure — and the second pass ran its own quoting rules over text the first had
+already quoted, turning `suptitle => "'a, b'"` into `plt.suptitle(''a, b'')`, a
+syntax error.  Double quotes were the documented way round it.  Each option is
+now written once, and text that already carries a quote of its own is left
+alone.
 
 Every other option is passed through as written, so text inside `legend`, `text`
 and friends is Python syntax throughout: `legend => 'loc = "upper left"'`.
@@ -305,10 +308,14 @@ already have in Perl:
 A few conventions hold across all of them:
 
 - Keys are used in **sorted order** unless you say otherwise.  `key.order` is
-  accepted by `bar`, `barh`, `boxplot`, `violin`, `hexbin`, `hist2d`, `plot` and
-  `venn_proportional_area`; `scatter` spells the same idea `keys`; and
-  `colored_table` uses `row.labels`/`col.labels`.  `pie`, `hist` and `wide` take
-  no ordering option at all, and `imshow` has no keys to order.
+  accepted by `bar`, `barh`, `boxplot`, `violin`, `hexbin`, `hist2d`, `pie`,
+  `plot` and `venn_proportional_area`; `scatter` spells the same idea `keys`;
+  and `colored_table` uses `row.labels`/`col.labels`.  `hist` and `wide` take no
+  ordering option at all, and `imshow` has no keys to order.
+- An ordering option naming a key that `data` does not have is an error naming
+  that key.  It used to reach the writer as an undefined value and die as `Use
+  of uninitialized value in join or string`, which named neither the key nor the
+  option it came from.
 - `title`, `xlabel`, `ylabel`, `suptitle`, `set_xlim`, `legend` and the rest of
   Matplotlib's `ax`/`fig`/`plt` methods are accepted by every plot type; see
   [Options](#options).
@@ -426,7 +433,7 @@ gives asymmetric `[ lower, upper ]` errors:
 
 | Option | Description | Example |
 | -------- | ------- | ------- 
-|color| :mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed; as of version 0.23, colors can be given as a hash |`color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],` or a single color for all bars `color => 'red'`, or as of version 0.23 `color => {A => 'red', B => 'green'}`
+|color| :mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar faces. This is an alias for *facecolor*. If both are given, *facecolor* takes precedence # if entering multiple colors, quoting isn't needed; as of version 0.23, colors can be given as a hash, whose keys are the bars of a simple hash or the *inner* keys (the series) of a hash of hashes.  A hash of arrays has no series names to key a color hash by, and says so rather than ignoring it |`color => ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'fuchsia'],` or a single color for all bars `color => 'red'`, or as of version 0.23 `color => {A => 'red', B => 'green'}`
 |edgecolor| :mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar edges|`edgecolor		=> 'black'`
 |key.order|  define the keys in an order (an array reference)|`'key.order'		=> ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],`
 |label| an array of legend labels for grouped bar plots, indexed like the data arrays; only meaningful for the hash-of-arrays form, since the hash-of-hashes form takes its labels from the inner keys|`label => ['North', 'South'],`
@@ -900,11 +907,12 @@ the same order.
 |`cblabel`| the label on the colorbar | `cblabel => 'kJ/mol'` |
 |`cmap`| the colormap used for coloring the cells | `cmap => 'viridis'` |
 |`col.labels`| array ref: which keys to draw, in order — this selects the rows and the columns of the matrix, not just the heading text | `'col.labels' => ['H', 'F', 'Cl', 'Br', 'I']` |
-|`colorbar.on`| draw the colorbar; on by default, `0` turns it off.  Passing `cblabel` draws it regardless | `'colorbar.on' => 0` |
+|`colorbar.on`| draw the colorbar; on by default, `0` turns it off, `cblabel` or no `cblabel` | `'colorbar.on' => 0` |
 |`mirror`| treat the table as symmetric: `$data{A}{B}` also fills `$data{B}{A}` | `mirror => 1` |
 |`row.labels`| array ref of the labels printed down the left side; give it the same keys, in the same order, as `col.labels` | `'row.labels' => ['H', 'F', 'Cl', 'Br', 'I']` |
 |`show.numbers`| print each cell's value in the cell; off by default | `'show.numbers' => 1` |
 |`undef.color`| the color for cells that have no value; gray by default | `'undef.color' => 'white'` |
+|`default_undefined`| the value a cell with no value takes, instead of being left empty.  It counts towards the color scale like any other value, so `undef.color` no longer applies to those cells | `default_undefined => 0` |
 
 The colorbar options in [Color Bars](#color-bars-colorbars) — `cbdrawedges`,
 `cblocation`, `cborientation`, `cbpad` — work here too.
@@ -1428,7 +1436,7 @@ the range for the density min and max is reported to stdout
 |  'density'|  density : bool, default: False; normalise the counts so the plot shows a probability density instead of raw counts, which is what makes two plots of different-sized samples comparable|`density => 'True'`|
 |  'key.order'|  define the keys in an order (an array reference), i.e. which key is the x-axis|`'key.order' => ['Y', 'X']`|
 | 'logscale' |    an array of the axes that will get a log scale|`logscale => ['x']`|
-|'show.colorbar'| self-evident, 0 or 1; this, and not `colorbar.on`, is what suppresses a `hist2d` colorbar | `show.colorbar` => 0|
+|'show.colorbar'| self-evident, 0 or 1; a synonym for `colorbar.on`, either of which suppresses the colorbar (before 0.3132 only this one did) | `show.colorbar` => 0|
 |'vmax'| When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover |
 |'vmin' | # When using scalar data and no explicit *norm*, *vmin* and *vmax* define the data range that the colormap cover |
 |'xbins'| # default 15
@@ -1780,15 +1788,17 @@ the total.  `data` is the same simple hash that `bar` takes, so the two are
 interchangeable — reach for `pie` when the reader should see parts of a whole,
 and for `bar` when they should compare the parts with each other.
 
-Wedges are laid out in sorted key order and that order cannot be overridden:
-`key.order` is not among the options `pie` accepts.  Nor is a legend added — the
-wedges carry their own labels — so `show.legend` is not accepted either.
+Wedges are laid out in sorted key order unless `key.order` says otherwise, and
+a `key.order` that names only some of the keys draws only those wedges.  No
+legend is added — the wedges carry their own labels — so `show.legend` is not
+among the options `pie` accepts.
 
 ### options
 
 | Option | Description | Example |
 | -------- | ------- | ------- |
 |`autopct`| a Python format string for the share printed inside each wedge; omit it and no numbers are drawn | `autopct => '%1.1f%%'` |
+|`key.order`| array ref: the order the wedges are laid out in.  Naming only some of the keys draws only those wedges | `'key.order' => ['Fri','Sat','Sun']` |
 |`labeldistance`| where the key label sits, as a fraction of the radius: `0` is the centre, `1` the edge, above `1` outside the pie | `labeldistance => 0.6` |
 |`pctdistance`| the same scale, for the `autopct` text.  Swapping the two — labels in, percentages out — is a readable arrangement when the labels are long | `pctdistance => 1.25` |
 
@@ -2492,7 +2502,7 @@ called directly:
 
 which makes the image:
 
-<img alt="single venn" src="output.images/single.venn.png" />
+<img width="467" height="491" alt="single venn" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/single.venn.png" />
 
 ### multiple plots
 
@@ -2529,7 +2539,7 @@ diagram:
 
 which makes the following figure:
 
-<img alt="venn diagrams" src="output.images/venn.png" />
+<img width="651" height="409" alt="venn diagrams" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/venn.png" />
 
 ## violin
 
@@ -2696,7 +2706,7 @@ pair [`plot`](#plot) uses:
 
 which makes the image:
 
-<img width="651" height="491" alt="wide single" src="output.images/single.wide.png" />
+<img width="651" height="491" alt="wide single" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/single.wide.png" />
 
 **2. One unlabelled group (array).** Drop the enclosing hash and pass one group's
 array of runs directly; `color` is then a single color rather than a hash:
@@ -2764,7 +2774,7 @@ labelled groups sit beside one group on its own:
     	],
     );
 
-<img width="651" height="491" alt="wide subplots" src="output.images/wide.png" />
+<img width="651" height="491" alt="wide subplots" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/wide.png" />
 
 Because a `wide` panel collapses many lines into one summary, it also composes
 well with a plot type that shows the same data another way.  Here the runs are
@@ -2794,7 +2804,7 @@ them:
     	],
     );
 
-<img width="651" height="491" alt="wide and violin" src="output.images/wide.and.violin.png" />
+<img width="651" height="491" alt="wide and violin" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/wide.and.violin.png" />
 
 The three images above are written by `wide.example.pl` in the git repository
 (it is not shipped in the CPAN distribution); re-run it from the repository root

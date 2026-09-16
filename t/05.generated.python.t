@@ -177,24 +177,22 @@ foreach my $opt (qw(title xlabel ylabel set_title)) {
 		"$opt: single-quoted text with a comma parses" );
 }
 
-# ... but not for suptitle, which is emitted twice: once by the per-subplot pass
-# (correctly, passing the text through) and again by the figure-level pass, which
-# runs its own quoting heuristic over it and adds a second pair of quotes:
+# ... and for suptitle, which used to be emitted twice: once by the per-subplot
+# pass (correctly, passing the text through) and again by the figure-level pass,
+# which ran its own quoting heuristic over it and added a second pair of quotes:
 #
 #     plt.suptitle('a, b')     <- the subplot pass
 #     plt.suptitle(''a, b'')   <- the figure pass, and a SyntaxError
 #
-# Double quotes survive both passes, which is why the documented advice is to use
-# double quotes; the duplicate emission itself is the underlying bug.
-{
-	local $TODO = 'suptitle is emitted twice and the second pass re-quotes it';
-	parses_ok( gen( 'plot.type' => 'bar', data => { A => 1 }, suptitle => "'a, b'" ),
-		'suptitle: single-quoted text with a comma parses' );
+# A single plot now hands the figure-wide and pyplot-wide options to one pass
+# only, and that pass leaves text that already carries a quote alone.
+foreach my $quoted ( "'a, b'", '"a, b"' ) {
+	parses_ok( gen( 'plot.type' => 'bar', data => { A => 1 }, suptitle => $quoted ),
+		"suptitle: text with a comma quoted as $quoted parses" );
 }
 {
 	my $py = slurp( gen( 'plot.type' => 'bar', data => { A => 1 }, suptitle => 'plain' ) );
 	my $n = () = $py =~ /plt\.suptitle\(/g;
-	local $TODO = 'the subplot pass and the figure pass both emit suptitle';
 	is( $n, 1, 'suptitle is emitted exactly once' );
 }
 
