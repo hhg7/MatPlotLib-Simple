@@ -3,23 +3,22 @@ abstract: 'Access Matplotlib from Perl; providing consistent user interface betw
 author:
   - 'David E. Condon <dec986@gmail.com>'
 build_requires:
-  ExtUtils::MakeMaker: '0'
   Test::Exception: '0'
   Test::More: '0'
   autodie: '0'
 configure_requires:
   ExtUtils::MakeMaker: '6.58'
 dynamic_config: 0
-generated_by: 'ExtUtils::MakeMaker version 7.78, CPAN::Meta::Converter version 2.150013'
+generated_by: 'Dist::Zilla version 6.037, CPAN::Meta::Converter version 2.150013'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: '1.4'
 name: Matplotlib-Simple
-no_index:
-  directory:
-    - t
-    - inc
+provides:
+  Matplotlib::Simple:
+    file: lib/Matplotlib/Simple.pm
+    version: '0.314'
 requires:
   Capture::Tiny: '0'
   Data::Printer: '0'
@@ -29,5 +28,11 @@ requires:
   MIME::Base64: '0'
   Scalar::Util: '1.22'
   perl: '5.010'
+resources:
+  bugtracker: https://github.com/hhg7/MatPlotLib-Simple/issues
+  homepage: https://metacpan.org/dist/Matplotlib-Simple
+  repository: git://github.com/hhg7/MatPlotLib-Simple
 version: '0.314'
-x_serialization_backend: 'CPAN::Meta::YAML version 0.020'
+x_generated_by_perl: v5.44.0
+x_serialization_backend: 'YAML::Tiny version 1.76'
+x_spdx_expression: 'Artistic-1.0-Perl OR GPL-1.0-or-later'
