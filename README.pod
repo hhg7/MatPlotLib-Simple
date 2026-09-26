@@ -7,7 +7,7 @@ Matplotlib::Simple - Access Matplotlib from Perl; providing consistent user inte
 =head1 Synopsis
 
 Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in C</tmp>, to be edited at the user's discretion.
-Depends on python3 and matplotlib.
+Depends on Python 3 and matplotlib.  The script is run with C<python3>; on Windows, where a standard install has no C<python3>, it is run with the first of C<python>, C<py -3> and C<python3> that reports itself as Python 3 (as of version 0.315 -- before that, the module could not run its script on Windows at all).  Pass C<< execute =E<gt> 0 >> to write the script without running it.
 
 My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib itself.
 
@@ -2981,16 +2981,17 @@ another does not.
 <tbody>
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
-<tr><td><code>color</code></td><td>for hash data, a hash of one color per group; for array data, a single color.  Groups with no entry fall back to Matplotlib's <code>b</code> (blue), so a partial hash is allowed</td><td><code>color => { Clinical => 'blue', HGI => 'green' }</code></td></tr>
+<tr><td><code>color</code></td><td>for hash data, a hash of one color per group; for array data, a single color.  Groups with no entry take the next color of Matplotlib's default cycle (<code>C0</code>, <code>C1</code>, ...), in the sorted order of the group names, so a partial hash is allowed; before version 0.315 they were all <code>b</code> (blue)</td><td><code>color => { Clinical => 'blue', HGI => 'green' }</code></td></tr>
 <tr><td><code>show.legend</code></td><td>on by default, and only the hash form has labels to show; <code>0</code> suppresses it</td><td><code>'show.legend' => 0</code></td></tr>
 </tbody>
 </table>
 
 C<wide> accepts the usual axes options — C<title>, C<xlabel>, C<ylabel>, C<set_xlim>
 and the rest — but B<not> C<logscale> or C<key.order>.  For a log axis use
-Matplotlib's own C<< set_yscale =E<gt> '"log"' >>.  Since there is no C<key.order>, the
-groups are drawn in Perl's hash order, which is arbitrary and differs between
-runs: give each group an explicit C<color> if you need the same picture twice.
+Matplotlib's own C<< set_yscale =E<gt> '"log"' >>.  There is no C<key.order>: as of
+version 0.315 the groups are drawn, and listed in the legend, in the sorted
+order of their names, so the same data draws the same picture every time.
+Before that they were drawn in Perl's hash order, which differs between runs.
 
 =head3 single, simple plot
 
