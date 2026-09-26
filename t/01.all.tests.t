@@ -8,6 +8,12 @@ use feature 'say';
 use File::Spec;
 use File::Temp 'tempfile';
 use Matplotlib::Simple;
+# The interpreter the module itself runs: "python3", or on MSWin32 the first of
+# python, py -3 and python3 that is Python 3. Asking the module, rather than
+# naming python3 here, is what lets a Windows smoker that has Python test the
+# module with it instead of skipping; the list is empty when there is none.
+my @PY = Matplotlib::Simple::python_command();
+my $PY = join ' ', @PY;
 use Test::Exception; # die_ok
 use Test::More;
 #use Digest::SHA 'sha512_base64';
@@ -20,7 +26,7 @@ sub file2string {
 	open my $fh, '<', $file;
 	return do { local $/; <$fh> };
 }
-my $python_version_raw = qx/python3 --version 2>&1/;
+my $python_version_raw = ( scalar @PY ? qx/$PY --version 2>&1/ : '' );
 my $python_version = '';
 my $python_available = 0;
 
@@ -33,13 +39,13 @@ if ($? == 0 && $python_version_raw =~ m/Python\s+3\.\d+/i) {
 
 unless ($python_available) {
     # plan skip_all is the core module way to gracefully skip the entire file
-    plan skip_all => 'SKIP: python3 command not found in PATH or is not Python 3. Matplotlib::Simple requires Python 3.';
+    plan skip_all => 'SKIP: no Python 3 interpreter found (python3, or on MSWin32 python, py -3 or python3). Matplotlib::Simple requires Python 3.';
 }
 
 # --- Dependency Check 2: Matplotlib ---
 
 # Command to import matplotlib and print its version.
-my $mpl_command = 'python3 -c "import matplotlib; print(matplotlib.__version__)" 2>&1';
+my $mpl_command = "$PY -c \"import matplotlib; print(matplotlib.__version__)\" 2>&1";
 my ($mpl_major, $mpl_minor, $mpl_patch);
 my $mpl_version_raw = qx/$mpl_command/;
 my $mpl_available = 0;
@@ -76,7 +82,7 @@ if (($mpl_major == 3) && ($mpl_minor < 10)) {
 # --- Optional Dependency: matplotlib_venn (only needed by venn_proportional_area) ---
 # This is NOT a hard dependency of the module, so the whole file is not skipped when
 # it is missing; only the venn_proportional_area test below is skipped.
-my $venn_command = 'python3 -c "import matplotlib_venn" 2>&1';
+my $venn_command = "$PY -c \"import matplotlib_venn\" 2>&1";
 qx/$venn_command/;
 my $venn_available = ($? == 0) ? 1 : 0;
 

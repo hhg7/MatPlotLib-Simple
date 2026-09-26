@@ -5,7 +5,7 @@ Matplotlib::Simple - Access Matplotlib from Perl; providing consistent user inte
 # Synopsis
 
 Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in `/tmp`, to be edited at the user's discretion.
-Depends on python3 and matplotlib.
+Depends on Python 3 and matplotlib.  The script is run with `python3`; on Windows, where a standard install has no `python3`, it is run with the first of `python`, `py -3` and `python3` that reports itself as Python 3 (as of version 0.315 -- before that, the module could not run its script on Windows at all).  Pass `execute => 0` to write the script without running it.
 
 My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib itself.
 

@@ -54,20 +54,34 @@ a missing dependency must produce a SKIP, never a FAIL. Everything that does
 not need Python (`execute => 0`, the option contract, the string escaping)
 must still run there, because that is the part Windows actually breaks.
 
-### Known Windows gaps
+**Ask the module which Python to run; never name `python3` in a test.** Every
+gate uses `my @PY = Matplotlib::Simple::python_command()`, which is what `plt`
+itself runs, so a Windows smoker that *does* have Python tests the module with
+it rather than skipping. Run it in the list form, `system(@PY, ...)`, and keep
+double quotes out of the arguments: Perl on Win32 builds the command line for
+list-form `system` by wrapping arguments with spaces in double quotes, and does
+not escape double quotes already inside them. That is why the parser checks
+spell `encoding='utf-8'` with single quotes.
 
-It is latent: it cannot fail on a smoker with no Python, so it has never shown
-up in a report. Fix it if you touch the surrounding code, and do not add
-anything that depends on its current shape.
+### Which Python the module runs
 
-- The module runs `python3`, which does not exist in a stock Windows Python
-  install — it is `python`, or the `py` launcher. On Windows the module is
-  currently untested and non-functional whenever Python *is* present.
+`python_command()` decides. Everywhere but MSWin32 it is `python3`, unsearched,
+as it has always been. On MSWin32, where a stock install has no `python3`, it
+is the first of `python`, `py -3` and `python3` whose `--version` says
+Python 3; `--version` is checked rather than trusting that the name resolves,
+because Windows 10 and 11 install a Microsoft Store stub as `python.exe` that
+prints "Python was not found" and exits 9009. The answer is cached in the
+package variable `$Matplotlib::Simple::python_command` (undef = not yet looked
+for, `[]` = none found), which `t/08.python.interpreter.t` sets to drive the
+search with stand-in interpreters under `local $^O = 'MSWin32'`. Until 0.315
+the module ran `python3` unconditionally, so on Windows it could not run its
+script wherever Python *was* installed; that never showed up in a report
+because the smokers have no Python.
 
-The other gap listed here — `system('python3 ' . $fh->filename)` in the
-one-argument form, which goes through the shell and splits on whitespace, so a
-temp path containing a space broke it — was closed in 0.313. The call is now
-`system('python3', $fh->filename)`. Do not write the one-argument form back.
+An older gap, closed in 0.313: `system('python3 ' . $fh->filename)` in the
+one-argument form went through the shell and split on whitespace, so a temp
+path containing a space broke it. The call is now
+`system(@python, $fh->filename)`. Do not write the one-argument form back.
 
 ## The module does not use `autodie`
 
@@ -84,7 +98,7 @@ them, and both now check their own result:
 
 - `binmode($fh, ':encoding(UTF-8)') or die ...`, keeping autodie's own wording,
   `Can't binmode($fh, ':encoding(UTF-8)'): <$!>`.
-- `system('python3', $fh->filename)`, whose return value is sorted into the
+- `system(@python, $fh->filename)`, whose return value is sorted into the
   same three cases autodie distinguished — failed to start, died to a signal,
   non-zero exit.
 
@@ -168,6 +182,8 @@ problem, not an installer's.
   and data that must be refused by name rather than reaching Python.
 - `t/07.review.fixes.t` — one block per fix of 0.315, including that `plt`
   leaves the caller's hashes and data exactly as it was given them.
+- `t/08.python.interpreter.t` — which Python `plt` runs on MSWin32 and
+  elsewhere, and that it passes the script path whole.
 - `t/utf8.mojibake.t` — labels arriving as raw utf8 bytes rather than wide
   characters.
 - `Matplotlib-Simple-0.3*/` and the matching `.tar.gz` — snapshots of past
@@ -181,7 +197,7 @@ problem, not an installer's.
 
     prove -Ilib t/
 
-The full suite is 753 tests in about 55 seconds on a machine with python3 and
+The full suite is 765 tests in about 55 seconds on a machine with python3 and
 matplotlib. `perl Makefile.PL && make test` also works.
 
 ## Releasing

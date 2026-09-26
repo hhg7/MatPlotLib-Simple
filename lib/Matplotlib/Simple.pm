@@ -2968,6 +2968,46 @@ sub normalise_p {
 	}
 	return $args;
 }
+# The interpreters tried on MSWin32, in order. "python" first, because it is
+# what a stock install from python.org and an activated venv both put on PATH,
+# and the venv is the one that has matplotlib; "py -3", the launcher, next,
+# since an install can leave python off PATH but always installs the
+# launcher; "python3" last, for MSYS2 and the like. A stock Windows install has
+# no "python3" at all, which is why running it failed wherever Python *was*
+# present, and never showed up in a CPAN Testers report because the smokers
+# have none.
+my @windows_python_candidates = ( ['python'], [ 'py', '-3' ], ['python3'] );
+# The command plt runs, as a list for system(). undef = not yet looked for;
+# [] = looked for, and none found. A package variable rather than a lexical so
+# that the test suite can point it at a stand-in interpreter.
+our $python_command;
+sub python_command {
+	# The interpreter plt runs scripts with, as a list: ('python3') on
+	# everything but MSWin32, as it always was, and there the first of
+	# @windows_python_candidates that reports itself as Python 3, or an empty
+	# list if none does. The result is kept, so the search runs once.
+	#
+	# "--version" rather than trusting that the name resolves: on Windows 10
+	# and 11 "python" with no Python installed is a Microsoft Store stub,
+	# which prints "Python was not found" and exits 9009. Both streams are
+	# read, since Python 3 before 3.4 printed its version to STDERR.
+	return @{$python_command} if defined $python_command;
+	if ( $^O ne 'MSWin32' ) {
+		$python_command = ['python3'];
+		return @{$python_command};
+	}
+	foreach my $candidate (@windows_python_candidates) {
+		my ( $out, $err, $status ) = capture {
+			no warnings 'exec';    # a candidate that is not installed is expected; see the call in plt
+			system( @{$candidate}, '--version' );
+		};
+		next unless ( $status == 0 ) && ( "$out$err" =~ m/^Python 3\./m );
+		$python_command = [ @{$candidate} ];
+		return @{$python_command};
+	}
+	$python_command = [];
+	return ();
+}
 sub copy_plot_hashes {
 	# A copy of plt's arguments, deep enough that nothing plt does is seen by
 	# the caller.
@@ -3488,14 +3528,19 @@ sub plt {
 	$args->{execute} = $args->{execute} // 1;
 	say $fh 'plt.close()' if $args->{execute} == 0;
 	if ( $args->{execute} ) {
+		my @python = python_command();
+		if ( scalar @python == 0 ) {
+			die 'no Python 3 interpreter was found to run ' . $fh->filename
+			 . ': tried ' . join( ', ', map { '"' . join( ' ', @{$_} ) . '"' } @windows_python_candidates )
+			 . '. Install Python 3 and matplotlib, or pass "execute => 0" to write the script without running it';
+		}
 		my $errno;
 		my ($stdout, $stderr, $exit) = capture {
 			# The list form, not "python3 $file": the one-argument form goes
 			# through the shell and splits on whitespace, so a temp directory
 			# with a space in it -- %TEMP% on a Windows smoker sits under
 			# C:\Users\<name>, and a user name with a space is ordinary --
-			# would run python3 against a truncated path. CLAUDE.md lists
-			# this as a known Windows gap to close on touching the code.
+			# would run python against a truncated path.
 			# Departs from this file's "warnings FATAL => 'all'" on purpose,
 			# for this statement only: with exec warnings fatal, a missing
 			# interpreter dies right here as "Can't exec "python3"", system()
@@ -3503,7 +3548,7 @@ sub plt {
 			# two different ways. autodie raised all three as one kind of
 			# exception naming the command, which is what this restores.
 			no warnings 'exec';
-			my $status = system( 'python3', $fh->filename );
+			my $status = system( @python, $fh->filename );
 			# Read here, not after capture(): capture() does its own file
 			# operations on the way out and they overwrite $!, which was
 			# observed to leave "failed to start:" with nothing after it.
@@ -3528,7 +3573,7 @@ sub plt {
 			} else {
 				$why = 'unexpectedly returned exit value ' . ( $exit >> 8 );
 			}
-			die 'python3 ' . $fh->filename . " $why";
+			die join( ' ', @python, $fh->filename ) . " $why";
 		}
 		# What the script printed, which capture{} above took out of the
 		# terminal. The script reports things the caller has no other way to

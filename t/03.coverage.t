@@ -15,17 +15,23 @@ use File::Temp qw(tempfile tempdir);
 use File::Spec;
 use Capture::Tiny 'capture';
 use Matplotlib::Simple;
+# The interpreter the module itself runs: "python3", or on MSWin32 the first of
+# python, py -3 and python3 that is Python 3. Asking the module, rather than
+# naming python3 here, is what lets a Windows smoker that has Python test the
+# module with it instead of skipping; the list is empty when there is none.
+my @PY = Matplotlib::Simple::python_command();
+my $PY = join ' ', @PY;
 use Test::More;
 
 # ----------------------------------------------------------------------------
 # Dependency discovery.
 # ----------------------------------------------------------------------------
-my $python_version_raw = qx/python3 --version 2>&1/;
+my $python_version_raw = ( scalar @PY ? qx/$PY --version 2>&1/ : '' );
 my $python_available = ( $? == 0 && $python_version_raw =~ m/Python\s+3\.\d+/i ) ? 1 : 0;
 my $mpl_available = 0;
 my $mpl_version   = '';
 if ($python_available) {
-	my $raw = qx/python3 -c "import matplotlib; print(matplotlib.__version__)" 2>&1/;
+	my $raw = qx/$PY -c "import matplotlib; print(matplotlib.__version__)" 2>&1/;
 	if ( $? == 0 && $raw =~ m/^\s*(\d+)\.(\d+)\.\d+/ ) {
 		$mpl_available = ( $1 > 3 || ( $1 == 3 && $2 >= 10 ) ) ? 1 : 0;
 		( $mpl_version = $raw ) =~ s/^\s+|\s+$//g;
@@ -34,10 +40,10 @@ if ($python_available) {
 # matplotlib_venn is an optional dependency, needed only by venn_proportional_area
 my $venn_available = 0;
 if ($python_available) {
-	qx/python3 -c "import matplotlib_venn" 2>&1/;
+	qx/$PY -c "import matplotlib_venn" 2>&1/;
 	$venn_available = ( $? == 0 ) ? 1 : 0;
 }
-diag( $python_available ? "python3: $python_version_raw" : 'python3 not found' );
+diag( $python_available ? "$PY: $python_version_raw" : 'no Python 3 interpreter found' );
 diag( $mpl_available ? "matplotlib: $mpl_version (render layer ON)"
 	: 'matplotlib >= 3.10 not found (render layer SKIPPED)' );
 diag( $venn_available ? 'matplotlib_venn: found'
@@ -72,7 +78,7 @@ PY
 	my ( $tfh, $tname ) = tempfile( SUFFIX => '.py', UNLINK => 1 );
 	print {$tfh} $py;
 	close $tfh;
-	my $out = qx/python3 "$tname" "$file" 2>&1/;
+	my $out = qx/$PY "$tname" "$file" 2>&1/;
 	$out =~ s/\s+\z//;
 	return $out eq 'OK' ? '' : ( $out eq '' ? 'python validation produced no output' : $out );
 }
@@ -681,7 +687,7 @@ CHECK_PY
 		close $cfh;
 		my $pyfile = plt( 'plot.type' => 'wide', data => [@runs], color => 'red',
 			execute => 0, 'output.file' => outfile('wide.summary.svg') );
-		my $said = qx/python3 "$cname" "$pyfile" 2>&1/;
+		my $said = qx/$PY "$cname" "$pyfile" 2>&1/;
 		my ( $mean_err, $sd_max ) = $said =~ m/^([\d.e+-]+)\s+([\d.e+-]+)/;
 		$mean_err = defined $mean_err ? $mean_err : 'nan';
 		$sd_max   = defined $sd_max   ? $sd_max   : 'nan';

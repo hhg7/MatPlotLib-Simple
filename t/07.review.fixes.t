@@ -27,22 +27,28 @@ use File::Spec;
 use Capture::Tiny 'capture';
 use Storable 'dclone';
 use Matplotlib::Simple;
+# The interpreter the module itself runs: "python3", or on MSWin32 the first of
+# python, py -3 and python3 that is Python 3. Asking the module, rather than
+# naming python3 here, is what lets a Windows smoker that has Python test the
+# module with it instead of skipping; the list is empty when there is none.
+my @PY = Matplotlib::Simple::python_command();
+my $PY = join ' ', @PY;
 use Test::More;
 
 my $TMP = tempdir( CLEANUP => 1 );
 my $seq = 0;
 
-my $python_raw = qx/python3 --version 2>&1/;
+my $python_raw = ( scalar @PY ? qx/$PY --version 2>&1/ : '' );
 my $python_available = ( $? == 0 && $python_raw =~ m/Python\s+3\.\d+/i ) ? 1 : 0;
 my $mpl_available = 0;
 if ($python_available) {
-	qx/python3 -c "import matplotlib" 2>&1/;
+	qx/$PY -c "import matplotlib" 2>&1/;
 	$mpl_available = ( $? == 0 ) ? 1 : 0;
 }
-diag( $python_available ? 'python3 found (parser gate ON)' : 'no python3 (parser gate skipped)' );
+diag( $python_available ? "Python 3 found as \"$PY\" (parser gate ON)" : 'no Python 3 (parser gate skipped)' );
 diag( $mpl_available ? 'matplotlib found (render checks ON)' : 'no matplotlib (render checks skipped)' );
 
-my $PARSE = 'import ast, sys; ast.parse(open(sys.argv[1], encoding="utf-8").read())';
+my $PARSE = q{import ast, sys; ast.parse(open(sys.argv[1], encoding='utf-8').read())};
 
 sub out_file { return File::Spec->catfile( $TMP, 'gen' . $seq++ . '.svg' ) }
 
@@ -93,9 +99,9 @@ sub lives {
 sub parses_ok {
 	my ( $pyfile, $name ) = @_;
 	SKIP: {
-		skip( 'python3 not found', 1 ) unless $python_available;
+		skip( 'no Python 3 interpreter found', 1 ) unless $python_available;
 		my ( $out, $err, $status ) = capture {
-			system( 'python3', '-c', $PARSE, $pyfile );
+			system( @PY, '-c', $PARSE, $pyfile );
 		};
 		ok( $status == 0, $name ) or diag( '  ' . ( $err . $out ) );
 	}
@@ -111,7 +117,7 @@ sub run_py {
 	print {$o} slurp($pyfile), "\n", $tail, "\n";
 	close $o or die "can't close $script: $!";
 	local $ENV{MPLBACKEND} = 'Agg';
-	my ( $out, $err, $status ) = capture { system( 'python3', $script ) };
+	my ( $out, $err, $status ) = capture { system( @PY, $script ) };
 	diag("  python: $err") if $status != 0;
 	return $out;
 }

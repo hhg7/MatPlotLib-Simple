@@ -2,6 +2,14 @@ Revision history for Matplotlib-Simple
 
 0.315 2026-09-25 CDT
 
+ [Windows]
+
+ - On MSWin32 the module runs its script with the first of `python`, `py -3` and `python3` that reports itself as Python 3. It ran `python3`, which a standard Windows install from python.org does not have, so on Strawberry Perl every call that ran its script failed wherever Python *was* installed. It never reached a CPAN Testers report, because the Windows smokers have no Python and the tests that need it are skipped there. The version is checked rather than the name trusted, so the Microsoft Store stub that Windows 10 and 11 install as `python.exe` is passed over. Everywhere else the command is still `python3`. With no interpreter, `plt` dies naming the ones it tried; `execute => 0` still writes the script.
+
+ - A script that fails is reported under the command that actually ran it, not always as `python3`.
+
+ - The test suite asks the module which Python to use instead of naming `python3`, so a Windows smoker that does have Python now tests the module with it rather than skipping. The parser checks no longer pass double quotes on the command line, which Perl on Win32 does not escape. `t/08.python.interpreter.t` drives the Windows search on unix, with stand-in interpreters on a private `PATH`.
+
  [Figures that were drawn wrong]
 
  - `violin` whiskers are computed from sorted data. The whisker code, taken from matplotlib's own violin example, reads the smallest and largest values as the first and last of each group; matplotlib's example sorts its data first and this module did not, so any group not already in ascending order got the wrong whiskers. For `[10, 9, ..., 1, 100]` the lower whisker was clipped to the first quartile and not drawn at all.

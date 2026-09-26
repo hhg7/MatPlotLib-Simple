@@ -28,6 +28,12 @@ use File::Temp 'tempdir';
 use File::Spec;
 use Capture::Tiny 'capture';
 use Matplotlib::Simple;
+# The interpreter the module itself runs: "python3", or on MSWin32 the first of
+# python, py -3 and python3 that is Python 3. Asking the module, rather than
+# naming python3 here, is what lets a Windows smoker that has Python test the
+# module with it instead of skipping; the list is empty when there is none.
+my @PY = Matplotlib::Simple::python_command();
+my $PY = join ' ', @PY;
 use Test::More;
 
 our $TODO;
@@ -35,13 +41,13 @@ our $TODO;
 # ----------------------------------------------------------------------------
 # python3 discovery.  Without it there is nothing here to check.
 # ----------------------------------------------------------------------------
-my $python_raw = qx/python3 --version 2>&1/;
+my $python_raw = ( scalar @PY ? qx/$PY --version 2>&1/ : '' );
 my $python_available = ( $? == 0 && $python_raw =~ m/Python\s+3\.\d+/i ) ? 1 : 0;
 if ($python_available) {
 	( my $v = $python_raw ) =~ s/^\s+|\s+$//g;
 	diag("$v (parser gate ON)");
 } else {
-	plan skip_all => 'python3 not found, so generated python cannot be parsed';
+	plan skip_all => 'no Python 3 interpreter found, so generated python cannot be parsed';
 }
 
 # ----------------------------------------------------------------------------
@@ -52,7 +58,7 @@ my $seq = 0;
 
 # Ask python to parse the file and say nothing if it is happy.  ast.parse is
 # used rather than py_compile so that no __pycache__ is left behind.
-my $PARSE = 'import ast, sys; ast.parse(open(sys.argv[1], encoding="utf-8").read())';
+my $PARSE = q{import ast, sys; ast.parse(open(sys.argv[1], encoding='utf-8').read())};
 
 sub slurp {
 	my ($path) = @_;
@@ -66,7 +72,7 @@ sub slurp {
 sub parses_ok {
 	my ( $pyfile, $name ) = @_;
 	my ( $out, $err, $status ) = capture {
-		system( 'python3', '-c', $PARSE, $pyfile );
+		system( @PY, '-c', $PARSE, $pyfile );
 	};
 	my $ok = ( $status == 0 ) ? 1 : 0;
 	if ( !ok( $ok, $name ) && !defined $TODO ) {
