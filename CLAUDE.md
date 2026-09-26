@@ -164,6 +164,10 @@ problem, not an installer's.
   reaches the generated Python, and is refused by the types that do not list it.
 - `t/05.generated.python.t` — parses every generated script with Python's own
   parser. Needs python3 but not matplotlib.
+- `t/06.escaping.and.validation.t` — data keys as text that must be escaped,
+  and data that must be refused by name rather than reaching Python.
+- `t/07.review.fixes.t` — one block per fix of 0.315, including that `plt`
+  leaves the caller's hashes and data exactly as it was given them.
 - `t/utf8.mojibake.t` — labels arriving as raw utf8 bytes rather than wide
   characters.
 - `Matplotlib-Simple-0.3*/` and the matching `.tar.gz` — snapshots of past
@@ -177,7 +181,7 @@ problem, not an installer's.
 
     prove -Ilib t/
 
-The full suite is 562 tests in about 40 seconds on a machine with python3 and
+The full suite is 753 tests in about 55 seconds on a machine with python3 and
 matplotlib. `perl Makefile.PL && make test` also works.
 
 ## Releasing

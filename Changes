@@ -1,5 +1,55 @@
 Revision history for Matplotlib-Simple
 
+0.315 2026-09-25 CDT
+
+ [Figures that were drawn wrong]
+
+ - `violin` whiskers are computed from sorted data. The whisker code, taken from matplotlib's own violin example, reads the smallest and largest values as the first and last of each group; matplotlib's example sorts its data first and this module did not, so any group not already in ascending order got the wrong whiskers. For `[10, 9, ..., 1, 100]` the lower whisker was clipped to the first quartile and not drawn at all.
+
+ - `violin` shapes are smooth again for small groups. `violinplot`'s `points` -- how many points the density curve is evaluated at -- was set to the size of the smallest group, so a group of 5 values drew every violin in the figure as a 5-sided polygon. It is now left at matplotlib's default of 100.
+
+ - `colored_table` with `cb_logscale` colors its cells on a log scale. Only the colorbar was logarithmic: the cells were colored through a linear scale whatever the option said, so a table of 1, 10, 100 and 1000 drew three of its four cells in nearly the same color beside a colorbar that said otherwise. Cells and colorbar now share one scale. A log scale starts at the smallest cell above 0, as it did when matplotlib chose it, and a `cb_min` of 0 or below is refused, since a log scale cannot start there.
+
+ - `hist` takes any matplotlib color. Only a plain name such as `red` was quoted, so `color => { A => '#ff0000' }` wrote `color = #ff0000` and python read the rest of the line as a comment -- a syntax error -- while `tab:blue` and a grayscale `'0.5'` went in as python rather than as colors.
+
+ - `hist` draws a single `color` for every set, as documented. Only the hash of one color per set was ever read, so `color => 'red'` was accepted and the bars stayed blue. An array of colors is refused with a pointer to the hash form, since `hist` has no order of sets for an array to follow.
+
+ - A backslash in a title or label reaches matplotlib as written. Text passed as `title`, `xlabel`, `ylabel`, `suptitle` and the rest was put into a python string without escaping, so the mathtext `'$\alpha$'` arrived with a bell character in it and `'C:\new'` with a newline. Text that already carries quotes of its own is still passed through untouched.
+
+ - The `suptitle` of a figure of several subplots is quoted like a single plot's. `suptitle => 'Two groups: mean.'` wrote `plt.suptitle(Two groups: mean.)`, a syntax error, and non-ASCII text given as raw bytes was not decoded.
+
+ - `wide` draws its groups in the sorted order of their names, so the legend no longer changes order from one run to the next, and groups with no `color` of their own take successive colors of matplotlib's default cycle (`C0`, `C1`, ...). They were all `b` (pure blue), so the groups could not be told apart without a `color` hash. This changes the picture for anyone relying on that default.
+
+ [plt no longer changes what it is given]
+
+ - Calling `plt({ ... })` twice with the same hash draws the same figure twice. `plt` wrote into the hash it was given: `add` was deleted once drawn, `title` renamed `set_title`, and subplots told whether to draw a colorbar, so the second figure silently lost its overlays. The wrapper functions (`bar`, `plot`, ...) already copied the top level; now every call copies the top level, each subplot and each `add` graph.
+
+ - `imshow` no longer replaces the strings in the caller's own rows with integers, and a string that `stringmap` does not name is refused rather than drawn as a blank cell.
+
+ - `bar`/`barh` no longer write 0 into the holes of the caller's grouped data, and no longer overwrite a `label` array given with a hash of hashes. A `p` subplot given as an array no longer appends its overlays to the base plot's own `add` array.
+
+ [Data that cannot be drawn is refused, naming what is wrong]
+
+ - `plot` with hash data refuses a value that is not a number, as the array form always has. `data => { A => [[1,2],['a',3]] }` wrote `y = [a,3]` and died as a `NameError` in the temporary file.
+
+ - A `colored_table` cell that is not a number (`'NA'`, say) is refused, naming the cell, instead of being written as `d.append([1,NA])`. A cell with no value is still drawn in `undef.color`.
+
+ - `scatter` refuses non-numeric values in any axis, including the color axis, which was not checked at all; only undefined x and y values were refused before.
+
+ - `hexbin` checks its data, which it never had: an undefined or non-numeric point dies naming the key and the indices. A non-numeric `vmin`, `vmax` or `mincnt` is refused.
+
+ [Bug fixes]
+
+ - A multi-set `scatter` may mix sets with and without a color axis. The color key of one set was kept for every set after it, so a set of only `x` and `y` following one with `z` died as `"z" isn't defined for set "B"`.
+
+ - `hexbin` with `cb_logscale` accepts `vmin` and `vmax`, which now go to the log scale itself. Passed beside it they made matplotlib raise `Passing a Normalize instance simultaneously with vmin/vmax is not supported`; `hist2d` has handled this since at least 0.3.
+
+ - The diagnostics printed before `hexbin`, `hist2d` and multi-set `scatter` die, and the usage examples printed when `plt` is called without enough to draw, go to STDERR instead of STDOUT, with every other diagnostic.
+
+ [Testing]
+
+ - `t/07.review.fixes.t` covers each fix above: the generated python is read as text everywhere, parsed where python3 is present, and where matplotlib is present the violin whiskers, the colored_table norm and the hexbin bounds are read back from the running script. `Storable`, which it uses to check that the caller's data is left alone, is declared as a test prerequisite; it is core.
+
 0.314 2026-09-16 CDT
 
  [Text that is data is now escaped]

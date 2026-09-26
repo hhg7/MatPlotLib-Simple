@@ -2725,14 +2725,15 @@ another does not.
 
 | Option | Description | Example |
 | -------- | ------- | ------- |
-|`color`| for hash data, a hash of one color per group; for array data, a single color.  Groups with no entry fall back to Matplotlib's `b` (blue), so a partial hash is allowed | `color => { Clinical => 'blue', HGI => 'green' }` |
+|`color`| for hash data, a hash of one color per group; for array data, a single color.  Groups with no entry take the next color of Matplotlib's default cycle (`C0`, `C1`, ...), in the sorted order of the group names, so a partial hash is allowed; before version 0.315 they were all `b` (blue) | `color => { Clinical => 'blue', HGI => 'green' }` |
 |`show.legend`| on by default, and only the hash form has labels to show; `0` suppresses it | `'show.legend' => 0` |
 
 `wide` accepts the usual axes options — `title`, `xlabel`, `ylabel`, `set_xlim`
 and the rest — but **not** `logscale` or `key.order`.  For a log axis use
-Matplotlib's own `set_yscale => '"log"'`.  Since there is no `key.order`, the
-groups are drawn in Perl's hash order, which is arbitrary and differs between
-runs: give each group an explicit `color` if you need the same picture twice.
+Matplotlib's own `set_yscale => '"log"'`.  There is no `key.order`: as of
+version 0.315 the groups are drawn, and listed in the legend, in the sorted
+order of their names, so the same data draws the same picture every time.
+Before that they were drawn in Perl's hash order, which differs between runs.
 
 ### single, simple plot
 

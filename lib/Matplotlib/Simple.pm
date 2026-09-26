@@ -5,7 +5,7 @@ use warnings FATAL => 'all';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.314;
+our $VERSION = 0.315;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Cwd 'getcwd';
@@ -635,6 +635,24 @@ sub write_data {
 	# Decode b64 -> bytes -> utf8 string -> json load -> python object
 	say {$args->{fh}} "$args->{name} = json.loads(base64.b64decode($args->{name}_b64).decode('utf-8'))";
 }
+# The methods whose argument is usually bare text, which quote_text quotes.
+my @text_methods = ( 'set_title', 'set_xlabel', 'set_ylabel', 'suptitle', 'xlabel', 'ylabel', 'title' );
+sub quote_text {
+	# A title or axis label as python: quoted, unless it is already python.
+	#
+	# Text holding a quote or a comma is left as the caller wrote it, since
+	# either can be python of their own -- "'Counts, by book'" or
+	# "'title', fontsize = 20" -- and the documentation asks for text with a
+	# comma to be quoted by the caller.
+	my ($text) = @_;
+	# Raw utf8 bytes are decoded first, or each byte of a Greek title is
+	# written through the file's UTF-8 layer as a character of its own.
+	$text = Encode::decode_utf8($text) if !Encode::is_utf8($text);
+	# py_str, not "'$text'": a backslash went through unescaped, so a
+	# mathtext '$\alpha$' reached matplotlib with a bell character in it.
+	return py_str($text) if $text =~ m/^([^\"\',]+)$/;
+	return $text;
+}
 sub plot_args {    # this is a helper function to other matplotlib subroutines
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
@@ -665,23 +683,12 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 		});
 	}
 	$args->{ax} = $args->{ax} // 'ax';
-	foreach my $item (
-		grep { defined $args->{args}{$_} } ( # no quotes!
-			'set_title', 'set_xlabel', 'set_ylabel', 'suptitle',
-			'xlabel',    'ylabel',     'title'
-		)
-		)
-		{
-		
-		# --- FIX: Upgrade raw bytes to UTF-8 characters before formatting ---
-		if ( !Encode::is_utf8( $args->{args}{$item} ) ) {
-			$args->{args}{$item} = Encode::decode_utf8( $args->{args}{$item} );
-		}
-		# --------------------------------------------------------------------
-
-		if ( $args->{args}{$item} =~ m/^([^\"\',]+)$/ ) {
-			$args->{args}{$item} = "'$args->{args}{$item}'";
-		}
+	# A copy, because the quoting below writes back into it: the hash can be
+	# the caller's own ("twinx.args" hands one in untouched), and a second plot
+	# drawn from it found its titles already wrapped in quotes.
+	$args->{args} = { %{ $args->{args} } };
+	foreach my $item ( grep { defined $args->{args}{$_} } @text_methods ) {
+		$args->{args}{$item} = quote_text( $args->{args}{$item} );
 	}
 	# Whether the "fig." and "plt." methods in this hash are written here as
 	# well as the "ax." ones. 1 (the default) is what a subplot needs, since
@@ -804,7 +811,9 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 			}
 			$plot->{color} = [ @{ $plot->{color} }{@key2} ];
 		}
-		@{ $plot->{label} } = @key2;
+		# A new array rather than "@{ $plot->{label} } = ...", which wrote the
+		# series names into an array the caller may have passed as "label".
+		$plot->{label} = [@key2];
 		$plot->{data} = \%new_structure;
 	} else {
 	  p %ref_counts;
@@ -935,8 +944,9 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 		my @val;
 		foreach my $k (@key_order) {
 			foreach my $i ( 0 .. scalar @{ $plot->{data}{$k} } - 1 ) {
-				$plot->{data}{$k}[$i] = $plot->{data}{$k}[$i] // 0; # must match in both sets
-				push @{ $val[$i] }, $plot->{data}{$k}[$i];
+				# 0 for a missing value, so that every series has a bar at
+				# every key. Not written back: the array is the caller's.
+				push @{ $val[$i] }, $plot->{data}{$k}[$i] // 0;
 			}
 		}
 		my $barwidth = $plot->{width} // 0.8;
@@ -1177,6 +1187,7 @@ sub colored_table_helper {
 		@rows = @cols; # the matrix "d" is built with one row per entry of @cols
 	}
 	my ($min, $max) = ('inf', '-inf');
+	my $min_positive = 'inf';    # the floor of a log scale, which cannot start at 0 or below
 	my $n_numeric = 0;    # cells that hold a number, for the check below
 	say {$args->{fh}} 'd = []';
 	say {$args->{fh}} 'import numpy as np';
@@ -1194,6 +1205,19 @@ sub colored_table_helper {
 		}
 		$undefined = $plot->{default_undefined};
 	}
+	# A cell that holds something other than a number is written into the
+	# script as it stands, so "NA" became "d.append([1,NA])" and died as a
+	# NameError. Checked before anything is written.
+	my @non_numeric;
+	foreach my $k1 (@cols) {
+		foreach my $k2 (grep { (defined $data{$k1}{$_}) && (not looks_like_number($data{$k1}{$_})) } @cols) {
+			push @non_numeric, "$k1/$k2 = \"$data{$k1}{$k2}\"";
+		}
+	}
+	if (scalar @non_numeric > 0) {
+		p @non_numeric;
+		die "the above cells are not numbers, which $current_sub needs; leave a cell out, or undefined, to draw it in \"undef.color\"";
+	}
 	foreach my $k1 (@cols) {
 		foreach my $k2 (grep {!defined $data{$k1}{$_}} @cols) {
 			$data{$k1}{$k2} = $undefined;
@@ -1201,6 +1225,7 @@ sub colored_table_helper {
 		foreach my $k2 (grep {looks_like_number($data{$k1}{$_})} @cols) {
 			$min = min($min, $data{$k1}{$k2});
 			$max = max($max, $data{$k1}{$k2});
+			$min_positive = min($min_positive, $data{$k1}{$k2}) if $data{$k1}{$k2} > 0;
 			$n_numeric++;
 		}
 		say {$args->{fh}} 'd.append([' . join (',', @{ $data{$k1} }{@cols}) . '])';
@@ -1212,35 +1237,45 @@ sub colored_table_helper {
 		p $plot->{data};
 		die "no cell of the above data holds a number, so $current_sub has nothing to color by";
 	}
-	$min = $plot->{cb_min} // $min;
-	$max = $plot->{cb_max} // $max;
-	$plot->{cmap} = $plot->{cmap} // 'gist_rainbow';
-	$plot->{cb_logscale} = $plot->{cb_logscale} // 0;
-	my $ax = $args->{ax} // '';
-	say {$args->{fh}} 'from matplotlib import colors' if $plot->{cb_logscale} > 0;
-	$plot->{'undef.color'} = $plot->{'undef.color'} // 'gray';
-	say {$args->{fh}} 'import matplotlib';
-	say {$args->{fh}} 'table_cmap = matplotlib.colormaps[' . py_str($plot->{cmap}) . '].copy()';
-	say {$args->{fh}} 'table_cmap.set_bad(' . py_str($plot->{'undef.color'}) . ')';
-	say {$args->{fh}} "norm = plt.Normalize($min, $max)";
-	say {$args->{fh}} 'datacolors = table_cmap(norm(d))';
-	my @options;
-	my %translate = (cb_min => 'vmin', cb_max => 'vmax');
 	foreach my $opt (grep {defined $plot->{$_}} 'cb_min', 'cb_max'){
 		unless (looks_like_number( $plot->{$opt} )) {
 			die "\"$opt\" = $plot->{$opt} must be a number";
 		}
-		push @options, "$translate{$opt} = $plot->{$opt}";
 	}
-	my $opt = join (',', @options);
-	if (scalar @options > 0) {
-		$opt = ", $opt";
-	}
+	$plot->{cmap} = $plot->{cmap} // 'gist_rainbow';
+	$plot->{cb_logscale} = $plot->{cb_logscale} // 0;
+	my $ax = $args->{ax} // '';
+	# One norm, used both to color the cells and by the hidden image that the
+	# colorbar is drawn from. The cells used to be colored through a linear
+	# plt.Normalize whatever "cb_logscale" said, so only the colorbar was
+	# logarithmic, and a table of 1, 10, 100 and 1000 drew three of its four
+	# cells in nearly the same color.
+	my $norm;
 	if ($plot->{cb_logscale}) {
-		say {$args->{fh}} 'img = ax' . $ax . '.imshow(d, cmap=table_cmap, norm=colors.LogNorm(' . join (',', @options) . '))';
+		# LogNorm refuses a vmin at or below 0; the one it chose for itself,
+		# when it was left to autoscale, was the smallest positive value.
+		$min = $plot->{cb_min} // $min_positive;
+		if ($min eq 'inf') {
+			die "\"cb_logscale\" needs a cell above 0 to start the scale at, or a \"cb_min\" above 0, and $current_sub has neither";
+		}
+		if ($min <= 0) {
+			die "\"cb_logscale\" cannot start at \"cb_min\" = $min: a log scale needs a minimum above 0";
+		}
+		$max = $plot->{cb_max} // $max;
+		say {$args->{fh}} 'from matplotlib import colors';
+		$norm = "colors.LogNorm(vmin = $min, vmax = $max)";
 	} else {
-		say {$args->{fh}} "img = ax$ax.imshow(d, cmap=table_cmap $opt)";
+		$min = $plot->{cb_min} // $min;
+		$max = $plot->{cb_max} // $max;
+		$norm = "plt.Normalize($min, $max)";
 	}
+	$plot->{'undef.color'} = $plot->{'undef.color'} // 'gray';
+	say {$args->{fh}} 'import matplotlib';
+	say {$args->{fh}} 'table_cmap = matplotlib.colormaps[' . py_str($plot->{cmap}) . '].copy()';
+	say {$args->{fh}} 'table_cmap.set_bad(' . py_str($plot->{'undef.color'}) . ')';
+	say {$args->{fh}} "norm = $norm";
+	say {$args->{fh}} 'datacolors = table_cmap(norm(d))';
+	say {$args->{fh}} "img = ax$ax.imshow(d, cmap=table_cmap, norm=norm)";
 	$plot->{'colorbar.on'} = $plot->{'colorbar.on'} // 1;
 	# "colorbar.on" decides, and "cblabel" only says what to write on it. A
 	# cblabel used to draw the colorbar even against "'colorbar.on' => 0",
@@ -1344,11 +1379,20 @@ sub hexbin_helper {
 	}
 	my $n_points = scalar @{ $plot->{data}{ $keys[0] } };
 	if ( scalar @{ $plot->{data}{ $keys[1] } } != $n_points ) {
-	  say "\"$keys[0]\" has $n_points points.";
-	  say "\"$keys[1]\" has "
+	  say STDERR "\"$keys[0]\" has $n_points points.";
+	  say STDERR "\"$keys[1]\" has "
 		 . scalar @{ $plot->{data}{ $keys[1] } }
 		 . " points.";
 	  die 'The length of both keys must be equal.';
+	}
+	# Every point is written into the script as it stands, and nothing checked
+	# them: an undefined one came out as an empty list element and a string
+	# as a bare python name, each dying as a python error about the temp file.
+	foreach my $key (@keys) {
+		my @bad = grep { not looks_like_number( $plot->{data}{$key}[$_] ) } 0 .. $n_points - 1;
+		next if scalar @bad == 0;
+		p @bad;
+		die "\"$key\" is undefined or not a number at the above indices, which $current_sub needs";
 	}
 	# quoted here because the key is data: the pass-through path that title and
 	# label text otherwise take cannot tell an apostrophe from Python of the
@@ -1359,15 +1403,25 @@ sub hexbin_helper {
 	my $options =
 	", gridsize = ($plot->{xbins}, $plot->{ybins}), cmap = " . py_str($plot->{cmap})
 	;    # these args go to the plt.hist call
-	if ( $plot->{cb_logscale} ) {
-	  say { $args->{fh} } 'from matplotlib.colors import LogNorm';
-	  $options .= ', norm = LogNorm()';
+	foreach my $opt ( grep { defined $plot->{$_} } ( 'vmin', 'vmax', 'mincnt' ) ) {
+		if ( not looks_like_number( $plot->{$opt} ) ) {
+			die "\"$opt\" must be a number for $current_sub, but was given \"$plot->{$opt}\"";
+		}
 	}
-	foreach my $opt (
-	  grep { defined $plot->{$_} } ('xrange', 'yrange', 'vmin', 'vmax', 'mincnt')
-	)
-	{
-		$options .= ", $opt = $plot->{$opt}";
+	if ( $plot->{cb_logscale} ) {
+		# vmin and vmax go to the LogNorm, as in hist2d_helper: passed beside
+		# it they raised "ValueError: Passing a Normalize instance
+		# simultaneously with vmin/vmax is not supported".
+		say { $args->{fh} } 'from matplotlib.colors import LogNorm';
+		my @lognorm_opt = map { "$_ = $plot->{$_}" } grep { defined $plot->{$_} } ( 'vmin', 'vmax' );
+		$options .= ', norm = LogNorm(' . join( ', ', @lognorm_opt ) . ')';
+		foreach my $opt ( grep { defined $plot->{$_} } ('mincnt') ) {
+			$options .= ", $opt = $plot->{$opt}";
+		}
+	} else {
+		foreach my $opt ( grep { defined $plot->{$_} } ( 'vmin', 'vmax', 'mincnt' ) ) {
+			$options .= ", $opt = $plot->{$opt}";
+		}
 	}
 	foreach my $opt (grep {defined $plot->{$_} } ('xscale.hexbin', 'yscale.hexbin')) {
 		if (($plot->{$opt} ne 'log') && ($plot->{$opt} ne 'linear')) {
@@ -1431,6 +1485,18 @@ sub format_commas
       . sprintf( $format, int( 100 * ( .005 + ( $n - int($n) ) ) ) );
 }
 
+sub hist_value {
+	# A scalar "bins", "color" or "orientation" for hist(), as python.
+	#
+	# A number of bins is the one bare value; everything else is text. The
+	# test this replaces quoted only /^[A-Za-z]+$/, so a color such as
+	# "#ff0000" went in bare and python read the rest of the line as a comment,
+	# and "tab:blue" or a grayscale "0.5" went in as python rather than as a
+	# color.
+	my ( $arg, $value ) = @_;
+	return $value if ( $arg eq 'bins' ) && looks_like_number($value);
+	return py_str($value);
+}
 sub hist_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
@@ -1466,15 +1532,17 @@ sub hist_helper {
 	}
 	my $options = '';    # these args go to the plt.hist call
 	$plot->{alpha} = $plot->{alpha} // 0.5;
-	foreach my $arg ( grep { defined $plot->{$_} } ( 'bins', 'orientation' ) ) {
+	# "color" is here as well as below: a single color for every set was
+	# accepted and then never written, since only the per-set hash was read.
+	foreach my $arg ( grep { defined $plot->{$_} } ( 'bins', 'color', 'orientation' ) ) {
 		next if ref $plot->{$arg} eq 'HASH';    # set-specific setting exists
 		my $ref = ref $plot->{$arg};
-		if ( $ref eq '' ) { # single color
-			if ( $plot->{$arg} =~ m/^[A-Za-z]+$/ ) {    # "Red" needs quotes
-				$options .= ", $arg = '$plot->{$arg}'";
-			} else { # I'm assuming numeric
-				$options .= ", $arg = $plot->{$arg}";
-			}
+		if ( $ref eq '' ) {
+			$options .= ", $arg = " . hist_value( $arg, $plot->{$arg} );
+		} elsif ( $arg eq 'color' ) {
+			# hist() is called once per set, so there is no position in a list
+			# of colors that means a set; the hash names them.
+			die "\"color\" for $current_sub is one color for every set, or a hash of one color per set, not a $ref reference";
 		} elsif ( $ref eq 'ARRAY' ) {
 			$options .= ", $arg = [" . join( ',', @{ $plot->{$arg} } ) . ']';
 		} else {
@@ -1510,18 +1578,18 @@ sub hist_helper {
 		{
 			next unless defined $plot->{$arg}{$set};
 			my $ref = ref $plot->{$arg}{$set};
-			if ( $ref eq 'ARRAY' ) {
+			if ( ( $ref eq 'ARRAY' ) && ( $arg eq 'color' ) ) {
+				die "\"color\" for set \"$set\" is an array, but $current_sub draws each set in one color";
+			} elsif ( $ref eq 'ARRAY' ) {
 				# Bin edges for this set alone. The whole-plot "bins" has taken
 				# an array since it was written; per set it fell through to the
-				# numeric branch below and emitted "bins = ARRAY(0x55f0...)".
+				# single-value branch below and emitted "bins = ARRAY(0x55f0...)".
 				$set_options .= ", $arg = [" . join( ',', @{ $plot->{$arg}{$set} } ) . ']';
 			} elsif ( $ref ne '' ) {
 				p $plot->{$arg};
 				die "\"$arg\" for set \"$set\" is a $ref reference, but $current_sub takes a scalar or an array there";
-			} elsif ( $plot->{$arg}{$set} =~ m/^[A-Za-z]+$/ ) {  # "Red" needs quotes
-				$set_options .= ", $arg = '$plot->{$arg}{$set}'";
-			} else {    # I'm assuming numeric; "10" doesn't need quotes
-				$set_options .= ", $arg = $plot->{$arg}{$set}";
+			} else {
+				$set_options .= ", $arg = " . hist_value( $arg, $plot->{$arg}{$set} );
 			}
 		}
 		say {$args->{fh}} 'd = [' . join (',', @{ $plot->{data}{$set} }) . ']';
@@ -1605,8 +1673,8 @@ sub hist2d_helper {
 	}
 	my $n_points = scalar @{ $plot->{data}{ $keys[0] } };
 	if ( scalar @{ $plot->{data}{ $keys[1] } } != $n_points ) {
-	  say "$keys[0] has $n_points points.";
-	  say "$keys[1] has "
+	  say STDERR "$keys[0] has $n_points points.";
+	  say STDERR "$keys[1] has "
 		 . scalar @{ $plot->{data}{ $keys[1] } }
 		 . " points.";
 	  die 'The length of both keys must be equal.';
@@ -1791,10 +1859,22 @@ sub imshow_helper {
 		$intmap{$string} = scalar @ytick_labels;
 		push @ytick_labels, $plot->{stringmap}{$string};
 	}
+	# The rows drawn: the caller's own, or for string data a translated copy.
+	# The strings used to be replaced in place, so the caller's array came back
+	# holding integers; and a string that "stringmap" did not name became an
+	# undefined cell, drawn blank with nothing said.
+	my $data = $plot->{data};
 	if ($non_numeric_data) {
-		foreach my $row (@{ $plot->{data} }) {
-			@{ $row } = map { $intmap{$_} } @{ $row };
+		my %unmapped;
+		foreach my $row (@{ $data }) {
+			$unmapped{ $_ // 'undef' }++ foreach grep { ( not defined $_ ) || ( not defined $intmap{$_} ) } @{ $row };
 		}
+		if (scalar keys %unmapped > 0) {
+			my @unmapped = sort keys %unmapped;
+			p @unmapped;
+			die "the above values of \"data\" are not keys of \"stringmap\", which $current_sub needs to give each one a color";
+		}
+		$data = [ map { [ map { $intmap{$_} } @{ $_ } ] } @{ $data } ];
 	}
 	my ($min_val, $max_val) = ('inf', '-inf');
 	my $opts = '';
@@ -1824,11 +1904,11 @@ sub imshow_helper {
 		$opts .= ', cmap = this_cmap';
 	}
 	write_data({
-		data => $plot->{data},
+		data => $data,
 		fh   => $args->{fh},
 		name => 'd',
 	});
-	foreach my $row (@{ $plot->{data} }) { # write data to the python file
+	foreach my $row (@{ $data }) { # write data to the python file
 		next if $non_numeric_data; # strings don't have max and min
 		$min_val = min(@{ $row }, $min_val);
 		$max_val = max(@{ $row }, $max_val);
@@ -2191,6 +2271,15 @@ sub plot_helper {
 				my $max_i = scalar @{ $plot->{data}{$set}[$ax] };
 				die "set $set axis $ax has undefined indices, of max index $max_i in $current_sub";
 			}
+			# The array form of "data" has always refused these; the hash form
+			# wrote them into the script, where 'a' became "y = [a,3]" and died
+			# as a NameError.
+			my @non_numeric = grep { not looks_like_number( $plot->{data}{$set}[$ax][$_] ) } 0 .. $n - 1;
+			if ( scalar @non_numeric > 0 ) {
+				my @values = @{ $plot->{data}{$set}[$ax] }[@non_numeric];
+				p @values;
+				die "set \"$set\" axis $ax has the above non-numeric values, which $current_sub cannot plot";
+			}
 		}
 		my $options = '';
 		say { $args->{fh} } 'x = [' . join( ',', @{ $plot->{data}{$set}[0] } ) . ']';
@@ -2226,6 +2315,22 @@ sub plot_helper {
 	return 1;
 }
 
+sub check_scatter_values {
+	# Die unless every value of one scatter axis is a defined number.
+	#
+	# Only undefined values were refused before, and only for x and y: a
+	# string in any axis, or anything at all in the color axis, was written
+	# into the script as it stands and died there as a python NameError.
+	my ( $values, $what, $current_sub ) = @_;
+	if ( ref $values ne 'ARRAY' ) {
+		my $got = ref $values ? ( ref $values ) . ' reference' : 'a scalar';
+		die "$current_sub: $what must be an array of numbers, not $got";
+	}
+	my @bad = grep { not looks_like_number( $values->[$_] ) } 0 .. $#{$values};
+	return if scalar @bad == 0;
+	p @bad;
+	die "$what is undefined or not a number at the above indices in $current_sub";
+}
 sub scatter_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
@@ -2310,11 +2415,7 @@ sub scatter_helper {
 			$color_key = pop @keys;
 		}
 		foreach my $i (0,1) {
-			my @undef_i = grep {not defined $plot->{data}{$keys[$i]}[$_]} 0..scalar @{ $plot->{data}{ $keys[$i] } } - 1;
-			if (scalar @undef_i > 0) {
-				p @undef_i;
-				die "the above indices for $current_sub group $i are undefined.";
-			}
+			check_scatter_values( $plot->{data}{ $keys[$i] }, "\"$keys[$i]\"", $current_sub );
 		}
 		say { $args->{fh} } 'x = [' . join( ',', @{ $plot->{data}{ $keys[0] } } ) . ']';
 		say { $args->{fh} } 'y = [' . join( ',', @{ $plot->{data}{ $keys[1] } } ) . ']';
@@ -2334,6 +2435,7 @@ sub scatter_helper {
 			if (not defined $plot->{data}{$color_key}) {
 				die "\"$color_key\" isn't defined for this scatter";
 			}
+			check_scatter_values( $plot->{data}{$color_key}, "\"$color_key\"", $current_sub );
 			say { $args->{fh} } 'z = [' . join( ',', @{ $plot->{data}{$color_key} } ) . ']';
 			say { $args->{fh} }
 			  "im = ax$ax.scatter(x, y, c = z, cmap = " . py_str($plot->{cmap}) . " $options)";
@@ -2353,14 +2455,18 @@ sub scatter_helper {
 		if ( scalar @undefined_opts > 0 ) {
 			p $plot->{data};
 			p $plot;
-			say 'The data and options are above, but the following sets have options without data:';
+			say STDERR 'The data and options are above, but the following sets have options without data:';
 			p @undefined_opts;
 			die 'no data was defined for the above options';
 		}
-		my $color_key;
+		# The key the one colorbar is labelled with, from the last set that has
+		# one. Kept apart from each set's own $color_key, which used to be this
+		# same variable: a set with a third key left it defined for every set
+		# after it, and a later set of only x and y died as '"z" isn't defined'.
+		my $colorbar_key;
 		foreach my $set ( sort keys %{ $plot->{data} } ) {
 			my $options = '';
-			my @keys;
+			my ( @keys, $color_key );
 			if ( defined $plot->{'keys'} ) {
 				 @keys = @{ $plot->{'keys'} };
 				 check_key_order({
@@ -2378,11 +2484,7 @@ sub scatter_helper {
 				die "scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
 			}
 			foreach my $key (@keys) {
-				@undef_args = grep {!defined $plot->{data}{$set}{$key}[$_]} 0..scalar @{ $plot->{data}{$set}{$key} } - 1;
-				if (scalar @undef_args > 0) {
-					p @undef_args;
-					die "the above indices for \"$key\" are undefined in $current_sub";
-				}
+				check_scatter_values( $plot->{data}{$set}{$key}, "\"$key\" of set \"$set\"", $current_sub );
 			}
 			if ( defined $plot->{color_key} ) {
 				$color_key = $plot->{color_key};
@@ -2402,6 +2504,8 @@ sub scatter_helper {
 				if (not defined $plot->{data}{$set}{$color_key}) {
 					die "\"$color_key\" isn't defined for set \"$set\"";
 				}
+				check_scatter_values( $plot->{data}{$set}{$color_key}, "\"$color_key\" of set \"$set\"", $current_sub );
+				$colorbar_key = $color_key;
 				say { $args->{fh} } 'z = [' . join( ',', @{ $plot->{data}{$set}{$color_key} } ) . ']';
 				unless ( $options =~ m/label\s*=/ ) {
 					$options .= ', label = ' . py_str($set);
@@ -2415,7 +2519,7 @@ sub scatter_helper {
 			$plot->{xlabel} = $plot->{xlabel} // py_str($keys[0]);
 			$plot->{ylabel} = $plot->{ylabel} // py_str($keys[1]);
 	  }
-	  say { $args->{fh} } 'plt.colorbar(im, label = ' . py_str($color_key) . ')'  if defined $color_key;
+	  say { $args->{fh} } 'plt.colorbar(im, label = ' . py_str($colorbar_key) . ')'  if defined $colorbar_key;
 	}
 }
 
@@ -2476,7 +2580,6 @@ sub violin_helper {
 	$plot->{edgecolor} = $plot->{edgecolor} // 'black';
 	my $options = '';    # these args go to the plt.hist call
 	say { $args->{fh} } 'd = []';
-	my $min_n_points = 'inf';
 	# %values, rather than writing the filtered list back into $plot->{data}:
 	# the arrays in there belong to the caller, and dropping the undefined and
 	# non-numeric elements in place left the caller's own array shorter than
@@ -2494,12 +2597,15 @@ sub violin_helper {
 	  }
 	  say { $args->{fh} } 'd.append(['
 		 . join( ',', @{ $values{$key} } ) . '])';
-	  $min_n_points = min( scalar @{ $values{$key} }, $min_n_points );
 	}
 	foreach my $axis ( logscale_axes( $plot->{logscale}, $current_sub ) ) { # x, y
 		say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
 	}
-	say { $args->{fh} } "vp = ax$ax.violinplot(d, showmeans=False, points = $min_n_points, orientation = '$plot->{orientation}', showmedians = $plot->{medians})";
+	# No "points": it is how many points the density curve is evaluated at,
+	# not a count of data, and it used to be set to the size of the smallest
+	# group, so a group of 5 values drew every violin as a 5-sided polygon.
+	# matplotlib's default is 100.
+	say { $args->{fh} } "vp = ax$ax.violinplot(d, showmeans=False, orientation = '$plot->{orientation}', showmedians = $plot->{medians})";
 	if ( defined $plot->{colors} ) { # every hash key should have its own color defined
 		# the below code helps to provide better error messages in case I make an error in calling the sub
 		my @wrong_keys = grep { not defined $plot->{colors}{$_} } keys %{ $plot->{data} };
@@ -2546,9 +2652,13 @@ sub violin_helper {
 		say {$args->{fh}} '	quartile1.append(local_quartile1)';
 		say {$args->{fh}} '	medians.append(local_medians)';
 		say {$args->{fh}} '	quartile3.append(local_quartile3)';
+		# sorted(): adjacent_values reads the smallest and largest values as
+		# vals[0] and vals[-1]. matplotlib's example sorts its data first; this
+		# passed "d" in the caller's order, so for [10, 9, ..., 1, 100] the
+		# lower whisker was clipped to q1 and not drawn at all.
 		say {$args->{fh}} 'whiskers = np.array([';
-		say {$args->{fh}} '    adjacent_values(sorted_array, q1, q3)';
-		say {$args->{fh}} '    for sorted_array, q1, q3 in zip(d, quartile1, quartile3)])';
+		say {$args->{fh}} '    adjacent_values(sorted(subset), q1, q3)';
+		say {$args->{fh}} '    for subset, q1, q3 in zip(d, quartile1, quartile3)])';
 		say {$args->{fh}} 'whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]';
 		say {$args->{fh}} 'inds = np.arange(1, len(medians) + 1)';
 		if ( $plot->{orientation} eq 'vertical' ) {
@@ -2718,15 +2828,23 @@ sub wide_helper {
 		if ( ( defined $plot->{color} ) && ( ref $plot->{color} ne 'HASH' ) ) {
 			die "$current_sub: \"data\" is a HASH of groups, so \"color\" must be a HASH of one color per group";
 		}
-		foreach my $group ( keys %{ $plot->{data} } ) {
+		# Sorted, as every other plot type orders its keys: in hash order the
+		# groups, and so the legend, came out in a different order from one
+		# run to the next.
+		my $group_i = 0;
+		foreach my $group ( sort keys %{ $plot->{data} } ) {
 			check_wide_runs( $plot->{data}{$group}, "group \"$group\"", $current_sub );
+			# An uncolored group takes the next color of matplotlib's own
+			# cycle, "C0", "C1" and on. Every group used to default to 'b', so
+			# without a "color" hash the groups could not be told apart.
 			write_wide_group({
 				fh    => $args->{fh},
 				ax    => $ax,
 				runs  => $plot->{data}{$group},
-				color => $plot->{color}{$group} // 'b',
+				color => $plot->{color}{$group} // 'C' . ( $group_i % 10 ),    # the default cycle has 10 colors
 				label => $plot->{'show.legend'} ? $group : undef
 			});
+			$group_i++;
 		}
 	} elsif ( $ref_type eq 'ARRAY' ) {    # one unlabelled group
 		if ( ref $plot->{color} ) {
@@ -2821,7 +2939,9 @@ sub normalise_p {
 				}
 			}
 			my %plot = %{$main};                      # shallow copy of the base plot
-			push @{ $plot{add} }, @g if scalar @g;    # the rest overlay on the same axes
+			# the rest overlay on the same axes. A new array, not a push: the
+			# copy above shares the base plot's own "add" array with the caller.
+			$plot{add} = [ @{ $plot{add} // [] }, @g ] if scalar @g;
 			push @plots, \%plot;
 		} else {
 			die "$current_sub: subplot $i in \"p\" must be a HASH reference (one plot) or an ARRAY of HASH references (overlaid plots), not a \"$ref\" reference";
@@ -2848,6 +2968,41 @@ sub normalise_p {
 	}
 	return $args;
 }
+sub copy_plot_hashes {
+	# A copy of plt's arguments, deep enough that nothing plt does is seen by
+	# the caller.
+	#
+	# plt and its helpers write into the hashes they are given: "add" is
+	# deleted once drawn, "title" is renamed "set_title", a subplot is told
+	# whether to draw its colorbar, and array "data" is rewrapped as a hash.
+	# Under plt({ ... }) those were the caller's own hashes, so the same hash
+	# drawn twice lost its overlays the second time. The hashes are copied,
+	# at every level plt writes to -- the top, each subplot, each "add" graph --
+	# and the data inside them is not: it is only read, and can be large.
+	# Anything of the wrong shape is passed through as it is, for the checks
+	# in plt to refuse by name.
+	my ($args) = @_;
+	my $copy_adds = sub {
+		my ($plot) = @_;
+		return unless ref $plot->{add} eq 'ARRAY';
+		$plot->{add} = [ map { ref $_ eq 'HASH' ? { %{$_} } : $_ } @{ $plot->{add} } ];
+	};
+	my %copy = %{$args};
+	$copy_adds->( \%copy );
+	if ( ref $copy{plots} eq 'ARRAY' ) {
+		$copy{plots} = [
+			map {
+				my $plot = $_;
+				if ( ref $plot eq 'HASH' ) {
+					$plot = { %{$plot} };
+					$copy_adds->($plot);
+				}
+				$plot;
+			} @{ $copy{plots} }
+		];
+	}
+	return \%copy;
+}
 sub plt {
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
 	; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
@@ -2862,6 +3017,7 @@ sub plt {
 	} else {
 		die "$current_sub: odd number of arguments; call as $current_sub( key => value, ... ) or $current_sub({ key => value, ... })";
 	}
+	$args = copy_plot_hashes($args);
 	# fold the "p" interface into the engine's internal plot model
 	normalise_p( $args, $current_sub ) if defined $args->{p};
 	if ((scalar grep {$args->{$_}} ('output.file', 'show')) == 0) {
@@ -2953,11 +3109,11 @@ sub plt {
 	}
 	if (($single_plot == 1) && (not defined $args->{'plot.type'})) {
 	  p $args;
-	  say $single_example;
+	  say STDERR $single_example;
 	  die "\"plot.type\" was not defined for a single plot in $current_sub";
 	}
 	if ( ( $single_plot == 0 ) && (not defined $args->{plots} )) {
-		say $multi_example;
+		say STDERR $multi_example;
 		die "$current_sub: single plots need \"data\" and \"plot.type\", see example above";
 	}
 	if ( ( $single_plot == 0 ) && ( ref $args->{plots} ne 'ARRAY' ) ) {
@@ -2980,7 +3136,7 @@ sub plt {
 	{
 	  p $args;
 	  my $n_plots = scalar @{ $args->{plots} };
-	  say
+	  say STDERR
 	"ncols = $args->{ncols}; nrows = $args->{nrows}, but there are $n_plots plots.\n";
 	  die 'There are not enough subplots for the data';
 	}
@@ -3254,6 +3410,14 @@ sub plt {
 		say $fh "\t$ax.remove()";                 # remove empty plots
 	}
 	my %methods = map { $_ => 1 } @plt_methods;
+	# Text is quoted as plot_args quotes it before print_type sees it. For a
+	# single plot this is what always happened, though by accident: plot_args
+	# quoted the caller's own hash in place, and this loop read the result.
+	# plot_args now works on a copy, so the step is written out here, where it
+	# now also reaches the "suptitle" of a figure of several subplots.
+	foreach my $text_method ( grep { ( defined $methods{$_} ) && ( defined $args->{$_} ) && ( ref $args->{$_} eq '' ) } @text_methods ) {
+		$args->{$text_method} = quote_text( $args->{$text_method} );
+	}
 	foreach my $plt_method ( grep { defined $methods{$_} } keys %{$args} ) {
 		my $ref = ref $args->{$plt_method};
 		if ( $ref eq '' ) {
@@ -3261,7 +3425,9 @@ sub plt {
 			if ($plt_method eq 'show') {
 				next; # plt.show() is emitted after plt.savefig() below
 			} elsif ($type eq 'single quotes') {
-				say $fh "plt.$plt_method('$args->{$plt_method}')#" . __LINE__;
+				# py_str: a backslash in '...' went through as a python
+				# escape, so "C:\new" came out with a newline in it.
+				say $fh "plt.$plt_method(" . py_str( $args->{$plt_method} ) . ')#' . __LINE__;
 			} elsif ($type eq 'no quotes') {
 				say $fh "plt.$plt_method($args->{$plt_method})#" . __LINE__;
 			}
@@ -3269,7 +3435,7 @@ sub plt {
 			foreach my $j ( @{ $args->{$plt_method} } ) {
 				my $type = print_type($j);
 				if ($type eq 'single quotes') {
-					say $fh "plt.$plt_method('$j')#" . __LINE__;
+					say $fh "plt.$plt_method(" . py_str($j) . ')#' . __LINE__;
 				} elsif ($type eq 'no quotes') {
 					say $fh "plt.$plt_method($j)#" . __LINE__;
 				}

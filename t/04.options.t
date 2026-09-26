@@ -192,8 +192,11 @@ my %OPTIONS = (
 	],
 	colored_table => [
 		{ opt => 'cb_logscale',  val => 1,      want => qr/LogNorm/ },
-		{ opt => 'cb_min',       val => 100,    want => qr/vmin = 100/ },
-		{ opt => 'cb_max',       val => 500,    want => qr/vmax = 500/ },
+		# The bounds of the one norm that colors both the cells and the
+		# colorbar, since 0.315; before that they reached only the hidden
+		# image's "vmin =" and "vmax =".
+		{ opt => 'cb_min',       val => 100,    want => qr/norm = plt\.Normalize\(100, / },
+		{ opt => 'cb_max',       val => 500,    want => qr/norm = plt\.Normalize\(\S+, 500\)/ },
 		{ opt => 'cblabel',      val => 'kJ/mol', want => qr/label = 'kJ\/mol'/ },
 		{ opt => 'cmap',         val => 'viridis', want => qr/viridis/ },
 		{ opt => 'col.labels',   val => [qw(H C)] },
