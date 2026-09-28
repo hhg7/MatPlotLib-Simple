@@ -223,6 +223,14 @@ alone.
 Every other option is passed through as written, so text inside C<legend>, C<text>
 and friends is Python syntax throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
 
+The exception is an option written as a C<plt.> call, such as C<xscale>, C<ylim>
+or C<axhline>, at a single plot and at a subplot alike.  A word is quoted for
+you, so C<< xscale =E<gt> 'log' >> becomes C<plt.xscale('log')>.  A value that is already
+Python is left as it is: a number, a list of numbers such as C<< ylim =E<gt> '0, 10' >>,
+C<None>, C<True> or C<False>, one bracketed group such as C<< ylim =E<gt> '(0, 10)' >>, one
+function call, a keyword argument such as C<< axhline =E<gt> 'y = 0.5' >>, or anything
+holding a quote of its own.
+
 =head3 An option that isn't defined
 
 Each plot type has its own list of options, so an option is only ever right or
@@ -332,6 +340,7 @@ already have in Perl:
 <tr><td>hash of <code>[ \@x, \@y ]</code> pairs</td><td><code>plot</code></td><td>one labelled line per key</td></tr>
 <tr><td>hash of arrays of <code>[ \@x, \@y ]</code> pairs</td><td><code>wide</code></td><td>repeated runs of the same curve, summarised</td></tr>
 <tr><td>hash of hashes of array refs</td><td><code>scatter</code></td><td>several labelled sets, each with its own x/y (and colour)</td></tr>
+<tr><td>hash of hashes of numbers, <code>A => { X => 1, Y => 2 }</code></td><td><code>scatter</code></td><td>one labelled point per key</td></tr>
 <tr><td>a single array ref</td><td><code>hist</code>, <code>boxplot</code>, <code>violin</code></td><td>the one-series shorthand</td></tr>
 <tr><td>array of <code>[ \@x, \@y ]</code> pairs</td><td><code>plot</code>, <code>wide</code></td><td>unlabelled lines</td></tr>
 <tr><td>2-D array (array of array refs)</td><td><code>imshow</code></td><td>a raster/heatmap; strings allowed via <code>stringmap</code></td></tr>
@@ -2510,7 +2519,7 @@ go.
 
 =head3 Entering data
 
-C<data> takes two shapes, and which one you passed is worked out from whether the
+C<data> takes three shapes, and which one you passed is worked out from whether the
 values are arrays or hashes.
 
 B<1. One set (hash of 2 or 3 array refs).> All the arrays must be the same
@@ -2553,11 +2562,29 @@ in form 1.  This is the form to use for "the same measurement, split by group":
      },
  );
 
-With three inner keys, every set is colored by its own third column and the
-figure gets a single colorbar, drawn from the last set plotted — so read the
-colors across sets only when the color columns cover comparable ranges.
-C<color_key> then names an B<inner> key, and it must exist in every set: naming a
-key that is not there is an error rather than being quietly ignored.
+With three inner keys, every set is colored by its own third column, on one
+scale running from the smallest to the largest color value of all the sets, and
+the figure gets a single colorbar for that scale.  A set whose C<set.options>
+give their own C<vmin>, C<vmax> or C<norm> keeps them instead.  Since color then says nothing about which set a point belongs to, each such set is drawn with its own marker -- C<o>, C<s>, C<^>, C<D>, C<v> and on, in the sorted order of the set names -- unless its C<set.options> name a C<marker>, which no other set is then given.  C<color_key>
+then names an B<inner> key, and it must exist in every set: naming a key that is
+not there is an error rather than being quietly ignored.
+
+B<3. One point per set (hash of hashes of numbers).> An inner hash whose values
+are all plain numbers is a single point, read as in form 2 and labelled with the
+set's name in the legend.  This suits one summary per group, such as the scores
+of several models:
+
+ scatter(
+     'output.file' => '/tmp/models.svg',
+     data          => {
+         catboost   => { MAE => 0.41, MSE => 0.30, R2 => 0.83 },
+         elasticnet => { MAE => 0.60, MSE => 0.55, R2 => 0.61 },
+     },
+     keys          => [ 'MAE', 'R2', 'MSE' ],    # x, y, colour
+ );
+
+A set cannot mix the two: numbers for some keys and arrays for others is an
+error.
 
 =head3 options
 
@@ -2568,7 +2595,7 @@ key that is not there is an error rather than being quietly ignored.
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
 <tr><td><code>cmap</code></td><td>the colormap used when a third key colors the points; <code>gist_rainbow</code> by default</td><td><code>cmap => 'viridis'</code></td></tr>
 <tr><td><code>color_key</code></td><td>which key of <code>data</code> holds the color values, rather than letting the sort decide.  For the multi-set form this is an inner key, and it must be present in every set</td><td><code>color_key => 'Age'</code></td></tr>
-<tr><td><code>keys</code></td><td>array ref fixing the roles of the keys positionally: x, y, then color</td><td><code>keys => ['Weight', 'Height', 'Age']</code></td></tr>
+<tr><td><code>keys</code></td><td>array ref fixing the roles of the keys positionally: x, y, then color.  In the multi-set form, naming only x and y of three inner keys leaves the third as the color</td><td><code>keys => ['Weight', 'Height', 'Age']</code></td></tr>
 <tr><td><code>logscale</code></td><td>an array of the axes to put on a log scale</td><td><code>logscale => ['x', 'y']</code></td></tr>
 <tr><td><code>set.options</code></td><td>arguments passed straight to Matplotlib's <code>ax.scatter</code>: <code>marker</code>, <code>color</code>, <code>alpha</code>, <code>s</code>, …  A **scalar** for the single-set form; a **hash keyed by set name** for the multi-set form.  Options for a set that has no data are an error</td><td><code>'set.options' => 'marker = "v", alpha = 0.4'</code></td></tr>
 </tbody>
@@ -3091,8 +3118,9 @@ all files that can have notes with them, give notes about how the file was writt
 
 To improve speed, all data can be written into a single temp python3 file thus:
 
+ use File::Spec;
  use File::Temp;
- my $fh = File::Temp->new( DIR => '/tmp', SUFFIX => '.py', UNLINK => 0 );
+ my $fh = File::Temp->new( DIR => File::Spec->tmpdir, SUFFIX => '.py', UNLINK => 0 );
 
 all files will be written to C<< $fh-E<gt>filename >>; be sure to put C<< execute =E<gt> 0 >> unless you want the file to be run, which is the last step.
 
@@ -3146,3 +3174,7 @@ all files will be written to C<< $fh-E<gt>filename >>; be sure to put C<< execut
 =head1 COPYRIGHT AND LICENSE
 
 This software is free.  It is licensed under the same terms as Perl itself
+
+=head1 Thanks
+
+A lot of this work used Claude AI, which was paid for by the University of Idaho's IMCI
