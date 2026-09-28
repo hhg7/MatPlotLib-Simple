@@ -714,6 +714,9 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 		if ( ( $obj[$i] eq 'plt' ) && ( grep { $_ ne 'show' } @methods ) ) {
 			say {$args->{fh}} "plt.sca($args->{ax}) #line" . __LINE__;
 		}
+		# Only the pyplot calls are quoted, as plt() quotes a single plot's; the
+		# axes and figure methods are written as given in both.
+		my $arg_text = ( $obj[$i] eq 'plt' ) ? \&pyplot_arg : sub { $_[0] };
 		foreach my $method (@methods) {
 			my $ref = ref $args->{args}{$method};
 			if ( ( $ref ne 'ARRAY' ) && ( $ref ne '' ) ) {
@@ -723,13 +726,13 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 				if ($method eq 'show') {
 					next; # plt.show() is emitted by plt() after plt.savefig()
 				} else {
-					say {$args->{fh}} "$obj[$i].$method($args->{args}{$method}) #line" . __LINE__;
+					say {$args->{fh}} "$obj[$i].$method(" . $arg_text->( $args->{args}{$method} ) . ') #line' . __LINE__;
 				}
 				next;
 			}
 			# can only be ARRAY
 			foreach my $j ( @{ $args->{args}{$method} } ) {
-				say { $args->{fh} } "$obj[$i].$method($j) #line" . __LINE__;
+				say { $args->{fh} } "$obj[$i].$method(" . $arg_text->($j) . ') #line' . __LINE__;
 			}
 		}
 	}
@@ -2948,12 +2951,22 @@ sub print_type {
 	# An argument list of bare values, such as "0, 10" for "ylim" or "0.5, 0, 1"
 	# for "axhline", is Python rather than text. The comma tests below quoted
 	# it, so a single plot's "ylim => '0, 10'" wrote plt.ylim('0, 10') and died
-	# as "ValueError: too many values to unpack"; a subplot writes it bare, as
-	# it always has. None, True and False are bare values too, so that
+	# as "ValueError: too many values to unpack". None, True and False are bare
+	# values too, so that
 	# "ylim => 'None, 10'" leaves the bottom where matplotlib puts it.
 	my @items = split /,/, $str, -1;
 	if (   ( scalar @items > 1 )
 		&& ( not grep { ( not looks_like_number($_) ) && ( $_ !~ m/^\h*(?:None|True|False)\h*$/ ) } @items ) ) {
+		return 'no quotes';
+	}
+	# A single Python value: None, True or False; one bracketed group, such as
+	# "(0, 10)" or "[]"; or one call, such as "np.arange(0, 1, 0.1)". Each was
+	# quoted below, which a single plot always did and a subplot does now that
+	# it quotes as well. The bracket must close at the very end, so that
+	# "f(x), g(x)" is still text.
+	if (   ( $str =~ m/^\h*(?:None|True|False)\h*$/ )
+		|| ( $str =~ m/^\h*(?:[A-Za-z_][\w.]*)?(\((?:[^()]++|(?1))*\))\h*$/ )
+		|| ( $str =~ m/^\h*(\[(?:[^\[\]]++|(?1))*\])\h*$/ ) ) {
 		return 'no quotes';
 	}
 	# Text that already carries a quote of its own is Python the caller wrote
@@ -2981,6 +2994,18 @@ sub print_type {
    	return 'single quotes';
    }
    return $type;
+}
+sub pyplot_arg {
+	# A pyplot option's value as the text between the parentheses of its call.
+	#
+	# A single plot and a subplot both write their pyplot options through
+	# this. A subplot used to write every value exactly as given, so
+	# "xscale => 'log'" left plt.xscale(log) and raised "NameError: name 'log'
+	# is not defined", while the same option at a single plot was quoted.
+	# py_str, not "'$value'": a backslash in '...' went through as a python
+	# escape, so "C:\new" came out with a newline in it.
+	my ($value) = @_;
+	return print_type($value) eq 'single quotes' ? py_str($value) : $value;
 }
 sub normalise_p {
 	# "p" is a flat list of subplots: ONE array element == ONE subplot.
@@ -3558,24 +3583,13 @@ sub plt {
 	foreach my $plt_method ( grep { defined $methods{$_} } keys %{$args} ) {
 		my $ref = ref $args->{$plt_method};
 		if ( $ref eq '' ) {
-			my $type = print_type($args->{$plt_method});
 			if ($plt_method eq 'show') {
 				next; # plt.show() is emitted after plt.savefig() below
-			} elsif ($type eq 'single quotes') {
-				# py_str: a backslash in '...' went through as a python
-				# escape, so "C:\new" came out with a newline in it.
-				say $fh "plt.$plt_method(" . py_str( $args->{$plt_method} ) . ')#' . __LINE__;
-			} elsif ($type eq 'no quotes') {
-				say $fh "plt.$plt_method($args->{$plt_method})#" . __LINE__;
 			}
+			say $fh "plt.$plt_method(" . pyplot_arg( $args->{$plt_method} ) . ')#' . __LINE__;
 		} elsif ( $ref eq 'ARRAY' ) {
 			foreach my $j ( @{ $args->{$plt_method} } ) {
-				my $type = print_type($j);
-				if ($type eq 'single quotes') {
-					say $fh "plt.$plt_method(" . py_str($j) . ')#' . __LINE__;
-				} elsif ($type eq 'no quotes') {
-					say $fh "plt.$plt_method($j)#" . __LINE__;
-				}
+				say $fh "plt.$plt_method(" . pyplot_arg($j) . ')#' . __LINE__;
 			}
 		} else {
 			p $args;
@@ -4027,6 +4041,14 @@ alone.
 
 Every other option is passed through as written, so text inside C<legend>, C<text>
 and friends is Python syntax throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
+
+The exception is an option written as a C<plt.> call, such as C<xscale>, C<ylim>
+or C<axhline>, at a single plot and at a subplot alike.  A word is quoted for
+you, so C<< xscale =E<gt> 'log' >> becomes C<plt.xscale('log')>.  A value that is already
+Python is left as it is: a number, a list of numbers such as C<< ylim =E<gt> '0, 10' >>,
+C<None>, C<True> or C<False>, one bracketed group such as C<< ylim =E<gt> '(0, 10)' >>, one
+function call, a keyword argument such as C<< axhline =E<gt> 'y = 0.5' >>, or anything
+holding a quote of its own.
 
 =head3 An option that isn't defined
 

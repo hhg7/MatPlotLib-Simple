@@ -16,6 +16,8 @@ Revision history for Matplotlib-Simple
 
  - A single plot writes an argument list of numbers as Python. `ylim => '0, 10'` was quoted into the string `plt.ylim('0, 10')`, and the script died with "ValueError: too many values to unpack"; the same option at a subplot has always worked. A list may hold `None`, `True` and `False` as well, so `ylim => 'None, 10'` sets only the top. A lone word such as `xscale => 'log'` is still quoted, as is a list with a word in it.
 
+ - A subplot quotes its pyplot options as a single plot does. `xscale => 'log'` given to one of several subplots was written as `plt.xscale(log)`, and the script died with "NameError: name 'log' is not defined"; it is now `plt.xscale('log')`. At both, a value that is already Python is written as given: a lone `None`, `True` or `False`, one bracketed group such as `ylim => '(0, 10)'`, or one call such as `axvline => 'float(2)'`. A single plot quoted these as well, so `ylim => '(0, 10)'` died there with "ValueError: too many values to unpack".
+
  [Data that cannot be drawn is refused, naming what is wrong]
 
  - `imshow` draws rows of numbers held as strings, such as rows split from the lines of a file. They were written into the script as JSON strings, and the script died with "TypeError: Image data of dtype <U1 cannot be converted to float".

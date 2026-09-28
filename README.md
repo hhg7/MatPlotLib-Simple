@@ -205,6 +205,14 @@ alone.
 Every other option is passed through as written, so text inside `legend`, `text`
 and friends is Python syntax throughout: `legend => 'loc = "upper left"'`.
 
+The exception is an option written as a `plt.` call, such as `xscale`, `ylim`
+or `axhline`, at a single plot and at a subplot alike.  A word is quoted for
+you, so `xscale => 'log'` becomes `plt.xscale('log')`.  A value that is already
+Python is left as it is: a number, a list of numbers such as `ylim => '0, 10'`,
+`None`, `True` or `False`, one bracketed group such as `ylim => '(0, 10)'`, one
+function call, a keyword argument such as `axhline => 'y = 0.5'`, or anything
+holding a quote of its own.
+
 ### An option that isn't defined
 
 Each plot type has its own list of options, so an option is only ever right or

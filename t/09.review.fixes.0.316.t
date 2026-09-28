@@ -5,10 +5,11 @@
 # They came out of a read of the whole of lib/Matplotlib/Simple.pm, as those
 # of t/07.review.fixes.t did, and each was reproduced against 0.315 before it
 # was fixed. Every block has at least one assertion that fails on 0.315; the
-# seven that pass there -- no plt.sca() where there is no pyplot option, an
+# twelve that pass there -- no plt.sca() where there is no pyplot option, an
 # imshow of numeric strings and a figure drawn through "p" both generated
-# without dying, the caller's imshow rows left alone, a quoted ylim that is
-# still valid Python, and a lone word and a list holding a word still quoted
+# without dying, the caller's imshow rows left alone, a ylim and an xscale
+# script that parse though they fail when run, a lone word and a list holding
+# a word still quoted, and the four Python values a subplot already wrote bare
 # -- guard behaviour the fixes had to keep.
 #
 # Most of this is execute => 0 and reads the generated python as text, so it
@@ -237,6 +238,49 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	($py) = gen( 'plot.type' => 'plot', data => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] }, xscale => 'log', ylim => '0, top' );
 	like( $py, qr/^plt\.xscale\('log'\)#\d+$/m, 'single plot: a lone word is still quoted' );
 	like( $py, qr/^plt\.ylim\('0, top'\)#\d+$/m, 'single plot: a list holding a word is still quoted' );
+}
+
+# ----------------------------------------------------------------------------
+# 6. A subplot wrote its pyplot options unquoted.
+# ----------------------------------------------------------------------------
+{
+	# plt.xscale(log) raised "NameError: name 'log' is not defined". The
+	# second subplot has no options of its own and stays linear.
+	my @xy = ( data => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] } );
+	my ( $py, $file ) = gen(
+		plots => [ { 'plot.type' => 'plot', @xy, xscale => 'log' }, { 'plot.type' => 'plot', @xy } ],
+		ncols => 2
+	);
+	like( $py, qr/^plt\.xscale\('log'\) #line\d+$/m, 'subplot: "xscale => \'log\'" is quoted' );
+	parses_ok( $file, 'subplot: the xscale script parses' );
+	SKIP: {
+		skip( 'matplotlib not found', 1 ) unless $mpl_available;
+		like( run_py( $file, 'print("S", [a.get_xscale() for a in fig.axes])' ), qr/^S \['log', 'linear'\]$/m, 'subplot: only the first subplot is on a log scale' );
+	}
+	# Python values a subplot always wrote bare, and must still: a bracketed
+	# group, a lone True, a call, and an argument list holding a quote.
+	($py) = gen(
+		plots => [
+			{ 'plot.type' => 'plot', @xy, ylim => '(0, 10)', grid => 'True', axvline => 'float(2)', axhline => ['y = 1, color = "red"'] },
+			{ 'plot.type' => 'plot', @xy }
+		],
+		ncols => 2
+	);
+	like( $py, qr/^plt\.ylim\(\(0, 10\)\) #line\d+$/m, 'subplot: a bracketed group is still bare' );
+	like( $py, qr/^plt\.grid\(True\) #line\d+$/m, 'subplot: a lone True is still bare' );
+	like( $py, qr/^plt\.axvline\(float\(2\)\) #line\d+$/m, 'subplot: a call is still bare' );
+	like( $py, qr/^plt\.axhline\(y = 1, color = "red"\) #line\d+$/m, 'subplot: an argument list holding a quote is still bare' );
+	# The same three were quoted into strings at a single plot. There
+	# plt.ylim('(0, 10)') died as "ValueError: too many values to unpack",
+	# and plt.axvline('float(2)') ran, taking the text "float(2)" as its x.
+	( $py, $file ) = gen( 'plot.type' => 'plot', @xy, ylim => '(0, 10)', grid => 'True', axvline => 'float(2)' );
+	like( $py, qr/^plt\.ylim\(\(0, 10\)\)#\d+$/m, 'single plot: a bracketed group is bare' );
+	like( $py, qr/^plt\.grid\(True\)#\d+$/m, 'single plot: a lone True is bare' );
+	like( $py, qr/^plt\.axvline\(float\(2\)\)#\d+$/m, 'single plot: a call is bare' );
+	SKIP: {
+		skip( 'matplotlib not found', 1 ) unless $mpl_available;
+		like( run_py( $file, 'print("Y", tuple(float(v) for v in ax0.get_ylim()))' ), qr/^Y \(0\.0, 10\.0\)$/m, 'single plot: the y axis runs from 0 to 10' );
+	}
 }
 
 done_testing();
