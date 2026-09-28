@@ -277,6 +277,36 @@ for my $case (@type_cases) {
 		qr/\.scatter\(/, 'scatter accepts multiple sets (hash of hashes)'
 	);
 
+	# scatter: one point per set (hash of hashes of numbers), colored on one
+	# scale; 0.61 and 0.83 are the smallest and largest R2 of the three sets
+	{
+		my %points = (
+			catboost   => { MAE => 0.41, MSE => 0.30, R2 => 0.83 },
+			elasticnet => { MAE => 0.60, MSE => 0.55, R2 => 0.61 },
+			lightgbm   => { MAE => 0.45, MSE => 0.33, R2 => 0.80 },
+		);
+		my $py = gen_py(
+			'plot.type'   => 'scatter',
+			data          => \%points,
+			'set.options' => { lightgbm => 'marker = "^", vmin = 0' },
+			'output.file' => outfile('scatter.points.svg'),
+		);
+		is( count_matches( $py, qr/^x = \[0\.\d+\]$/m ), 3, 'scatter: a set of numbers is drawn as one point' );
+		like( $py, qr/c = z, cmap = 'gist_rainbow', vmin = 0\.61, vmax = 0\.83 , label = 'catboost'/,
+			'scatter: every set is colored on the range of all sets' );
+		like( $py, qr/cmap = 'gist_rainbow' , marker = "\^", vmin = 0, label = 'lightgbm'/,
+			"scatter: a set's own vmin replaces the shared range" );
+		like( $py, qr/label = 'catboost', marker = 'o'\)/, 'scatter: the first colored set takes the first marker' );
+		# lightgbm names "^" itself, so elasticnet skips it and takes the next
+		like( $py, qr/label = 'elasticnet', marker = 's'\)/, 'scatter: the next set takes the next marker' );
+		is( count_matches( $py, qr/marker = /), 3, 'scatter: a set naming its own marker is given no second one' );
+		unlike( gen_py( 'plot.type' => 'scatter', data => { A => { x => 1, y => 2 }, B => { x => 2, y => 1 } }, 'output.file' => outfile('scatter.plain.svg') ),
+			qr/marker/, 'scatter: sets told apart by color are given no marker' );
+		is( ref $points{catboost}{MAE}, '', 'scatter: the caller\'s numbers are not wrapped in place' );
+		dies_like( sub { gen_py( 'plot.type' => 'scatter', data => { A => { x => 1, y => [ 1, 2 ] } }, 'output.file' => outfile('e.svg') ) },
+			qr/"x" of set "A" must be an array of numbers, not a scalar/, 'scatter: a set mixing numbers and arrays is refused' );
+	}
+
 	# imshow: string data with a stringmap
 	like(
 		gen_py(

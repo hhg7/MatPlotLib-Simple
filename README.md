@@ -301,6 +301,7 @@ already have in Perl:
 |hash of `[ \@x, \@y ]` pairs|`plot`|one labelled line per key|
 |hash of arrays of `[ \@x, \@y ]` pairs|`wide`|repeated runs of the same curve, summarised|
 |hash of hashes of array refs|`scatter`|several labelled sets, each with its own x/y (and colour)|
+|hash of hashes of numbers, `A => { X => 1, Y => 2 }`|`scatter`|one labelled point per key|
 |a single array ref|`hist`, `boxplot`, `violin`|the one-series shorthand|
 |array of `[ \@x, \@y ]` pairs|`plot`, `wide`|unlabelled lines|
 |2-D array (array of array refs)|`imshow`|a raster/heatmap; strings allowed via `stringmap`|
@@ -2306,7 +2307,7 @@ go.
 
 ### Entering data
 
-`data` takes two shapes, and which one you passed is worked out from whether the
+`data` takes three shapes, and which one you passed is worked out from whether the
 values are arrays or hashes.
 
 **1. One set (hash of 2 or 3 array refs).** All the arrays must be the same
@@ -2349,11 +2350,29 @@ in form 1.  This is the form to use for "the same measurement, split by group":
     	},
     );
 
-With three inner keys, every set is colored by its own third column and the
-figure gets a single colorbar, drawn from the last set plotted — so read the
-colors across sets only when the color columns cover comparable ranges.
-`color_key` then names an **inner** key, and it must exist in every set: naming a
-key that is not there is an error rather than being quietly ignored.
+With three inner keys, every set is colored by its own third column, on one
+scale running from the smallest to the largest color value of all the sets, and
+the figure gets a single colorbar for that scale.  A set whose `set.options`
+give their own `vmin`, `vmax` or `norm` keeps them instead.  Since color then says nothing about which set a point belongs to, each such set is drawn with its own marker -- `o`, `s`, `^`, `D`, `v` and on, in the sorted order of the set names -- unless its `set.options` name a `marker`, which no other set is then given.  `color_key`
+then names an **inner** key, and it must exist in every set: naming a key that is
+not there is an error rather than being quietly ignored.
+
+**3. One point per set (hash of hashes of numbers).** An inner hash whose values
+are all plain numbers is a single point, read as in form 2 and labelled with the
+set's name in the legend.  This suits one summary per group, such as the scores
+of several models:
+
+    scatter(
+        'output.file' => '/tmp/models.svg',
+        data          => {
+            catboost   => { MAE => 0.41, MSE => 0.30, R2 => 0.83 },
+            elasticnet => { MAE => 0.60, MSE => 0.55, R2 => 0.61 },
+        },
+        keys          => [ 'MAE', 'R2', 'MSE' ],    # x, y, colour
+    );
+
+A set cannot mix the two: numbers for some keys and arrays for others is an
+error.
 
 ### options
 
@@ -2361,7 +2380,7 @@ key that is not there is an error rather than being quietly ignored.
 | -------- | ------- | ------- |
 |`cmap`| the colormap used when a third key colors the points; `gist_rainbow` by default | `cmap => 'viridis'` |
 |`color_key`| which key of `data` holds the color values, rather than letting the sort decide.  For the multi-set form this is an inner key, and it must be present in every set | `color_key => 'Age'` |
-|`keys`| array ref fixing the roles of the keys positionally: x, y, then color | `keys => ['Weight', 'Height', 'Age']` |
+|`keys`| array ref fixing the roles of the keys positionally: x, y, then color.  In the multi-set form, naming only x and y of three inner keys leaves the third as the color | `keys => ['Weight', 'Height', 'Age']` |
 |`logscale`| an array of the axes to put on a log scale | `logscale => ['x', 'y']` |
 |`set.options`| arguments passed straight to Matplotlib's `ax.scatter`: `marker`, `color`, `alpha`, `s`, …  A **scalar** for the single-set form; a **hash keyed by set name** for the multi-set form.  Options for a set that has no data are an error | `'set.options' => 'marker = "v", alpha = 0.4'` |
 
@@ -2876,3 +2895,7 @@ all files will be written to `$fh->filename`; be sure to put `execute => 0` unle
 # COPYRIGHT AND LICENSE
 
 This software is free.  It is licensed under the same terms as Perl itself
+
+# Thanks
+
+A lot of this work used Claude AI, which was paid for by the University of Idaho's IMCI

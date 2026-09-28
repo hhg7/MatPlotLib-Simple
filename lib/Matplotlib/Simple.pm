@@ -5,7 +5,7 @@ use warnings FATAL => 'all';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.315;
+our $VERSION = 0.316;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Cwd 'getcwd';
@@ -706,7 +706,15 @@ sub plot_args {    # this is a helper function to other matplotlib subroutines
 		push @args, \@fig_methods, \@plt_methods;
 	}
 	foreach my $i ( 0 .. $#args ) {
-		foreach my $method ( grep { defined $args->{args}{$_} } @{ $args[$i] } ) {
+		my @methods = grep { defined $args->{args}{$_} } @{ $args[$i] };
+		# pyplot's functions act on the current axes, which after plt.subplots is
+		# the last subplot and after a twinx() is the twin, so a subplot's own
+		# "ylim" or "axhline" was drawn on some other subplot. This one is made
+		# current first.
+		if ( ( $obj[$i] eq 'plt' ) && ( grep { $_ ne 'show' } @methods ) ) {
+			say {$args->{fh}} "plt.sca($args->{ax}) #line" . __LINE__;
+		}
+		foreach my $method (@methods) {
 			my $ref = ref $args->{args}{$method};
 			if ( ( $ref ne 'ARRAY' ) && ( $ref ne '' ) ) {
 				die "$current_sub only accepts scalar or array types, but \"$ref\" was entered.";
@@ -1875,6 +1883,12 @@ sub imshow_helper {
 			die "the above values of \"data\" are not keys of \"stringmap\", which $current_sub needs to give each one a color";
 		}
 		$data = [ map { [ map { $intmap{$_} } @{ $_ } ] } @{ $data } ];
+	} else {
+		# Numbers as numbers. write_data sends "d" through JSON, which writes a
+		# scalar last used as a string -- a row split from a line of a file -- as
+		# a JSON string, and numpy refused such rows as "Image data of dtype <U1
+		# cannot be converted to float". A copy, since the rows are the caller's.
+		$data = [ map { [ map { 0 + $_ } @{ $_ } ] } @{ $data } ];
 	}
 	my ($min_val, $max_val) = ('inf', '-inf');
 	my $opts = '';
@@ -2459,59 +2473,120 @@ sub scatter_helper {
 			p @undefined_opts;
 			die 'no data was defined for the above options';
 		}
-		# The key the one colorbar is labelled with, from the last set that has
-		# one. Kept apart from each set's own $color_key, which used to be this
-		# same variable: a set with a third key left it defined for every set
-		# after it, and a later set of only x and y died as '"z" isn't defined'.
-		my $colorbar_key;
-		foreach my $set ( sort keys %{ $plot->{data} } ) {
-			my $options = '';
+		# A set may be a single point, its values numbers rather than arrays:
+		# catboost => { MAE => 0.41, R2 => 0.83 }. It is drawn as a scatter of
+		# one point, labelled with the set's name. The wrapping goes into a copy
+		# so that the caller's data is left as it was given.
+		my %sets;
+		foreach my $set ( keys %{ $plot->{data} } ) {
+			my $inner = $plot->{data}{$set};
+			if ( ( scalar keys %{$inner} > 0 ) && ( not grep { ref } values %{$inner} ) ) {
+				$sets{$set} = { map { $_ => [ $inner->{$_} ] } keys %{$inner} };
+			} else {
+				$sets{$set} = $inner;
+			}
+		}
+		# Keys and color key of every set are settled, and every value checked,
+		# before anything is written, because the color range is shared by all
+		# sets and so has to be known before the first set is drawn.
+		my ( %xy_keys, %color_key_of );
+		foreach my $set ( sort keys %sets ) {
 			my ( @keys, $color_key );
 			if ( defined $plot->{'keys'} ) {
 				 @keys = @{ $plot->{'keys'} };
 				 check_key_order({
 				 	keys   => \@keys,
-				 	data   => $plot->{data}{$set},
+				 	data   => $sets{$set},
 				 	option => 'keys',
 				 	sub    => "$current_sub set \"$set\""
 				 });
 			} else { # automatically take the key from the first; further sets should have the same labels
-				 @keys = sort { lc $a cmp lc $b } keys %{ $plot->{data}{$set} };
+				 @keys = sort { lc $a cmp lc $b } keys %{ $sets{$set} };
 			}
-			my $n_keys = scalar keys %{ $plot->{data}{$set} };
+			my $n_keys = scalar keys %{ $sets{$set} };
 			if ( ( $n_keys != 2 ) && ( $n_keys != 3 ) ) {
 				p $plot->{data}{$set};
 				die "scatterplots can only take 2 or 3 keys as data, but $current_sub received $n_keys";
 			}
 			foreach my $key (@keys) {
-				check_scatter_values( $plot->{data}{$set}{$key}, "\"$key\" of set \"$set\"", $current_sub );
+				check_scatter_values( $sets{$set}{$key}, "\"$key\" of set \"$set\"", $current_sub );
 			}
 			if ( defined $plot->{color_key} ) {
 				$color_key = $plot->{color_key};
 				@keys = grep {$_ ne $plot->{color_key}} @keys;
 			} elsif ( scalar @keys == 3 ) {
 				$color_key = pop @keys;
+			} elsif ( $n_keys == 3 ) {
+				# "keys" named x and y of three inner keys, so the one it left out
+				# is the color, as the third is when the keys are sorted. This
+				# popped the y key off "keys" instead, and died as "Use of
+				# uninitialized value $keys[1] in hash element".
+				my %named = map { $_ => 1 } @keys;
+				($color_key) = grep { not $named{$_} } sort { lc $a cmp lc $b } keys %{ $sets{$set} };
 			}
-			if ( ( not defined $color_key ) && ( $n_keys == 3 ) ) {
-				$color_key = pop @keys;
+			if ( scalar @keys != 2 ) {
+				p @keys;
+				die "$current_sub set \"$set\" needs one key for x and one for y, but \"keys\" and \"color_key\" leave the " . scalar(@keys) . ' above';
 			}
+			if ( defined $color_key ) {
+				if (not defined $sets{$set}{$color_key}) {
+					die "\"$color_key\" isn't defined for set \"$set\"";
+				}
+				check_scatter_values( $sets{$set}{$color_key}, "\"$color_key\" of set \"$set\"", $current_sub );
+				$color_key_of{$set} = $color_key;
+			}
+			$xy_keys{$set} = \@keys;
+		}
+		# One color scale for every set. Each ax.scatter normalises its own c to
+		# its own minimum and maximum, so without this the same color meant a
+		# different value in each set, the colorbar -- drawn from the last set --
+		# was true only of that set, and a set of one point was always drawn in
+		# the bottom color of the map whatever its value.
+		my $color_range = '';
+		if ( scalar keys %color_key_of > 0 ) {
+			my @z = map { @{ $sets{$_}{ $color_key_of{$_} } } } keys %color_key_of;
+			$color_range = ', vmin = ' . min(@z) . ', vmax = ' . max(@z);
+		}
+		# The key the one colorbar is labelled with, from the last set that has
+		# one. Kept apart from each set's own $color_key, which used to be this
+		# same variable: a set with a third key left it defined for every set
+		# after it, and a later set of only x and y died as '"z" isn't defined'.
+		my $colorbar_key;
+		# Sets colored by a third key are all drawn from the same colormap, so
+		# color cannot tell them apart; each takes the next of these markers, in
+		# the sorted order of the set names, unless its set.options name one. All
+		# are filled, so each shows its color; the list repeats once it runs out. A
+		# marker that set.options give to some set is left out, so that no other
+		# set is given it too.
+		my %taken = map { $_ => 1 } grep { defined }
+			map { m/\bmarker\s*=\s*['"]([^'"]+)['"]/ ? $1 : undef } values %{ $plot->{'set.options'} // {} };
+		my @markers = grep { not $taken{$_} } qw(o s ^ D v P X * < > p h d);
+		@markers = ('o') if scalar @markers == 0; # all 13 taken: repeat the first
+		my $marker_i = 0;
+		foreach my $set ( sort keys %sets ) {
+			my $options = '';
+			my @keys = @{ $xy_keys{$set} };
+			my $color_key = $color_key_of{$set};
 			if ( defined $plot->{'set.options'}{$set} ) {
 				$options = ", $plot->{'set.options'}{$set}";
 			}
-			say { $args->{fh} } 'x = [' . join( ',', @{ $plot->{data}{$set}{ $keys[0] } } ) . ']';
-			say { $args->{fh} } 'y = [' . join( ',', @{ $plot->{data}{$set}{ $keys[1] } } ) . ']';
+			say { $args->{fh} } 'x = [' . join( ',', @{ $sets{$set}{ $keys[0] } } ) . ']';
+			say { $args->{fh} } 'y = [' . join( ',', @{ $sets{$set}{ $keys[1] } } ) . ']';
 			if ( defined $color_key ) {
-				if (not defined $plot->{data}{$set}{$color_key}) {
-					die "\"$color_key\" isn't defined for set \"$set\"";
-				}
-				check_scatter_values( $plot->{data}{$set}{$color_key}, "\"$color_key\" of set \"$set\"", $current_sub );
 				$colorbar_key = $color_key;
-				say { $args->{fh} } 'z = [' . join( ',', @{ $plot->{data}{$set}{$color_key} } ) . ']';
+				say { $args->{fh} } 'z = [' . join( ',', @{ $sets{$set}{$color_key} } ) . ']';
 				unless ( $options =~ m/label\s*=/ ) {
 					$options .= ', label = ' . py_str($set);
 				}
+				unless ( $options =~ m/\bmarker\s*=/ ) {
+					$options .= ", marker = '$markers[ $marker_i % @markers ]'";
+					$marker_i++;
+				}
+				# a set's own vmin, vmax or norm is its caller's decision, and
+				# matplotlib refuses norm alongside vmin and vmax
+				my $range = ( $options =~ m/\b(?:vmin|vmax|norm)\s*=/ ) ? '' : $color_range;
 				say { $args->{fh} }
-				"im = ax$ax.scatter(x, y, c = z, cmap = " . py_str($plot->{cmap}) . " $options)";
+				"im = ax$ax.scatter(x, y, c = z, cmap = " . py_str($plot->{cmap}) . "$range $options)";
 			} else {
 				say { $args->{fh} }	"ax$ax.scatter(x, y, label = " . py_str($set) . " $options)";
 			}
@@ -2870,6 +2945,17 @@ sub print_type {
 	if (looks_like_number($str)) { # numbers (e.g. 0.8) must not be quoted
 		return 'no quotes';
 	}
+	# An argument list of bare values, such as "0, 10" for "ylim" or "0.5, 0, 1"
+	# for "axhline", is Python rather than text. The comma tests below quoted
+	# it, so a single plot's "ylim => '0, 10'" wrote plt.ylim('0, 10') and died
+	# as "ValueError: too many values to unpack"; a subplot writes it bare, as
+	# it always has. None, True and False are bare values too, so that
+	# "ylim => 'None, 10'" leaves the bottom where matplotlib puts it.
+	my @items = split /,/, $str, -1;
+	if (   ( scalar @items > 1 )
+		&& ( not grep { ( not looks_like_number($_) ) && ( $_ !~ m/^\h*(?:None|True|False)\h*$/ ) } @items ) ) {
+		return 'no quotes';
+	}
 	# Text that already carries a quote of its own is Python the caller wrote
 	# -- a quoted label ('"Counts, by book"', the form the documentation asks
 	# for when the text holds a comma), a mathtext raw string, or a whole
@@ -3021,27 +3107,32 @@ sub copy_plot_hashes {
 	# and the data inside them is not: it is only read, and can be large.
 	# Anything of the wrong shape is passed through as it is, for the checks
 	# in plt to refuse by name.
+	#
+	# "p" is copied too, subplot by subplot and overlay by overlay. It was not,
+	# and normalise_p copies only the subplot hashes it builds, so an overlay
+	# drawn through "p" -- the 2nd hash of an inner array, or an "add" graph --
+	# was the caller's own: a hist overlay came back with its array "data"
+	# rewrapped as { A => [...] } and a "plot.type" it had not been given.
 	my ($args) = @_;
-	my $copy_adds = sub {
+	my $copy_plot = sub {
 		my ($plot) = @_;
-		return unless ref $plot->{add} eq 'ARRAY';
-		$plot->{add} = [ map { ref $_ eq 'HASH' ? { %{$_} } : $_ } @{ $plot->{add} } ];
+		return $plot unless ref $plot eq 'HASH';
+		$plot = { %{$plot} };
+		if ( ref $plot->{add} eq 'ARRAY' ) {
+			$plot->{add} = [ map { ref $_ eq 'HASH' ? { %{$_} } : $_ } @{ $plot->{add} } ];
+		}
+		return $plot;
 	};
-	my %copy = %{$args};
-	$copy_adds->( \%copy );
-	if ( ref $copy{plots} eq 'ARRAY' ) {
-		$copy{plots} = [
-			map {
-				my $plot = $_;
-				if ( ref $plot eq 'HASH' ) {
-					$plot = { %{$plot} };
-					$copy_adds->($plot);
-				}
-				$plot;
-			} @{ $copy{plots} }
+	my $copy = $copy_plot->($args);
+	if ( ref $copy->{plots} eq 'ARRAY' ) {
+		$copy->{plots} = [ map { $copy_plot->($_) } @{ $copy->{plots} } ];
+	}
+	if ( ref $copy->{p} eq 'ARRAY' ) {
+		$copy->{p} = [
+			map { ref $_ eq 'ARRAY' ? [ map { $copy_plot->($_) } @{$_} ] : $copy_plot->($_) } @{ $copy->{p} }
 		];
 	}
-	return \%copy;
+	return $copy;
 }
 sub plt {
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
@@ -3457,6 +3548,12 @@ sub plt {
 	# now also reaches the "suptitle" of a figure of several subplots.
 	foreach my $text_method ( grep { ( defined $methods{$_} ) && ( defined $args->{$_} ) && ( ref $args->{$_} eq '' ) } @text_methods ) {
 		$args->{$text_method} = quote_text( $args->{$text_method} );
+	}
+	# As in plot_args: a single plot's "twinx" leaves the twin current, and its
+	# "axhline" was drawn on the twin. A figure of several subplots is left
+	# alone, since its own pyplot options are figure-wide ones like "suptitle".
+	if ( ( $single_plot == 1 ) && ( grep { ( defined $methods{$_} ) && ( $_ ne 'show' ) } keys %{$args} ) ) {
+		say $fh 'plt.sca(ax0) #' . __LINE__;
 	}
 	foreach my $plt_method ( grep { defined $methods{$_} } keys %{$args} ) {
 		my $ref = ref $args->{$plt_method};
@@ -4040,6 +4137,7 @@ already have in Perl:
 <tr><td>hash of <code>[ \@x, \@y ]</code> pairs</td><td><code>plot</code></td><td>one labelled line per key</td></tr>
 <tr><td>hash of arrays of <code>[ \@x, \@y ]</code> pairs</td><td><code>wide</code></td><td>repeated runs of the same curve, summarised</td></tr>
 <tr><td>hash of hashes of array refs</td><td><code>scatter</code></td><td>several labelled sets, each with its own x/y (and colour)</td></tr>
+<tr><td>hash of hashes of numbers, <code>A => { X => 1, Y => 2 }</code></td><td><code>scatter</code></td><td>one labelled point per key</td></tr>
 <tr><td>a single array ref</td><td><code>hist</code>, <code>boxplot</code>, <code>violin</code></td><td>the one-series shorthand</td></tr>
 <tr><td>array of <code>[ \@x, \@y ]</code> pairs</td><td><code>plot</code>, <code>wide</code></td><td>unlabelled lines</td></tr>
 <tr><td>2-D array (array of array refs)</td><td><code>imshow</code></td><td>a raster/heatmap; strings allowed via <code>stringmap</code></td></tr>
@@ -6218,7 +6316,7 @@ go.
 
 =head3 Entering data
 
-C<data> takes two shapes, and which one you passed is worked out from whether the
+C<data> takes three shapes, and which one you passed is worked out from whether the
 values are arrays or hashes.
 
 B<1. One set (hash of 2 or 3 array refs).> All the arrays must be the same
@@ -6261,11 +6359,29 @@ in form 1.  This is the form to use for "the same measurement, split by group":
      },
  );
 
-With three inner keys, every set is colored by its own third column and the
-figure gets a single colorbar, drawn from the last set plotted — so read the
-colors across sets only when the color columns cover comparable ranges.
-C<color_key> then names an B<inner> key, and it must exist in every set: naming a
-key that is not there is an error rather than being quietly ignored.
+With three inner keys, every set is colored by its own third column, on one
+scale running from the smallest to the largest color value of all the sets, and
+the figure gets a single colorbar for that scale.  A set whose C<set.options>
+give their own C<vmin>, C<vmax> or C<norm> keeps them instead.  Since color then says nothing about which set a point belongs to, each such set is drawn with its own marker -- C<o>, C<s>, C<^>, C<D>, C<v> and on, in the sorted order of the set names -- unless its C<set.options> name a C<marker>, which no other set is then given.  C<color_key>
+then names an B<inner> key, and it must exist in every set: naming a key that is
+not there is an error rather than being quietly ignored.
+
+B<3. One point per set (hash of hashes of numbers).> An inner hash whose values
+are all plain numbers is a single point, read as in form 2 and labelled with the
+set's name in the legend.  This suits one summary per group, such as the scores
+of several models:
+
+ scatter(
+     'output.file' => '/tmp/models.svg',
+     data          => {
+         catboost   => { MAE => 0.41, MSE => 0.30, R2 => 0.83 },
+         elasticnet => { MAE => 0.60, MSE => 0.55, R2 => 0.61 },
+     },
+     keys          => [ 'MAE', 'R2', 'MSE' ],    # x, y, colour
+ );
+
+A set cannot mix the two: numbers for some keys and arrays for others is an
+error.
 
 =head3 options
 
@@ -6276,7 +6392,7 @@ key that is not there is an error rather than being quietly ignored.
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
 <tr><td><code>cmap</code></td><td>the colormap used when a third key colors the points; <code>gist_rainbow</code> by default</td><td><code>cmap => 'viridis'</code></td></tr>
 <tr><td><code>color_key</code></td><td>which key of <code>data</code> holds the color values, rather than letting the sort decide.  For the multi-set form this is an inner key, and it must be present in every set</td><td><code>color_key => 'Age'</code></td></tr>
-<tr><td><code>keys</code></td><td>array ref fixing the roles of the keys positionally: x, y, then color</td><td><code>keys => ['Weight', 'Height', 'Age']</code></td></tr>
+<tr><td><code>keys</code></td><td>array ref fixing the roles of the keys positionally: x, y, then color.  In the multi-set form, naming only x and y of three inner keys leaves the third as the color</td><td><code>keys => ['Weight', 'Height', 'Age']</code></td></tr>
 <tr><td><code>logscale</code></td><td>an array of the axes to put on a log scale</td><td><code>logscale => ['x', 'y']</code></td></tr>
 <tr><td><code>set.options</code></td><td>arguments passed straight to Matplotlib's <code>ax.scatter</code>: <code>marker</code>, <code>color</code>, <code>alpha</code>, <code>s</code>, …  A **scalar** for the single-set form; a **hash keyed by set name** for the multi-set form.  Options for a set that has no data are an error</td><td><code>'set.options' => 'marker = "v", alpha = 0.4'</code></td></tr>
 </tbody>

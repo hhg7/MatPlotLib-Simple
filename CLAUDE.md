@@ -184,6 +184,8 @@ problem, not an installer's.
   leaves the caller's hashes and data exactly as it was given them.
 - `t/08.python.interpreter.t` — which Python `plt` runs on MSWin32 and
   elsewhere, and that it passes the script path whole.
+- `t/09.review.fixes.0.316.t` — one block per fix of 0.316, in the form of
+  `t/07.review.fixes.t`.
 - `t/utf8.mojibake.t` — labels arriving as raw utf8 bytes rather than wide
   characters.
 - `Matplotlib-Simple-0.3*/` and the matching `.tar.gz` — snapshots of past
@@ -197,7 +199,7 @@ problem, not an installer's.
 
     prove -Ilib t/
 
-The full suite is 765 tests in about 55 seconds on a machine with python3 and
+The full suite is 795 tests in about 59 seconds on a machine with python3 and
 matplotlib. `perl Makefile.PL && make test` also works.
 
 ## Releasing

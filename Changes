@@ -1,5 +1,31 @@
 Revision history for Matplotlib-Simple
 
+0.316 2026-09-28 CDT
+
+ [New data shape]
+
+ - `scatter` takes a hash of hashes of numbers, one point per set: `catboost => { MAE => 0.41, MSE => 0.30, R2 => 0.83 }` is drawn as a single point labelled "catboost" in the legend, its keys read as x, y and color exactly as for a set of arrays. This suits one summary per group, such as the scores of several models. Such data used to die with "must be an array of numbers, not a scalar". A set that mixes numbers and arrays is still refused.
+
+ [Figures that were drawn wrong]
+
+ - A `scatter` of several sets colored by a third key draws every set on one color scale, from the smallest to the largest color value of all the sets. Each set was scaled to its own range, so the same color meant a different value in each set, the one colorbar -- drawn from the last set -- was true only of that set, and a set of one point came out in the bottom color of the map whatever its value. A set whose `set.options` give their own `vmin`, `vmax` or `norm` keeps them. This changes the picture for anyone whose sets had different color ranges.
+
+ - Sets of a `scatter` colored by a third key are each drawn with their own marker (`o`, `s`, `^`, `D`, `v`, ... in the sorted order of the set names). They were all circles, and since every set is colored from the same colormap, nothing but the legend order said which point belonged to which set; for the one-point-per-set data above, the legend could not be read at all. A set whose `set.options` name a `marker` keeps it, and that marker is not given to any other set. Sets drawn without a color key keep their distinct colors and are given no marker.
+
+ - A pyplot option given to one subplot -- `axhline`, `ylim`, `grid`, `xscale` and the others written as `plt.` calls -- is drawn on that subplot. It was drawn on whichever axes matplotlib held current, which after the subplots are made is the last one, so subplot 0's `axhline => 2` appeared on the last subplot and subplot 0 had none. A single plot with `twinx` had the same fault: its pyplot options were drawn on the twin axes.
+
+ - A single plot writes an argument list of numbers as Python. `ylim => '0, 10'` was quoted into the string `plt.ylim('0, 10')`, and the script died with "ValueError: too many values to unpack"; the same option at a subplot has always worked. A list may hold `None`, `True` and `False` as well, so `ylim => 'None, 10'` sets only the top. A lone word such as `xscale => 'log'` is still quoted, as is a list with a word in it.
+
+ [Data that cannot be drawn is refused, naming what is wrong]
+
+ - `imshow` draws rows of numbers held as strings, such as rows split from the lines of a file. They were written into the script as JSON strings, and the script died with "TypeError: Image data of dtype <U1 cannot be converted to float".
+
+ - A `scatter` of several sets whose `keys` name only x and y of three inner keys is colored by the third, as three inner keys are when `keys` is not given. It died with "Use of uninitialized value $keys[1] in hash element", because the y key was taken to be the color. A `keys` that leaves no key for y is refused, naming the set.
+
+ [plt no longer changes what it is given]
+
+ - `plt` called with `p` leaves the caller's overlay hashes as it was given them. An overlay -- the second hash of an inner array of `p`, or an `add` graph of a subplot -- was drawn from the caller's own hash, which came back holding a `plot.type` it had not been given and, for a `hist`, with its array `data` rewrapped as `{ A => [...] }`. 0.315 made the same promise for `plots` and for a single plot, and kept it there.
+
 0.315 2026-09-25 CDT
 
  [Windows]
