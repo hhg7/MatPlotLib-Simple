@@ -78,6 +78,22 @@ the module ran `python3` unconditionally, so on Windows it could not run its
 script wherever Python *was* installed; that never showed up in a report
 because the smokers have no Python.
 
+Since 0.317, `$ENV{MATPLOTLIB_SIMPLE_PYTHON}`, when set and not empty, comes
+before all of that: it is the interpreter, as one path, neither searched for
+nor checked, and never split on spaces. It exists for machines whose `python3`
+is too old, such as an HPC cluster whose system Python is 3.6.8 with matplotlib 3.0,
+where a venv or `module load` provides a newer one. The tests that drive the
+search `local`ise it away so that a caller's setting cannot decide them.
+
+### A matplotlib gate is a version gate
+
+The generated script asks for `layout = 'constrained'`, which matplotlib
+refuses before 3.5, so "matplotlib imports" is not a sufficient gate for
+anything that renders. Every test that runs a script requires matplotlib
+>= 3.10, parsed from `matplotlib.__version__`. Until 0.317, `t/07` and `t/09`
+checked only the import, and 9 tests failed against matplotlib 3.0 on that
+cluster, which stopped the module from installing.
+
 An older gap, closed in 0.313: `system('python3 ' . $fh->filename)` in the
 one-argument form went through the shell and split on whitespace, so a temp
 path containing a space broke it. The call is now
@@ -186,6 +202,7 @@ problem, not an installer's.
   elsewhere, and that it passes the script path whole.
 - `t/09.review.fixes.0.316.t` — one block per fix of 0.316, in the form of
   `t/07.review.fixes.t`.
+- `t/10.review.fixes.0.317.t` — one block per fix of 0.317, in the same form.
 - `t/utf8.mojibake.t` — labels arriving as raw utf8 bytes rather than wide
   characters.
 - `Matplotlib-Simple-0.3*/` and the matching `.tar.gz` — snapshots of past
@@ -199,7 +216,7 @@ problem, not an installer's.
 
     prove -Ilib t/
 
-The full suite is 806 tests in 60 to 80 seconds on a machine with python3 and
+The full suite is 916 tests in about 150 seconds on a machine with python3 and
 matplotlib. `perl Makefile.PL && make test` also works.
 
 ## Releasing

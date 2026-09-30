@@ -4,8 +4,8 @@ Matplotlib::Simple - Access Matplotlib from Perl; providing consistent user inte
 
 # Synopsis
 
-Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in `/tmp`, to be edited at the user's discretion.
-Depends on Python 3 and matplotlib.  The script is run with `python3`; on Windows, where a standard install has no `python3`, it is run with the first of `python`, `py -3` and `python3` that reports itself as Python 3 (as of version 0.315 -- before that, the module could not run its script on Windows at all).  Pass `execute => 0` to write the script without running it.
+Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in the system's temporary directory (`File::Spec->tmpdir`, which is `/tmp` on unix), to be edited at the user's discretion.
+Depends on Python 3 and matplotlib.  The script is run with `python3`; on Windows, where a standard install has no `python3`, it is run with the first of `python`, `py -3` and `python3` that reports itself as Python 3 (as of version 0.315 -- before that, the module could not run its script on Windows at all).  To run a different interpreter -- a venv, or a newer Python on a cluster whose system `python3` is too old -- set the environment variable `MATPLOTLIB_SIMPLE_PYTHON` to its path, such as `export MATPLOTLIB_SIMPLE_PYTHON=~/mpl/bin/python3` (as of version 0.317).  The generated scripts cannot run with a matplotlib older than 3.5, which does not accept the constrained layout they ask for; the test suite is written against 3.10 and newer, and skips its drawing checks with anything older.  Pass `execute => 0` to write the script without running it.
 
 My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib itself.
 
@@ -172,7 +172,9 @@ hashes and inner arrays may be intermixed in the same `p`, for example
 
 ## Options
 
-`sharex` and `sharey` are both implemented at the plot, rather than subplot, level.  See Matplotlib's documentation for more clarity.
+`sharex` and `sharey` are both implemented at the plot, rather than subplot, level.  Each takes `True` or `False` (or 1 or 0), or one of Matplotlib's words `row`, `col`, `all` and `none`, such as `sharey => 'row'`.  See Matplotlib's documentation for more clarity.
+
+A number in `data` may be NaN or infinite.  Such a value is drawn as Matplotlib draws it -- a NaN is a gap in a line, an empty cell of an `imshow` or `colored_table` -- and it does not count towards any range this module works out, such as a color scale.  `boxplot` and `violin` leave NaN out as they leave out an undefined value, and `hist`, `pie` and `violin` refuse an infinite value, since there is nothing finite to bin, size or draw a density for.
 
 ### Quoting text: commas and apostrophes
 
@@ -277,8 +279,9 @@ Colarbar args attempt to match matplotlib closely
 |`cblocation`   |  of the colorbar None or {'left', 'right', 'top', 'bottom'} | |
 |`cborientation` | # None or {`vertical`, `horizontal`} |
 |`cbpad`        | pad : float, default: 0.05 if vertical, 0.15 if horizontal; Fraction of original Axes between colorbar and new image Axes
-|`cb_logscale`  | Perl true (anything but 0) or false (0)| |
-|`shared.colorbar` | share colorbar between different plots: specify plot indices | `'shared.colorbar' => [0,1]`|
+|`cb_logscale`  | color on a log scale: Perl true (anything but 0) or false (0).  Works for `colored_table`, `hexbin`, `hist2d`, `imshow` and `scatter`, though not for an `imshow` with a `stringmap`, whose colors are categories.  The bottom of the scale is the smallest value above 0 unless `cb_min` or `vmin` says otherwise | `cb_logscale => 1` |
+|`cb_min`, `cb_max` | the bottom and top of the color scale, taken from the data where not given.  For `hexbin`, `hist2d` and `imshow` these are the same as `vmin` and `vmax`, and only one of the two may be given for each end | `cb_min => 0, cb_max => 10` |
+|`shared.colorbar` | share colorbar between different plots: specify plot indices.  Each subplot listed must be one that draws a colorbar: `colored_table`, `hexbin`, `hist2d`, `imshow` or `scatter` | `'shared.colorbar' => [0,1]`|
 
 # Size/Dimensions of output file
 
@@ -424,8 +427,10 @@ another instead of placing them side by side.
 ### Error bars
 
 `yerr` (natural for `bar`) and `xerr` (natural for `barh`) take either one
-number for every bar, or a hash keyed by the data keys.  A two-element array
-gives asymmetric `[ lower, upper ]` errors:
+number for every bar, an array of one number per bar (in the order of `key.order`, or
+of the sorted keys), an array of two such arrays (the lower errors, then the upper),
+or a hash keyed by the data keys.  In the hash, each value is one number, or a
+two-element array giving asymmetric `[ lower, upper ]` errors:
 
     bar(
     	'output.file' => '/tmp/warheads.svg',
@@ -446,8 +451,8 @@ gives asymmetric `[ lower, upper ]` errors:
 |edgecolor| :mpltype:`color` or list of :mpltype:`color`, optional; The colors of the bar edges|`edgecolor		=> 'black'`
 |key.order|  define the keys in an order (an array reference)|`'key.order'		=> ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],`
 |label| an array of legend labels for grouped bar plots, indexed like the data arrays; only meaningful for the hash-of-arrays form, since the hash-of-hashes form takes its labels from the inner keys|`label => ['North', 'South'],`
-|linewidth| float or array, optional; Width of the bar edge(s). If 0, don't draw edges. Only does anything with defined `edgecolor`|`linewidth => 2,`
-|log| bool, default: False; If *True*, set the y-axis to be log scale.|`log = 'True',`
+|linewidth| float or array of one per bar, optional; Width of the bar edge(s). If 0, don't draw edges. Only does anything with defined `edgecolor`|`linewidth => 2,`
+|log| bool, default: False; If *True*, set the y-axis to be log scale.  Give `'True'` or `'False'` (or 1 or 0); anything else is refused, and `'False'` turns the log scale off|`log = 'True',`
 |logscale| a synonym for `log` taking a Perl true/false value rather than Python's `'True'`/`'False'`.  Unlike the `logscale` of `boxplot`, `hist`, `hist2d`, `plot`, `scatter` and `violin`, this one is a scalar and not an array of axis names|`logscale => 1,`
 |stacked| stack the groups on top of one another; default 0 = off|`stacked	=> 1,`
 |width| float only, default: 0.8; The width(s) of the bars.  `width` will be deactivated with grouped, non-stacked bar plots |`width => 0.4,`
@@ -901,11 +906,14 @@ only fills one triangle — the usual shape of a pairwise-comparison table — c
 be completed by reflecting it across the diagonal with `mirror => 1`, so that
 `$data{A}{B}` also supplies `$data{B}{A}`.
 
-Rows and columns are otherwise taken in sorted order.  `col.labels` chooses
-which keys are drawn and in what order, which is how the bond-dissociation
-example below shows the halogens only out of a larger table; `row.labels`
-supplies the text down the left-hand side, so it should list the same keys in
-the same order.
+The rows are the outer keys and the columns every inner key, each in sorted
+order, so the table above has rows C and H and columns Br, Cl and H.  With
+`mirror`, which makes the table symmetric, rows and columns are both every key.
+`col.labels` chooses which keys are drawn and in what order, as the rows and the
+columns both, which is how the bond-dissociation example below shows the
+halogens only out of a larger table; `row.labels` supplies the text down the
+left-hand side, so it should list the same keys in the same order, and must have
+one label per row.
 
 ### options
 
@@ -1063,16 +1071,15 @@ labels.  Use `key.order` to say which is which rather than relying on the sort:
 |key.order|  define the keys in an order (an array reference)|`'key.order' => ['X-rays', 'Yak Butter'],`
 | marginals | integer, by default off = 0 | `marginals => 1` |
 | mincnt | int >= 0, default: None; If not None, only display cells with at least mincnt number of points in the cell. |  `mincnt => 2`|
-| vmax  | The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap | `'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'` default `linear` |
-| vmin  | The normalization method used to scale scalar data to the [0, 1] range before mapping to colors using cmap | `'asinh', 'function', 'functionlog', 'linear', 'log', 'logit', 'symlog'` default `linear` |
+| vmax  | the cell count at the top of the color scale; taken from the data if not given | `vmax => 50` |
+| vmin  | the cell count at the bottom of the color scale; taken from the data if not given | `vmin => 1` |
 | xbins | integer that accesses horizontal gridsize | default is 15 |
 | xscale.hexbin | 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the horizontal axis | `'xscale.hexbin' => 'log'`|
 | ybins | integer that accesses vertical gridsize | default is 15 |
 | yscale.hexbin | 'linear', 'log'}, default: 'linear': Use a linear or log10 scale on the vertical axis | `'yscale.hexbin' => 'log'`|
 
-`cb_logscale` cannot be combined with `vmin`/`vmax`.  The log-scaled colorbar is
-drawn by handing Matplotlib a `LogNorm`, and an explicit range on top of that
-makes the generated Python fail; use one or the other.
+With `cb_logscale`, `vmin` and `vmax` set the ends of the `LogNorm` that draws
+the log-scaled colorbar, as they do for `hist2d`.
 
 ### single, simple plot
 
@@ -2388,7 +2395,8 @@ error.
 | -------- | ------- | ------- |
 |`cmap`| the colormap used when a third key colors the points; `gist_rainbow` by default | `cmap => 'viridis'` |
 |`color_key`| which key of `data` holds the color values, rather than letting the sort decide.  For the multi-set form this is an inner key, and it must be present in every set | `color_key => 'Age'` |
-|`keys`| array ref fixing the roles of the keys positionally: x, y, then color.  In the multi-set form, naming only x and y of three inner keys leaves the third as the color | `keys => ['Weight', 'Height', 'Age']` |
+|`colorbar.on`, `cblabel` and the other colorbar options| the colorbar drawn when a third key colors the points, as listed under Color Bars; `cblabel` defaults to the color key's name, and `'colorbar.on' => 0` leaves the colorbar out | `cblabel => 'Age (years)'` |
+|`keys`| array ref fixing the roles of the keys positionally: x, y, then color.  In either form, the single-set or the multi-set, naming only x and y of three keys leaves the third as the color | `keys => ['Weight', 'Height', 'Age']` |
 |`logscale`| an array of the axes to put on a log scale | `logscale => ['x', 'y']` |
 |`set.options`| arguments passed straight to Matplotlib's `ax.scatter`: `marker`, `color`, `alpha`, `s`, …  A **scalar** for the single-set form; a **hash keyed by set name** for the multi-set form.  Options for a set that has no data are an error | `'set.options' => 'marker = "v", alpha = 0.4'` |
 
@@ -2587,6 +2595,7 @@ into it, so a violin drawn from very few points announces itself.
 | -------- | ------- | -------
 |`color`| a single color for every violin |`color => 'red'`|
 |`colors`| a hash pairing each data key with its own color; every key in `data` must appear | `colors       => { E => 'yellow', B => 'purple', A => 'green' }`|
+|`edgecolor`| the color of the outline of every violin; `black` by default | `edgecolor => 'none'` |
 |`key.order`| determine key order display on x-axis|`'key.order' => ['B', 'A', 'E']`|
 |`logscale`| an array of the axes to put on a log scale; only `x` and `y` are accepted.  Note this is an array reference, not the `log => 1` scalar that `bar` takes |`logscale => ['y']`|
 |`orientation`|'vertical', 'horizontal'}, default: 'vertical'|`orientation => 'horizontal'`|

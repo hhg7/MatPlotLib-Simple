@@ -1,5 +1,70 @@
 Revision history for Matplotlib-Simple
 
+0.317 2026-09-30 CDT
+
+ [Installing]
+
+ - The test suite skips its drawing checks, rather than failing them, where matplotlib is older than 3.10. `t/07.review.fixes.t` and `t/09.review.fixes.0.316.t` checked only that matplotlib could be imported, so on a machine whose `python3` is 3.6.8 with matplotlib 3.0 -- the system Python, in /usr/lib64/python3.6, of the HPC cluster where the install was attempted -- 9 of 709 tests failed with "TypeError: __init__() got an unexpected keyword argument 'layout'" and the module would not install. The other test files already required 3.10.
+
+ [Choosing the Python]
+
+ - The environment variable `MATPLOTLIB_SIMPLE_PYTHON`, when set, is the path of the Python that `plt` runs its script with, taken whole, spaces and all, in place of `python3` (or, on Windows, of the search for `python`, `py -3` and `python3`). This is for a venv, or for a cluster whose own `python3` is too old for matplotlib 3.5 and which provides a newer one through `module load` or conda. The test suite uses the same interpreter, so `MATPLOTLIB_SIMPLE_PYTHON=~/mpl/bin/python3 cpanm Matplotlib::Simple` tests the module with the Python it will be used with. When no Python is found at all, the error now names the variable.
+
+ [Figures that were drawn wrong]
+
+ - `bar` with `log => 'False'` draws a linear y axis. The option is documented as a Python bool, and was tested for Perl truth, in which the string 'False' is true, so it turned the log scale on. `log` takes 'True' or 'False', in any case, or a number; anything else is refused by name. `logscale`, documented as taking Perl truth, is unchanged.
+
+ - `colored_table` takes its rows from the outer keys of `data` and its columns from the inner keys, as documented. Both were taken from the outer keys, so a column that was only ever an inner key was dropped: the documentation's own example, `{ H => { H => 432, Cl => 427, Br => 363 }, C => { H => 413, Cl => 339, Br => 276 } }`, drew columns C and H, lost every Br and Cl value and left the C column empty. A table whose inner keys are all outer keys too, such as the bond-dissociation example, is drawn as before. With `mirror`, rows and columns are both every key, and a reflection fills only the cells left empty, where it used to overwrite a cell that was given, by hash order. A `row.labels` of the wrong length is refused by name.
+
+ - `colored_table` draws its colorbar with `cbdrawedges`, `cblocation`, `cborientation` and `cbpad`, which the documentation said worked there and which were accepted and then not written.
+
+ - `scatter` reads `colorbar.on`, `cblabel`, `cblocation`, `cborientation` and `shared.colorbar`. It accepted them all and read none: `'colorbar.on' => 0` still drew a colorbar, labelled with the color key whatever `cblabel` said, and two scatters sharing a colorbar each drew their own.
+
+ - `violin` outlines its violins in `edgecolor`, which was accepted, given a default, and ignored for a hardcoded black.
+
+ - `cb_min`, `cb_max` and `cb_logscale` set the color scale of `scatter` and `imshow`, and `cb_min` and `cb_max` that of `hexbin` and `hist2d`. All four accepted them, since they are colorbar options, and none read them. For `hexbin`, `hist2d` and `imshow`, `cb_min` and `cb_max` are the same as the `vmin` and `vmax` they already took, and giving both for one end is refused. A log scale starts at the smallest value above 0 unless told otherwise, and is refused for an `imshow` with a `stringmap`, whose colors are categories. `imshow`'s `vmin` and `vmax` must be numbers; a word was written into the script bare.
+
+ - `hist` and `violin` refuse `colorbar.on`, naming the plot types that take it. Neither draws a colorbar, and both accepted it and did nothing with it.
+
+ - `shared.colorbar` is an option of `plt`, for the whole figure, and a subplot of a type that draws no colorbar refuses it. Every plot type accepted it inside a subplot, where only `plt` reads it, so `bar` or `pie` given it there did nothing and said nothing. A single plot given it is still warned that it means nothing there.
+ - A single-set `scatter` whose `keys` name x and y of three keys is colored by the third, as the multi-set form has been since 0.316. It was drawn in one color with no colorbar.
+
+ - An `imshow` of strings with a `stringmap` and a horizontal colorbar -- `cborientation => 'horizontal'`, or `cblocation` at the top or bottom -- labels its colorbar. The script died with "ValueError: The number of FixedLocator locations (0) ... does not match the number of labels", because the labels were put on the colorbar's y axis, where a horizontal one has no ticks.
+
+ - A subplot with a `hist` overlay reports one range of bin heights, over every set in it. It printed two: the overlay's, then one that left the overlay's bins out.
+
+ - A single plot writes its `legend` once, and only when something has a label. It was drawn a second time by an unconditional `plt.legend()`, which warned "No artists with labels found to put in legend" when nothing had one.
+
+ [Text that came out wrong]
+
+ - A title or label holding a Latin-1 character that is not UTF-8, such as the degree sign of `"Temperature (\xb0C)"`, is written as that character. Every string without Perl's UTF-8 flag was decoded as UTF-8, so the degree sign became U+FFFD. Raw UTF-8 bytes are still decoded.
+
+ - Data keys in raw UTF-8 bytes -- read from a file with no decoding layer, or written in a script without `use utf8` -- are decoded wherever they are written: bar and pie labels, boxplot and violin tick labels, and legend and colorbar labels. Only axis labels were, so `bar(data => { "ρ" => 1 })` without `use utf8` labelled its bar "Ï\x81".
+
+ - An array of titles or labels, such as `set_title => ['First', 'Second']`, writes each one. The array itself was quoted, and the title read "ARRAY(0x5b95222fb660)".
+
+ [Data and options that broke the script, or were silently dropped]
+
+ - NaN and infinity in `data` are written as Python can read them, as `float('nan')` and `float('inf')`. `looks_like_number` accepts "nan", "inf" and a Perl NaN, so they passed every check and were then written as Perl prints them: `plot(data => { A => [[1,2,3], [1,"NaN"+0,3]] })` died with "NameError: name 'NaN' is not defined", and an `imshow` with a NaN died with "TypeError: Image data of dtype object cannot be converted to float". A NaN is drawn as matplotlib draws it -- a gap in a line, an empty cell -- and neither it nor an infinity counts towards a range the module works out, such as an `imshow` color scale, which had come out as "vmax = Inf". `boxplot` and `violin` leave NaN out, as they leave out undef. `hist`, `pie` and `violin` refuse an infinite value by name, since there is nothing finite to bin, size or draw a density for.
+
+ - `sharex` and `sharey` take matplotlib's words `row`, `col`, `all` and `none`, and 'True' and 'False'. A word was written bare, so `sharey => 'row'` died with a NameError.
+
+ - `bar` takes `xerr` and `yerr` as an array of one error per bar, or of two such arrays, lower then upper, as its options table said, and a hash whose value for a key is one number. An array died with "ARRAY for yerr isn't acceptable", and a hash that left out a key died dereferencing it; both are now accepted or refused by name. `linewidth` must be a number.
+
+ - `shared.colorbar` accepts only subplots that draw a colorbar -- `colored_table`, `hexbin`, `hist2d`, `imshow` and `scatter` -- and says so when it is given any other. A `plot` or `pie` in the list died from its own helper, complaining of a "colorbar.on" or "cbpad" that the caller had never passed.
+
+ - A `shared.colorbar` index past the last plot is refused. It was checked against the cells of the grid, so an index naming an empty cell passed: the other listed subplots had their colorbars turned off, the one meant to draw the shared colorbar did not exist, and no colorbar was drawn.
+
+ - A mistyped keyword inside `twinx.args`, such as `ylable`, is refused with the keywords it resembles. It was dropped without a word.
+
+ - Options written into the script as numbers are checked as numbers: `vmin`, `vmax`, `cmin` and `cmax` of `hist2d`, `labeldistance` and `pctdistance` of `pie`, `alpha` of `hist` and `venn_proportional_area`. `vmin => 'low'` wrote "vmin = low" and died as a NameError. `density` of `hist2d` takes 'True' and 'False' as well as a number.
+
+ - `ncols`, `nrows`, `ncol` and `nrow` must be whole numbers of at least 1, and each element of `plots` a hash. `ncols => 'two'` died with 'Argument "two" isn't numeric in multiplication', and `plots => [[1,2]]` with "Not a HASH reference".
+
+ [Documentation]
+
+ - The Synopsis says the script is written to the system's temporary directory, not to /tmp, which it has not been since 0.313. The `hexbin` section no longer says that `cb_logscale` cannot be combined with `vmin` and `vmax`, which it can, and describes `vmin` and `vmax` as the ends of the color scale rather than as a normalization method.
+
 0.316 2026-09-28 CDT
 
  [New data shape]

@@ -39,11 +39,16 @@ my $python_raw = ( scalar @PY ? qx/$PY --version 2>&1/ : '' );
 my $python_available = ( $? == 0 && $python_raw =~ m/Python\s+3\.\d+/i ) ? 1 : 0;
 my $mpl_available = 0;
 if ($python_available) {
-	qx/$PY -c "import matplotlib" 2>&1/;
-	$mpl_available = ( $? == 0 ) ? 1 : 0;
+	# 3.10 is the floor t/01 and t/03 gate on. The generated figure passes
+	# layout = "constrained", which matplotlib refuses before 3.5, so an older
+	# one (3.0, under an HPC cluster's system python3.6) must skip these checks, not fail them.
+	my $raw = qx/$PY -c "import matplotlib; print(matplotlib.__version__)" 2>&1/;
+	if ( $? == 0 && $raw =~ m/^\s*(\d+)\.(\d+)/ ) {
+		$mpl_available = ( $1 > 3 || ( $1 == 3 && $2 >= 10 ) ) ? 1 : 0;
+	}
 }
 diag( $python_available ? "Python 3 found as \"$PY\" (parser gate ON)" : 'no Python 3 (parser gate skipped)' );
-diag( $mpl_available ? 'matplotlib found (render checks ON)' : 'no matplotlib (render checks skipped)' );
+diag( $mpl_available ? 'matplotlib >= 3.10 found (render checks ON)' : 'no matplotlib >= 3.10 (render checks skipped)' );
 
 my $PARSE = q{import ast, sys; ast.parse(open(sys.argv[1], encoding='utf-8').read())};
 
@@ -139,7 +144,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	);
 	like( $py, qr/^plt\.sca\(ax0\).*\n^plt\.axhline\(2\)/m, 'subplot: its own axes is made current before its pyplot options' );
 	SKIP: {
-		skip( 'matplotlib not found', 1 ) unless $mpl_available;
+		skip( 'matplotlib >= 3.10 not found', 1 ) unless $mpl_available;
 		like( run_py( $file, $LINES_PER_AXES ), qr/^L \[2, 1\]$/m, 'subplot: an axhline given to subplot 0 is drawn on subplot 0' );
 	}
 	# A single plot's twinx() leaves the twin current, so its axhline went to
@@ -151,7 +156,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 		axhline     => 2,
 	);
 	SKIP: {
-		skip( 'matplotlib not found', 1 ) unless $mpl_available;
+		skip( 'matplotlib >= 3.10 not found', 1 ) unless $mpl_available;
 		like( run_py( $file, $LINES_PER_AXES ), qr/^L \[2, 1\]$/m, 'single plot: an axhline is drawn on the plot, not on its twinx' );
 	}
 	($py) = gen( 'plot.type' => 'plot', data => { A => [ [ 1, 2 ], [ 1, 2 ] ] } );
@@ -172,7 +177,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	is( ( defined $b64 ? decode_base64($b64) : '' ), '[[1,2,3],[4,5,6]]', 'imshow: numeric strings reach python as JSON numbers' );
 	is_deeply( \@rows, $before, "imshow: the caller's rows are left as they were given" );
 	SKIP: {
-		skip( 'matplotlib not found', 1 ) unless $mpl_available;
+		skip( 'matplotlib >= 3.10 not found', 1 ) unless $mpl_available;
 		like( run_py( $file, 'print("I", im0.get_array().max())' ), qr/^I 6$/m, 'imshow: the image is drawn from the numbers' );
 	}
 }
@@ -228,7 +233,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	like( $py, qr/^plt\.ylim\(0, 10\)#\d+$/m, 'single plot: "ylim => \'0, 10\'" is written as an argument list' );
 	parses_ok( $file, 'single plot: the ylim script parses' );
 	SKIP: {
-		skip( 'matplotlib not found', 1 ) unless $mpl_available;
+		skip( 'matplotlib >= 3.10 not found', 1 ) unless $mpl_available;
 		like( run_py( $file, 'print("Y", tuple(float(v) for v in ax0.get_ylim()))' ), qr/^Y \(0\.0, 10\.0\)$/m, 'single plot: the y axis runs from 0 to 10' );
 	}
 	($py) = gen( 'plot.type' => 'plot', data => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] }, ylim => 'None, 10' );
@@ -254,7 +259,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	like( $py, qr/^plt\.xscale\('log'\) #line\d+$/m, 'subplot: "xscale => \'log\'" is quoted' );
 	parses_ok( $file, 'subplot: the xscale script parses' );
 	SKIP: {
-		skip( 'matplotlib not found', 1 ) unless $mpl_available;
+		skip( 'matplotlib >= 3.10 not found', 1 ) unless $mpl_available;
 		like( run_py( $file, 'print("S", [a.get_xscale() for a in fig.axes])' ), qr/^S \['log', 'linear'\]$/m, 'subplot: only the first subplot is on a log scale' );
 	}
 	# Python values a subplot always wrote bare, and must still: a bracketed
@@ -278,7 +283,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	like( $py, qr/^plt\.grid\(True\)#\d+$/m, 'single plot: a lone True is bare' );
 	like( $py, qr/^plt\.axvline\(float\(2\)\)#\d+$/m, 'single plot: a call is bare' );
 	SKIP: {
-		skip( 'matplotlib not found', 1 ) unless $mpl_available;
+		skip( 'matplotlib >= 3.10 not found', 1 ) unless $mpl_available;
 		like( run_py( $file, 'print("Y", tuple(float(v) for v in ax0.get_ylim()))' ), qr/^Y \(0\.0, 10\.0\)$/m, 'single plot: the y axis runs from 0 to 10' );
 	}
 }

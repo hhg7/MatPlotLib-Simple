@@ -9,6 +9,8 @@
 # file does not wait for one that does: on unix it sets $^O to "MSWin32" and
 # puts stand-in interpreters, small shell scripts, on a PATH of their own,
 # which is enough to drive the search in python_command() through every case.
+# The same stand-ins check that MATPLOTLIB_SIMPLE_PYTHON, added in 0.317,
+# overrides the search and python3 alike.
 #
 # What each stand-in prints is what the real thing prints: "Python 3.12.4" for
 # "--version" (on STDOUT since Python 3.4, on STDERR before), and for the
@@ -58,11 +60,12 @@ sub search_as_windows {
 	local $^O = 'MSWin32';
 	local $ENV{PATH} = $dir;
 	local $Matplotlib::Simple::python_command = undef;    # not yet looked for
+	local $ENV{MATPLOTLIB_SIMPLE_PYTHON};    # the search is what is under test, whatever the caller set
 	return [ Matplotlib::Simple::python_command() ];
 }
 
 SKIP: {
-	skip( 'the stand-in interpreters are /bin/sh scripts', 9 ) if $^O eq 'MSWin32';
+	skip( 'the stand-in interpreters are /bin/sh scripts', 13 ) if $^O eq 'MSWin32';
 
 	# ------------------------------------------------------------------------
 	# 1. The search on MSWin32.
@@ -93,6 +96,7 @@ SKIP: {
 		stub( $found, 'python', 'echo "Python 3.13.0"' );
 		local $^O = 'MSWin32';
 		local $Matplotlib::Simple::python_command = undef;
+		local $ENV{MATPLOTLIB_SIMPLE_PYTHON};
 		my @first;
 		{ local $ENV{PATH} = $found; @first = Matplotlib::Simple::python_command() }
 		local $ENV{PATH} = stub_dir();    # empty: a fresh search would find nothing
@@ -104,7 +108,40 @@ SKIP: {
 		local $^O = 'linux';
 		local $ENV{PATH} = stub_dir();
 		local $Matplotlib::Simple::python_command = undef;
+		local $ENV{MATPLOTLIB_SIMPLE_PYTHON};
 		is_deeply( [ Matplotlib::Simple::python_command() ], ['python3'], 'not MSWin32: the interpreter is python3, unsearched' );
+	}
+
+	# ------------------------------------------------------------------------
+	# 1a. MATPLOTLIB_SIMPLE_PYTHON names the interpreter outright.
+	# ------------------------------------------------------------------------
+	# Added in 0.317 for an HPC whose python3 is 3.6.8 with matplotlib 3.0,
+	# too old for the scripts plt writes, where the one that works is a venv
+	# or a module-loaded Python. The path has a space in it, as
+	# "C:\Program Files\..." does, and must come back as one word.
+	my $named_dir = File::Spec->catdir( $TMP, 'My Python' );
+	mkdir $named_dir or die "can't mkdir $named_dir: $!";
+	my $named = stub( $named_dir, 'python3', 'echo "Python 3.12.4"' );
+	{
+		$dir = stub_dir();
+		stub( $dir, 'python', 'echo "Python 3.13.0"' );
+		local $^O = 'MSWin32';
+		local $ENV{PATH} = $dir;
+		local $ENV{MATPLOTLIB_SIMPLE_PYTHON} = $named;
+		local $Matplotlib::Simple::python_command = undef;
+		is_deeply( [ Matplotlib::Simple::python_command() ], [$named], 'MSWin32: MATPLOTLIB_SIMPLE_PYTHON is taken over the search, space and all' );
+	}
+	{
+		local $^O = 'linux';
+		local $ENV{MATPLOTLIB_SIMPLE_PYTHON} = $named;
+		local $Matplotlib::Simple::python_command = undef;
+		is_deeply( [ Matplotlib::Simple::python_command() ], [$named], 'not MSWin32: MATPLOTLIB_SIMPLE_PYTHON is taken over python3' );
+	}
+	{
+		local $^O = 'linux';
+		local $ENV{MATPLOTLIB_SIMPLE_PYTHON} = '';
+		local $Matplotlib::Simple::python_command = undef;
+		is_deeply( [ Matplotlib::Simple::python_command() ], ['python3'], 'an empty MATPLOTLIB_SIMPLE_PYTHON counts as unset' );
 	}
 
 	# ------------------------------------------------------------------------
@@ -128,6 +165,19 @@ SKIP: {
 		close $in;
 		is_deeply( \@argv, [ 1, $pyfile ], 'plt: the chosen interpreter gets the script path as one argument, space and all' );
 		like( $pyfile, qr/Temp Dir/, 'plt: and the script really was in the directory with the space' );
+	}
+	{
+		my $env_record = File::Spec->catfile( $TMP, 'env argv.txt' );
+		my $env_stub = stub( $named_dir, 'envpy', qq{printf '%s\\n' "\$#" "\$1" > '$env_record'; exit 0} );
+		local $ENV{MATPLOTLIB_SIMPLE_PYTHON} = $env_stub;
+		local $Matplotlib::Simple::python_command = undef;
+		my ( $out, $err, $pyfile ) = capture {
+			plt( 'plot.type' => 'bar', data => { A => 1 }, 'output.file' => File::Spec->catfile( $TMP, 'v.svg' ) );
+		};
+		open my $in, '<', $env_record or die "can't read $env_record: $!";
+		chomp( my @argv = <$in> );
+		close $in;
+		is_deeply( \@argv, [ 1, $pyfile ], 'plt: runs the interpreter MATPLOTLIB_SIMPLE_PYTHON names, from a path with a space' );
 	}
 
 	my $fail_stub = stub( $dir, 'failpy', 'echo "Traceback: boom" >&2; exit 3' );

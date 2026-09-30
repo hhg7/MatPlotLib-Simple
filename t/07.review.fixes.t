@@ -42,11 +42,16 @@ my $python_raw = ( scalar @PY ? qx/$PY --version 2>&1/ : '' );
 my $python_available = ( $? == 0 && $python_raw =~ m/Python\s+3\.\d+/i ) ? 1 : 0;
 my $mpl_available = 0;
 if ($python_available) {
-	qx/$PY -c "import matplotlib" 2>&1/;
-	$mpl_available = ( $? == 0 ) ? 1 : 0;
+	# 3.10 is the floor t/01 and t/03 gate on. The generated figure passes
+	# layout = "constrained", which matplotlib refuses before 3.5, so an older
+	# one (3.0, under an HPC cluster's system python3.6) must skip these checks, not fail them.
+	my $raw = qx/$PY -c "import matplotlib; print(matplotlib.__version__)" 2>&1/;
+	if ( $? == 0 && $raw =~ m/^\s*(\d+)\.(\d+)/ ) {
+		$mpl_available = ( $1 > 3 || ( $1 == 3 && $2 >= 10 ) ) ? 1 : 0;
+	}
 }
 diag( $python_available ? "Python 3 found as \"$PY\" (parser gate ON)" : 'no Python 3 (parser gate skipped)' );
-diag( $mpl_available ? 'matplotlib found (render checks ON)' : 'no matplotlib (render checks skipped)' );
+diag( $mpl_available ? 'matplotlib >= 3.10 found (render checks ON)' : 'no matplotlib >= 3.10 (render checks skipped)' );
 
 my $PARSE = q{import ast, sys; ast.parse(open(sys.argv[1], encoding='utf-8').read())};
 
@@ -134,7 +139,7 @@ sub run_py {
 		data        => { A => [ 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 100 ] }
 	);
 	SKIP: {
-		skip( 'matplotlib not found', 1 ) unless $mpl_available;
+		skip( 'matplotlib >= 3.10 not found', 1 ) unless $mpl_available;
 		my $out = run_py( $file, 'print("W", whiskers.tolist())' );
 		like( $out, qr/^W \[\[1\.0, 16\.0\]\]$/m, 'violin: whiskers are computed from the sorted data' );
 	}
@@ -154,7 +159,7 @@ sub run_py {
 	like( $py, qr/^norm = colors\.LogNorm\(vmin = 1, vmax = 1000\)$/m, 'colored_table: the cells are colored through a LogNorm' );
 	like( $py, qr/imshow\(d, cmap=table_cmap, norm=norm\)/, 'colored_table: the colorbar is drawn from the same norm' );
 	SKIP: {
-		skip( 'matplotlib not found', 1 ) unless $mpl_available;
+		skip( 'matplotlib >= 3.10 not found', 1 ) unless $mpl_available;
 		my $out = run_py( $file, 'print("N", type(norm).__name__, round(float(norm(10)), 3), round(float(norm(100)), 3), img.norm is norm)' );
 		like( $out, qr/^N LogNorm 0\.333 0\.667 True$/m, 'colored_table: 10 and 100 sit a third and two thirds up the log scale' );
 	}
@@ -229,11 +234,14 @@ sub run_py {
 		'output.file' => out_file(),
 		execute       => 0,
 		plots         => [
-			{ 'plot.type' => 'hist', data => [ 1, 2, 2, 3 ], title => 'h' },
+			# An imshow, not the hist this was: since 0.317 a subplot in
+			# "shared.colorbar" must be one that draws a colorbar.
+			{ 'plot.type' => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ], title => 'i' },
 			{ 'plot.type' => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ], add => [ { 'plot.type' => 'plot', data => [ [ 0, 1 ], [ 0, 1 ] ] } ] },
+			{ 'plot.type' => 'hist', data => [ 1, 2, 2, 3 ], title => 'h' },
 			{ 'plot.type' => 'bar', data => { A => { x => 1, y => 2 }, B => { x => 3, y => 4 } } },
 		],
-		ncols             => 3,
+		ncols             => 4,
 		'shared.colorbar' => [ 0, 1 ],
 	);
 	$before = dclone( \%multi );
@@ -373,7 +381,7 @@ dies_with(
 	like( $py, qr/norm = LogNorm\(vmin = 1, vmax = 5\)/, 'hexbin: vmin and vmax go to the LogNorm' );
 	unlike( $py, qr/\), vmin =/, 'hexbin: and not beside it' );
 	SKIP: {
-		skip( 'matplotlib not found', 1 ) unless $mpl_available;
+		skip( 'matplotlib >= 3.10 not found', 1 ) unless $mpl_available;
 		my $out = run_py( $file, 'print("V", im0.norm.vmin, im0.norm.vmax)' );
 		like( $out, qr/^V 1\.0 5\.0$/m, 'hexbin: the log-scaled figure renders with those bounds' );
 	}
