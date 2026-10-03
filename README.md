@@ -2937,7 +2937,11 @@ with `perl -Ilib wide.example.pl` to regenerate them.
 
 all files that can have notes with them, give notes about how the file was written.  For example, SVG files have the following:
 
-    <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm</dc:title>`
+    <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm version 0.318 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7</dc:title>
+
+The Perl version is the one that wrote the script; the Python and matplotlib
+versions are the ones that ran it, read by the script itself, so they are right
+even when a script written with `execute => 0` is run later or elsewhere.
 
 ## Speed
 To improve speed, all data can be written into a single temp python3 file thus:

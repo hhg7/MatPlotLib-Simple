@@ -4508,8 +4508,13 @@ sub plt {
 		# (SyntaxWarning in 3.12, SyntaxError from 3.15). An apostrophe
 		# anywhere in the path would close the literal early.
 		my $creator = py_str( getcwd() . "/$RealScript called using \"$current_sub\" in "
-		 . __FILE__ . " version $VERSION" );
-		say $fh "plt.savefig(output_file, bbox_inches = 'tight', metadata={'Creator': $creator})";
+		 . __FILE__ . " version $VERSION with Perl " . sprintf( '%vd', $^V ) );
+		# The Python and matplotlib versions are read by the script as it
+		# runs, not by Perl as it writes: with "execute => 0" the script may
+		# be run later, or elsewhere, by an interpreter Perl never sees.
+		say $fh 'import matplotlib, platform';
+		say $fh "plt.savefig(output_file, bbox_inches = 'tight', metadata={'Creator': $creator"
+		 . " + ', Python ' + platform.python_version() + ', matplotlib ' + matplotlib.__version__})";
 	}
 	say $fh 'plt.show()' if $args->{show}; # after savefig, so the file is written even if the window is never closed
 	$args->{execute} = $args->{execute} // 1;
@@ -5045,6 +5050,7 @@ already have in Perl:
 <tr><td>a single array ref</td><td><code>hist</code>, <code>boxplot</code>, <code>violin</code></td><td>the one-series shorthand</td></tr>
 <tr><td>array of <code>[ \@x, \@y ]</code> pairs</td><td><code>plot</code>, <code>wide</code></td><td>unlabelled lines</td></tr>
 <tr><td>2-D array (array of array refs)</td><td><code>imshow</code></td><td>a raster/heatmap; strings allowed via <code>stringmap</code></td></tr>
+<tr><td>a data frame (<code>df</code>) in any of <code>Stats::LikeR</code>'s four shapes</td><td>every type but <code>imshow</code>, <code>venn_proportional_area</code> and <code>wide</code></td><td>name the columns with <code>x</code>, <code>y</code> and <code>by</code>; see [Plotting a data frame](#plotting-a-data-frame-with-df)</td></tr>
 </tbody>
 </table>
 
@@ -5115,6 +5121,117 @@ Consider the following helper subroutines to generate data to plot:
      my ($min, $max) = @_;
      return $min + rand($max - $min)
  }
+
+=head2 Plotting a data frame with C<df>
+
+A table read with C<Stats::LikeR>'s C<read_table>, or built by hand, can be given
+whole as C<df> instead of C<data>, with the columns to draw named by role.  The
+module rearranges the columns into the C<data> the plot type takes, so every
+other option works as it does with C<data>:
+
+ use Stats::LikeR 'read_table';
+ my $d = read_table('main.table.csv');
+ bar(
+     'output.file' => 'bedroc.svg',
+     df            => $d,
+     x             => 'Method',          # one bar per row, labelled by this column
+     y             => 'BEDROC(32.2)',    # and as tall as this one
+ );
+
+C<df> can be any of the four shapes C<Stats::LikeR> uses.  It is recognised by its
+structure, so C<Stats::LikeR> itself is not needed:
+
+=for html
+<table>
+<tbody>
+<tr><td>shape</td><td>example</td><td>rows are taken</td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td></tr>
+<tr><td>array of hashes</td><td><code>[ { name => 'Al', age => 30 }, ... ]</code></td><td>in array order</td></tr>
+<tr><td>hash of arrays</td><td><code>{ name => ['Al', ...], age => [30, ...] }</code></td><td>in array order; every column used must be the same length</td></tr>
+<tr><td>hash of hashes</td><td><code>{ Al => { age => 30 }, ... }</code></td><td>in the sorted order of the row names, as <code>Stats::LikeR</code>'s <code>vals</code> takes them</td></tr>
+<tr><td>array of arrays</td><td><code>[ [ 'Al', 30 ], ... ]</code></td><td>in array order; columns are 0-based positions, negative from the end</td></tr>
+</tbody>
+</table>
+
+The roles each plot type reads:
+
+=for html
+<table>
+<tbody>
+<tr><td>plot type</td><td><code>x</code></td><td><code>y</code></td><td><code>by</code></td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td><td>-------</td></tr>
+<tr><td><code>bar</code>, <code>barh</code></td><td>the labels; leave it out of a hash of hashes to label by row name</td><td>the heights; several columns make grouped bars</td><td>one bar per group within each label</td></tr>
+<tr><td><code>pie</code></td><td>the labels, as for <code>bar</code></td><td>the sizes</td><td></td></tr>
+<tr><td><code>hist</code></td><td>the values; several columns make several histograms</td><td>one histogram per group</td><td></td></tr>
+<tr><td><code>boxplot</code>, <code>violin</code></td><td>the values; several columns make several boxes</td><td>one box per group</td><td></td></tr>
+<tr><td><code>scatter</code></td><td>x</td><td>y</td><td>one set of points per group</td></tr>
+<tr><td><code>plot</code></td><td>x</td><td>y; several columns make several lines</td><td>one line per group</td></tr>
+<tr><td><code>hist2d</code>, <code>hexbin</code></td><td>x</td><td>y</td><td></td></tr>
+<tr><td><code>colored_table</code></td><td>the row labels, as for <code>bar</code></td><td>the columns of the table; every column but <code>x</code> if left out</td><td></td></tr>
+</tbody>
+</table>
+
+C<scatter> also reads C<color_key> as the name of a column, which colors each point
+and gets a colorbar:
+
+ scatter(
+     'output.file' => 'people.svg',
+     df            => $d,
+     x             => 'height',
+     y             => 'weight',
+     color_key     => 'age',
+     by            => 'sex',     # one marker per sex, on one shared color scale
+ );
+
+Things C<df> does for you:
+
+=over
+
+=item * B<x is drawn on the x axis.>  C<scatter>, C<hist2d> and C<hexbin> otherwise
+assign axes by the sorted order of the keys, so C<keys> and (for C<hist2d> and
+C<hexbin>) C<key.order> are refused alongside C<df>.
+
+=item * B<The axes are labelled with the column names>, unless you give C<xlabel> or
+C<ylabel>.
+
+=item * B<Bars and wedges are in the order of the rows>, and groups made by C<by> are
+in numeric order when every group is a number (2 before 10) and in string
+order otherwise.  An explicit C<key.order> still wins.
+
+=item * B<< C<plot> draws each line in the order of x >>, so a table need not be sorted
+first.
+
+=item * B<< A row with no value (an C<undef>) in a column the plot uses is left out >>,
+with a warning saying how many rows were dropped and from which columns, as
+ggplot2 does.  Columns of C<hist>, C<boxplot> and C<violin> are filtered
+independently, so a gap in one column does not cost the others a value.
+C<colored_table> keeps such cells, and draws them as undefined.
+
+=item * B<A color hash keyed by group or column> works for grouped bars.
+
+=back
+
+And things it refuses, by name:
+
+=over
+
+=item * a column the frame does not have, with the closest names it does have;
+
+=item * a label repeated in C<bar>, C<barh> or C<pie>, or a label and group pair
+repeated in a grouped C<bar>.  C<df> does not aggregate: use C<Stats::LikeR>'s
+C<agg> or C<pivot_table> first;
+
+=item * a grouped C<bar> missing a value for some label and group;
+
+=item * a column named twice, a role the plot type does not read, and several
+columns where only one makes sense;
+
+=item * C<df> together with C<data>.
+
+=back
+
+C<df> works the same in a subplot and in an C<add> graph, each with its own frame.
+C<venn_proportional_area>, C<imshow> and C<wide> do not take it.
 
 =head2 Barplot/bar/barh
 
@@ -7819,7 +7936,11 @@ with C<perl -Ilib wide.example.pl> to regenerate them.
 
 all files that can have notes with them, give notes about how the file was written.  For example, SVG files have the following:
 
- <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm</dc:title>`
+ <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm version 0.318 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7</dc:title>
+
+The Perl version is the one that wrote the script; the Python and matplotlib
+versions are the ones that ran it, read by the script itself, so they are right
+even when a script written with C<< execute =E<gt> 0 >> is run later or elsewhere.
 
 =head2 Speed
 

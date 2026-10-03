@@ -2,6 +2,10 @@ Revision history for Matplotlib-Simple
 
 0.318 2026-10-02 CDT
 
+ [Data Provenance]
+
+ - Provenance within svg files now prints Perl version, python version, and matplotlib version
+
  [Plotting a data frame]
 
  - `df` takes a data frame whole, in any of the four shapes `Stats::LikeR` uses (array of hashes, hash of arrays, hash of hashes, array of arrays), with the columns to draw named by `x`, `y` and `by`, and for `scatter` `color_key`: `bar(df => read_table('t.csv'), x => 'Method', y => 'BEDROC(32.2)', 'output.file' => 'b.svg')`. Until now a table had to be taken apart column by column with `avals` and put back together as the `data` hash of the plot type. Every plot type but `imshow`, `venn_proportional_area` and `wide` takes it, in a single plot, a subplot or an `add` graph. x goes on the x axis whatever the sorted order of the column names, the axes are labelled with the column names, bars keep the order of the rows, `plot` draws its lines in the order of x, and `by` groups are in numeric order when they are numbers. A row with no value in a column the plot uses is left out with a warning that counts it; a missing column, a repeated bar label and a grouped bar with a missing pair are refused by name. `Stats::LikeR` is not a prerequisite: the shapes are recognised by their structure.
