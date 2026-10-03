@@ -30,5 +30,5 @@ requires:
   MIME::Base64: '0'
   Scalar::Util: '1.22'
   perl: '5.010'
-version: '0.316'
+version: '0.317'
 x_serialization_backend: 'CPAN::Meta::YAML version 0.020'

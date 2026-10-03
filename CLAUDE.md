@@ -203,6 +203,9 @@ problem, not an installer's.
 - `t/09.review.fixes.0.316.t` — one block per fix of 0.316, in the form of
   `t/07.review.fixes.t`.
 - `t/10.review.fixes.0.317.t` — one block per fix of 0.317, in the same form.
+- `t/11.data.frames.t` — `df`: each of the four frame shapes turned into each
+  plot type's `data`, mostly by calling `frame_to_data` directly, so it runs
+  without Python.
 - `t/utf8.mojibake.t` — labels arriving as raw utf8 bytes rather than wide
   characters.
 - `Matplotlib-Simple-0.3*/` and the matching `.tar.gz` — snapshots of past
@@ -216,7 +219,7 @@ problem, not an installer's.
 
     prove -Ilib t/
 
-The full suite is 916 tests in about 150 seconds on a machine with python3 and
+The full suite is 999 tests in about 150 seconds on a machine with python3 and
 matplotlib. `perl Makefile.PL && make test` also works.
 
 ## Releasing
