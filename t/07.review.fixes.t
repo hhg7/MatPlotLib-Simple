@@ -69,7 +69,7 @@ sub slurp {
 # Build one figure with execute => 0 and return the generated python as text.
 sub gen {
 	my (%spec) = @_;
-	$spec{'output.file'} = out_file();
+	$spec{output_file} = out_file();
 	$spec{execute} = 0;
 	my ( $out, $err, $pyfile ) = capture { plt( \%spec ) };
 	return ( slurp($pyfile), $pyfile );
@@ -135,7 +135,7 @@ sub run_py {
 	# the upper one to the fence, 8.5 + 1.5 * 5 = 16. On 0.314 the lower one
 	# came back as 3.5, since vals[0] was 10, and was not drawn.
 	my ( $py, $file ) = gen(
-		'plot.type' => 'violin',
+		plot_type => 'violin',
 		data        => { A => [ 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 100 ] }
 	);
 	SKIP: {
@@ -155,7 +155,7 @@ sub run_py {
 # ----------------------------------------------------------------------------
 {
 	my %table = ( A => { A => 1, B => 10 }, B => { A => 100, B => 1000 } );
-	my ( $py, $file ) = gen( 'plot.type' => 'colored_table', data => \%table, cb_logscale => 1 );
+	my ( $py, $file ) = gen( plot_type => 'colored_table', data => \%table, cb_logscale => 1 );
 	like( $py, qr/^norm = colors\.LogNorm\(vmin = 1, vmax = 1000\)$/m, 'colored_table: the cells are colored through a LogNorm' );
 	like( $py, qr/imshow\(d, cmap=table_cmap, norm=norm\)/, 'colored_table: the colorbar is drawn from the same norm' );
 	SKIP: {
@@ -165,14 +165,14 @@ sub run_py {
 	}
 	# LogNorm autoscaled past a 0 cell when it was left to itself; the
 	# explicit bounds have to do the same, or python raises on vmin = 0.
-	my ($py0) = gen( 'plot.type' => 'colored_table', data => { A => { A => 0, B => 10 }, B => { A => 100, B => 1000 } }, cb_logscale => 1 );
+	my ($py0) = gen( plot_type => 'colored_table', data => { A => { A => 0, B => 10 }, B => { A => 100, B => 1000 } }, cb_logscale => 1 );
 	like( $py0, qr/LogNorm\(vmin = 10, vmax = 1000\)/, 'colored_table: a log scale starts at the smallest positive cell' );
 	dies_with(
-		{ 'plot.type' => 'colored_table', data => \%table, cb_logscale => 1, cb_min => 0 },
+		{ plot_type => 'colored_table', data => \%table, cb_logscale => 1, cb_min => 0 },
 		qr/"cb_logscale" cannot start at "cb_min" = 0/,
 		'colored_table: a log scale refuses cb_min = 0'
 	);
-	my ($pylin) = gen( 'plot.type' => 'colored_table', data => \%table );
+	my ($pylin) = gen( plot_type => 'colored_table', data => \%table );
 	like( $pylin, qr/^norm = plt\.Normalize\(1, 1000\)$/m, 'colored_table: without cb_logscale the norm is linear' );
 }
 
@@ -182,27 +182,27 @@ sub run_py {
 # ----------------------------------------------------------------------------
 {
 	my %two = ( A => [ 1, 2, 2, 3 ], B => [ 2, 3, 3, 4 ] );
-	my ( $py, $file ) = gen( 'plot.type' => 'hist', data => \%two, color => { A => '#ff0000', B => 'tab:blue' } );
+	my ( $py, $file ) = gen( plot_type => 'hist', data => \%two, color => { A => '#ff0000', B => 'tab:blue' } );
 	like( $py, qr/color = '#ff0000'/, 'hist: a hex color per set is quoted' );
 	like( $py, qr/color = 'tab:blue'/, 'hist: a tab: color per set is quoted' );
 	parses_ok( $file, 'hist: per-set hex colors parse' );
 
-	($py) = gen( 'plot.type' => 'hist', data => \%two, color => { A => '0.5', B => 'red' } );
+	($py) = gen( plot_type => 'hist', data => \%two, color => { A => '0.5', B => 'red' } );
 	like( $py, qr/color = '0\.5'/, 'hist: a grayscale color is a string, not a number' );
 
-	($py) = gen( 'plot.type' => 'hist', data => [ 1, 2, 2, 3 ], color => 'red' );
+	($py) = gen( plot_type => 'hist', data => [ 1, 2, 2, 3 ], color => 'red' );
 	like( $py, qr/\.hist\(d, [^\n]*color = 'red'/, 'hist: one color for every set reaches hist()' );
-	($py) = gen( 'plot.type' => 'hist', data => [ 1, 2, 2, 3 ], color => '#00ff00' );
+	($py) = gen( plot_type => 'hist', data => [ 1, 2, 2, 3 ], color => '#00ff00' );
 	like( $py, qr/color = '#00ff00'/, 'hist: one hex color for every set is quoted' );
 	dies_with(
-		{ 'plot.type' => 'hist', data => \%two, color => [ 'red', 'blue' ] },
+		{ plot_type => 'hist', data => \%two, color => [ 'red', 'blue' ] },
 		qr/"color" for hist_helper is one color for every set, or a hash/,
 		'hist: an array of colors is refused, naming the hash form'
 	);
 
-	($py) = gen( 'plot.type' => 'hist', data => [ 1, 2, 2, 3 ], bins => 'auto' );
+	($py) = gen( plot_type => 'hist', data => [ 1, 2, 2, 3 ], bins => 'auto' );
 	like( $py, qr/bins = 'auto'/, 'hist: a named bins strategy is quoted' );
-	($py) = gen( 'plot.type' => 'hist', data => [ 1, 2, 2, 3 ], bins => 7 );
+	($py) = gen( plot_type => 'hist', data => [ 1, 2, 2, 3 ], bins => 7 );
 	like( $py, qr/bins = 7\b/, 'hist: a number of bins is not' );
 }
 
@@ -211,15 +211,15 @@ sub run_py {
 # ----------------------------------------------------------------------------
 {
 	my %single = (
-		'output.file' => out_file(),
+		output_file => out_file(),
 		execute       => 0,
-		'plot.type'   => 'plot',
+		plot_type     => 'plot',
 		title         => 'T',
 		xlabel        => 'x',
 		data          => { A => [ [ 1, 2 ], [ 3, 4 ] ] },
 		add           => [ { data => { B => [ [ 1, 2 ], [ 4, 3 ] ] } } ],
 		twinx         => 'A',
-		'twinx.args'  => { A => { set_ylabel => 'right' } },
+		twinx_args    => { A => { set_ylabel => 'right' } },
 	);
 	my $before = dclone( \%single );
 	my ( $o1, $e1, $f1 ) = capture { plt( \%single ) };
@@ -231,18 +231,18 @@ sub run_py {
 	is( scalar @plots, 2, 'plt: the "add" overlay is still drawn the second time' );
 
 	my %multi = (
-		'output.file' => out_file(),
+		output_file => out_file(),
 		execute       => 0,
 		plots         => [
 			# An imshow, not the hist this was: since 0.317 a subplot in
-			# "shared.colorbar" must be one that draws a colorbar.
-			{ 'plot.type' => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ], title => 'i' },
-			{ 'plot.type' => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ], add => [ { 'plot.type' => 'plot', data => [ [ 0, 1 ], [ 0, 1 ] ] } ] },
-			{ 'plot.type' => 'hist', data => [ 1, 2, 2, 3 ], title => 'h' },
-			{ 'plot.type' => 'bar', data => { A => { x => 1, y => 2 }, B => { x => 3, y => 4 } } },
+			# "shared_colorbar" must be one that draws a colorbar.
+			{ plot_type => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ], title => 'i' },
+			{ plot_type => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ], add => [ { plot_type => 'plot', data => [ [ 0, 1 ], [ 0, 1 ] ] } ] },
+			{ plot_type => 'hist', data => [ 1, 2, 2, 3 ], title => 'h' },
+			{ plot_type => 'bar', data => { A => { x => 1, y => 2 }, B => { x => 3, y => 4 } } },
 		],
 		ncols             => 4,
-		'shared.colorbar' => [ 0, 1 ],
+		shared_colorbar => [ 0, 1 ],
 	);
 	$before = dclone( \%multi );
 	capture { plt( \%multi ) };
@@ -251,8 +251,8 @@ sub run_py {
 	# normalise_p pushed the rest of an inner array onto the base plot's own
 	# "add", which the shallow copy shared with the caller.
 	my @own_add = ( { data => { C => [ [ 1, 2 ], [ 1, 2 ] ] } } );
-	my %base = ( 'plot.type' => 'plot', data => { A => [ [ 1, 2 ], [ 3, 4 ] ] }, add => \@own_add );
-	capture { plt( 'output.file' => out_file(), execute => 0, p => [ [ \%base, { data => { B => [ [ 1, 2 ], [ 4, 3 ] ] } } ] ] ) };
+	my %base = ( plot_type => 'plot', data => { A => [ [ 1, 2 ], [ 3, 4 ] ] }, add => \@own_add );
+	capture { plt( output_file => out_file(), execute => 0, p => [ [ \%base, { data => { B => [ [ 1, 2 ], [ 4, 3 ] ] } } ] ] ) };
 	is( scalar @own_add, 1, 'plt: "p" leaves the base plot\'s own "add" array as it was' );
 }
 
@@ -262,10 +262,10 @@ sub run_py {
 {
 	my @rows = ( [ 'H', 'E' ], [ 'E', 'H' ] );
 	my $before = dclone( \@rows );
-	gen( 'plot.type' => 'imshow', data => \@rows, stringmap => { H => 'helix', E => 'strand' } );
+	gen( plot_type => 'imshow', data => \@rows, stringmap => { H => 'helix', E => 'strand' } );
 	is_deeply( \@rows, $before, 'imshow: string data is translated in a copy' );
 	dies_with(
-		{ 'plot.type' => 'imshow', data => [ [ 'H', 'E' ], [ 'H', 'X' ] ], stringmap => { H => 'helix', E => 'strand' } },
+		{ plot_type => 'imshow', data => [ [ 'H', 'E' ], [ 'H', 'X' ] ], stringmap => { H => 'helix', E => 'strand' } },
 		qr/the above values of "data" are not keys of "stringmap"/,
 		'imshow: a string missing from stringmap is refused, not drawn blank'
 	);
@@ -275,37 +275,37 @@ sub run_py {
 # 8. non-numeric values that reached the script as bare python names.
 # ----------------------------------------------------------------------------
 dies_with(
-	{ 'plot.type' => 'plot', data => { A => [ [ 1, 2 ], [ 'a', 3 ] ] } },
+	{ plot_type => 'plot', data => { A => [ [ 1, 2 ], [ 'a', 3 ] ] } },
 	qr/set "A" axis 1 has the above non-numeric values/,
 	'plot: a string in hash data is refused, as it is in array data'
 );
 dies_with(
-	{ 'plot.type' => 'colored_table', data => { A => { A => 1, B => 'NA' }, B => { A => 2, B => 3 } } },
+	{ plot_type => 'colored_table', data => { A => { A => 1, B => 'NA' }, B => { A => 2, B => 3 } } },
 	qr/the above cells are not numbers/,
 	'colored_table: a string cell is refused'
 );
 dies_with(
-	{ 'plot.type' => 'scatter', data => { x => [ 1, 'two' ], y => [ 1, 2 ] } },
+	{ plot_type => 'scatter', data => { x => [ 1, 'two' ], y => [ 1, 2 ] } },
 	qr/"x" is undefined or not a number/,
 	'scatter: a string x value is refused'
 );
 dies_with(
-	{ 'plot.type' => 'scatter', data => { x => [ 1, 2 ], y => [ 1, 2 ], z => [ 1, 'hot' ] } },
+	{ plot_type => 'scatter', data => { x => [ 1, 2 ], y => [ 1, 2 ], z => [ 1, 'hot' ] } },
 	qr/"z" is undefined or not a number/,
 	'scatter: a string in the color axis is refused'
 );
 dies_with(
-	{ 'plot.type' => 'scatter', data => { S => { x => [ 1, 2 ], y => [ 'a', 2 ] } } },
+	{ plot_type => 'scatter', data => { S => { x => [ 1, 2 ], y => [ 'a', 2 ] } } },
 	qr/"y" of set "S" is undefined or not a number/,
 	'scatter: a string in a set of a multi-set scatter is refused'
 );
 dies_with(
-	{ 'plot.type' => 'hexbin', data => { x => [ 1, 'b' ], y => [ 1, 2 ] } },
+	{ plot_type => 'hexbin', data => { x => [ 1, 'b' ], y => [ 1, 2 ] } },
 	qr/"x" is undefined or not a number at the above indices/,
 	'hexbin: a string point is refused'
 );
 dies_with(
-	{ 'plot.type' => 'hexbin', data => { x => [ 1, 2 ], y => [ 1, undef ] } },
+	{ plot_type => 'hexbin', data => { x => [ 1, 2 ], y => [ 1, undef ] } },
 	qr/"y" is undefined or not a number at the above indices/,
 	'hexbin: an undefined point is refused'
 );
@@ -316,7 +316,7 @@ dies_with(
 {
 	my ( $py, $file ) = lives(
 		{
-			'plot.type' => 'scatter',
+			plot_type => 'scatter',
 			data        => {
 				A => { x => [ 1, 2 ], y => [ 1, 2 ], z => [ 1, 2 ] },
 				B => { x => [ 1, 2 ], y => [ 2, 1 ] }
@@ -336,21 +336,21 @@ dies_with(
 # 11. a backslash in text went through as a python escape.
 # ----------------------------------------------------------------------------
 {
-	my ( $py, $file ) = gen( 'plot.type' => 'bar', data => { A => 1 }, suptitle => 'dir C:\new' );
+	my ( $py, $file ) = gen( plot_type => 'bar', data => { A => 1 }, suptitle => 'dir C:\new' );
 	like( $py, qr/plt\.suptitle\('dir C:\\\\new'\)/, 'suptitle: a backslash is escaped' );
 	parses_ok( $file, 'suptitle: a backslash parses' );
-	($py) = gen( 'plot.type' => 'bar', data => { A => 1 }, title => '$\alpha$' );
+	($py) = gen( plot_type => 'bar', data => { A => 1 }, title => '$\alpha$' );
 	like( $py, qr/ax0\.set_title\('\$\\\\alpha\$'\)/, 'title: mathtext keeps its backslash' );
-	($py) = gen( 'plot.type' => 'bar', data => { A => 1 }, suptitle => 'Counts, by book' );
+	($py) = gen( plot_type => 'bar', data => { A => 1 }, suptitle => 'Counts, by book' );
 	like( $py, qr/plt\.suptitle\('Counts, by book'\)/, 'suptitle: text with a comma is still quoted, as before' );
-	($py) = gen( 'plot.type' => 'bar', data => { A => 1 }, suptitle => "'already', fontsize = 20" );
+	($py) = gen( plot_type => 'bar', data => { A => 1 }, suptitle => "'already', fontsize = 20" );
 	like( $py, qr/plt\.suptitle\('already', fontsize = 20\)/, 'suptitle: python of the caller\'s own is left alone' );
 
 	# A figure of several subplots had its top-level suptitle quoted by
 	# print_type alone, which left "Two groups: mean." bare.
 	my $multi;
 	( $multi, $file ) = gen(
-		plots    => [ { 'plot.type' => 'bar', data => { A => 1 } }, { 'plot.type' => 'bar', data => { B => 2 } } ],
+		plots    => [ { plot_type => 'bar', data => { A => 1 } }, { plot_type => 'bar', data => { B => 2 } } ],
 		ncols    => 2,
 		suptitle => 'Two groups: mean.'
 	);
@@ -365,19 +365,19 @@ dies_with(
 	# bar filled the holes of a grouped plot with 0 in the caller's arrays.
 	my %groups = ( A => [ 1, undef ], B => [ 3, 4 ] );
 	my $before = dclone( \%groups );
-	my ($py) = gen( 'plot.type' => 'bar', data => \%groups );
+	my ($py) = gen( plot_type => 'bar', data => \%groups );
 	is_deeply( \%groups, $before, 'bar: a missing value is drawn as 0 without writing 0 into the caller\'s array' );
 	like( $py, qr/ax0\.bar\(\[[^\]]*\], \[1,3\]/, 'bar: the first series is drawn' );
 	like( $py, qr/ax0\.bar\(\[[^\]]*\], \[0,4\]/, 'bar: the missing value is drawn as 0' );
 
 	# The label array the caller gave a hash-of-hashes plot was overwritten.
 	my @label = ( 'one', 'two' );
-	capture { plt( 'output.file' => out_file(), execute => 0, 'plot.type' => 'bar', data => { A => { x => 1, y => 2 } }, label => \@label ) };
+	capture { plt( output_file => out_file(), execute => 0, plot_type => 'bar', data => { A => { x => 1, y => 2 } }, label => \@label ) };
 	is_deeply( \@label, [ 'one', 'two' ], 'bar: the caller\'s label array is not overwritten' );
 }
 {
 	# hexbin passed vmin/vmax beside a LogNorm, which matplotlib refuses.
-	my ( $py, $file ) = gen( 'plot.type' => 'hexbin', data => { x => [ 1 .. 20 ], y => [ map { $_ % 7 } 1 .. 20 ] }, cb_logscale => 1, vmin => 1, vmax => 5 );
+	my ( $py, $file ) = gen( plot_type => 'hexbin', data => { x => [ 1 .. 20 ], y => [ map { $_ % 7 } 1 .. 20 ] }, cb_logscale => 1, vmin => 1, vmax => 5 );
 	like( $py, qr/norm = LogNorm\(vmin = 1, vmax = 5\)/, 'hexbin: vmin and vmax go to the LogNorm' );
 	unlike( $py, qr/\), vmin =/, 'hexbin: and not beside it' );
 	SKIP: {
@@ -386,25 +386,25 @@ dies_with(
 		like( $out, qr/^V 1\.0 5\.0$/m, 'hexbin: the log-scaled figure renders with those bounds' );
 	}
 	dies_with(
-		{ 'plot.type' => 'hexbin', data => { x => [ 1, 2 ], y => [ 1, 2 ] }, vmin => 'low' },
+		{ plot_type => 'hexbin', data => { x => [ 1, 2 ], y => [ 1, 2 ] }, vmin => 'low' },
 		qr/"vmin" must be a number for hexbin_helper/,
 		'hexbin: a non-numeric vmin is refused'
 	);
 	# The diagnostics before the die went to STDOUT. plt directly, not gen,
 	# whose own capture would swallow them.
-	my ( $out, $err ) = capture { eval { plt( 'output.file' => out_file(), execute => 0, 'plot.type' => 'hexbin', data => { x => [ 1, 2, 3 ], y => [ 1, 2 ] } ) } };
+	my ( $out, $err ) = capture { eval { plt( output_file => out_file(), execute => 0, plot_type => 'hexbin', data => { x => [ 1, 2, 3 ], y => [ 1, 2 ] } ) } };
 	unlike( $out, qr/points\./, 'hexbin: a length mismatch is reported on STDERR, not STDOUT' );
 	like( $err, qr/"x" has 3 points\./, 'hexbin: and it is reported' );
 }
 {
 	# wide drew its groups in hash order, all in the one default blue.
 	my $run = [ [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] ];
-	my ($py) = gen( 'plot.type' => 'wide', data => { Zeta => $run, Alpha => $run, Mu => $run } );
+	my ($py) = gen( plot_type => 'wide', data => { Zeta => $run, Alpha => $run, Mu => $run } );
 	my @labels = ( $py =~ m/label = '(\w+)'/g );
 	is_deeply( \@labels, [qw(Alpha Mu Zeta)], 'wide: groups are drawn in sorted order' );
 	my @colors = ( $py =~ m/ax0\.plot\(base_x, mean_ys, '(\w+)'/g );
 	is_deeply( \@colors, [qw(C0 C1 C2)], 'wide: uncolored groups take successive colors of the default cycle' );
-	($py) = gen( 'plot.type' => 'wide', data => { A => $run, B => $run }, color => { A => 'red' } );
+	($py) = gen( plot_type => 'wide', data => { A => $run, B => $run }, color => { A => 'red' } );
 	like( $py, qr/mean_ys, 'red', label = 'A'/, 'wide: a group\'s own color still wins' );
 }
 

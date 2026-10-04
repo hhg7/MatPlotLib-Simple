@@ -20,7 +20,7 @@
 # The copy and the configure now happen after the build, in the one run.
 set -e
 
-# Regenerates README.pod and the module's POD from README.md, and the example
+# Regenerates the module's POD from README.md, and the example
 # block of t/01.all.tests.t from mpl.examples.pl, so it has to run before
 # anything is built out of those files.
 perl md2pod.pl

@@ -15,10 +15,13 @@
 #
 # 2. Data that cannot be drawn used to reach matplotlib, or reach perl's own
 #    runtime, rather than being refused here: a non-numeric bar height became
-#    the bare python name "abc", a "key.order" naming a key that "data" does
+#    the bare python name "abc", a "key_order" naming a key that "data" does
 #    not have died as "Use of uninitialized value in join or string", and a
 #    logscale of "xy" emitted ax.set_xyscale("log").  Every one of these now
 #    dies naming the key, the option and the plot type.
+#
+# Section 7 adds a third, from 0.319: a keyword spelled the pre-0.319 way, with
+# a dot, is refused with the name it has now.
 #
 # The python parser gate is the same as t/05.generated.python.t's and is
 # skipped the same way when python3 is absent; everything else here is
@@ -51,7 +54,7 @@ my $PARSE = q{import ast, sys; ast.parse(open(sys.argv[1], encoding='utf-8').rea
 # Build one figure with execute => 0 and return the generated python as text.
 sub gen {
 	my (%spec) = @_;
-	$spec{'output.file'} = File::Spec->catfile( $TMP, 'gen' . $seq++ . '.svg' );
+	$spec{output_file} = File::Spec->catfile( $TMP, 'gen' . $seq++ . '.svg' );
 	$spec{execute} = 0;
 	my ( $out, $err, $pyfile ) = capture { plt( \%spec ) };
 	open my $in, '<:encoding(UTF-8)', $pyfile or die "can't read $pyfile: $!";
@@ -122,7 +125,7 @@ my %ESCAPE = (    # plot type => the spec that puts $QUOTED on an axis
 	 { data => { $QUOTED => [qw(a b c)], Other => [qw(b c d)] } },
 );
 foreach my $type ( sort keys %ESCAPE ) {
-	my ( $py, $file ) = gen( 'plot.type' => $type, %{ $ESCAPE{$type} } );
+	my ( $py, $file ) = gen( plot_type => $type, %{ $ESCAPE{$type} } );
 	parses_ok( $file, "$type: a data key holding a double quote parses" );
 	unlike( $py, qr/"say "hi""/, "$type: the quote is not left bare in a literal" );
 }
@@ -132,7 +135,7 @@ foreach my $type ( sort keys %ESCAPE ) {
 # matplotlib has to receive.
 {
 	my ( $py, $file ) = gen(
-		'plot.type' => 'boxplot',
+		plot_type => 'boxplot',
 		data        => { '$\alpha$' => [@g1] }
 	);
 	parses_ok( $file, 'boxplot: a mathtext key parses' );
@@ -142,7 +145,7 @@ foreach my $type ( sort keys %ESCAPE ) {
 # venn writes its set *members*, not only its labels.
 {
 	my ( $py, $file ) = gen(
-		'plot.type' => 'venn_proportional_area',
+		plot_type => 'venn_proportional_area',
 		data        => { Left => [ 'a"b', 'c' ], Right => [ 'c', 'd' ] }
 	);
 	parses_ok( $file, 'venn: a set member holding a double quote parses' );
@@ -152,7 +155,7 @@ foreach my $type ( sort keys %ESCAPE ) {
 # py_str: an apostrophe closed the literal early.
 {
 	my ( $py, $file ) = gen(
-		'plot.type' => 'imshow',
+		plot_type => 'imshow',
 		data        => [ [ 1, 2 ], [ 3, 4 ] ],
 		cblabel     => "Farmer's yield"
 	);
@@ -165,7 +168,7 @@ foreach my $type ( sort keys %ESCAPE ) {
 # ----------------------------------------------------------------------------
 {
 	my ( $py, $file ) = gen(
-		'plot.type' => 'imshow',
+		plot_type => 'imshow',
 		data        => [ [ 'H', 'H' ], [ 'H', 'H' ] ],
 		stringmap   => { H => 'Alpha helix' }
 	);
@@ -175,7 +178,7 @@ foreach my $type ( sort keys %ESCAPE ) {
 {	# two categories: the formula this replaced returned 0.5 for both of them,
 	# so the colorbar carried two ticks in the same place
 	my ( $py, $file ) = gen(
-		'plot.type' => 'imshow',
+		plot_type => 'imshow',
 		data        => [ [ 'H', 'E' ], [ 'E', 'H' ] ],
 		stringmap   => { H => 'Alpha helix', E => 'Beta sheet' }
 	);
@@ -187,7 +190,7 @@ foreach my $type ( sort keys %ESCAPE ) {
 {
 	my @cats = ( 'A' .. 'K' );    # 11, and the property cycle holds 10
 	my ( $py, $file ) = gen(
-		'plot.type' => 'imshow',
+		plot_type => 'imshow',
 		data        => [ [@cats], [@cats] ],
 		stringmap   => { map { $_ => "cat $_" } @cats }
 	);
@@ -198,39 +201,39 @@ foreach my $type ( sort keys %ESCAPE ) {
 # ----------------------------------------------------------------------------
 # 3. Data that cannot be drawn is refused here, naming the key.
 # ----------------------------------------------------------------------------
-dies_with( { 'plot.type' => 'bar', data => { A => 'abc', B => 2 } },
+dies_with( { plot_type => 'bar', data => { A => 'abc', B => 2 } },
 	qr/"A" are not numbers/, 'bar: a non-numeric height is refused, naming the key' );
-dies_with( { 'plot.type' => 'pie', data => { A => 'abc', B => 2 } },
+dies_with( { plot_type => 'pie', data => { A => 'abc', B => 2 } },
 	qr/"A" is not a number/, 'pie: a non-numeric wedge is refused, naming the key' );
-dies_with( { 'plot.type' => 'bar', data => { A => undef, B => 2 } },
+dies_with( { plot_type => 'bar', data => { A => undef, B => 2 } },
 	qr/"A" has an undefined value/, 'bar: an undefined height is refused, naming the key' );
-dies_with( { 'plot.type' => 'bar', data => { A => [ 1, 2, 3 ], B => [ 4, 5 ] } },
+dies_with( { plot_type => 'bar', data => { A => [ 1, 2, 3 ], B => [ 4, 5 ] } },
 	qr/different numbers of values/, 'bar: a short group is refused' );
-dies_with( { 'plot.type' => 'violin', data => { A => [@g1], B => [ undef, 'NA' ] } },
+dies_with( { plot_type => 'violin', data => { A => [@g1], B => [ undef, 'NA' ] } },
 	qr/"B" has no numeric values/, 'violin: a group with nothing numeric in it is refused' );
-dies_with( { 'plot.type' => 'imshow', data => [] },
+dies_with( { plot_type => 'imshow', data => [] },
 	qr/no data to draw/, 'imshow: an empty image is refused' );
-dies_with( { 'plot.type' => 'colored_table', data => { A => { B => undef } } },
+dies_with( { plot_type => 'colored_table', data => { A => { B => undef } } },
 	qr/nothing to color by/, 'colored_table: a table with no numbers is refused' );
 
-# "key.order" (and the options shaped like it) naming a key "data" has not.
+# "key_order" (and the options shaped like it) naming a key "data" has not.
 my %KEY_ORDER = (
-	bar      => [ { A => 1, B => 2 }, 'key.order', [qw(A C)] ],
-	pie      => [ { A => 1, B => 2 }, 'key.order', [qw(A C)] ],
-	boxplot  => [ { A => [@g1] }, 'key.order', [qw(A C)] ],
-	violin   => [ { A => [@g1] }, 'key.order', [qw(A C)] ],
-	plot     => [ { A => [ [@xs], [@xs] ] }, 'key.order', [qw(A C)] ],
-	hexbin   => [ { X => [@cx], Y => [@cy] }, 'key.order', [qw(X Z)] ],
-	hist2d   => [ { X => [@cx], Y => [@cy] }, 'key.order', [qw(X Z)] ],
+	bar      => [ { A => 1, B => 2 }, 'key_order', [qw(A C)] ],
+	pie      => [ { A => 1, B => 2 }, 'key_order', [qw(A C)] ],
+	boxplot  => [ { A => [@g1] }, 'key_order', [qw(A C)] ],
+	violin   => [ { A => [@g1] }, 'key_order', [qw(A C)] ],
+	plot     => [ { A => [ [@xs], [@xs] ] }, 'key_order', [qw(A C)] ],
+	hexbin   => [ { X => [@cx], Y => [@cy] }, 'key_order', [qw(X Z)] ],
+	hist2d   => [ { X => [@cx], Y => [@cy] }, 'key_order', [qw(X Z)] ],
 	scatter  => [ { X => [@cx], Y => [@cy] }, 'keys', [qw(X Z)] ],
 	venn_proportional_area =>
-	 [ { L => [qw(a b)], R => [qw(b c)] }, 'key.order', [qw(L X)] ],
-	colored_table => [ { A => { A => 1 } }, 'col.labels', [qw(A C)] ],
+	 [ { L => [qw(a b)], R => [qw(b c)] }, 'key_order', [qw(L X)] ],
+	colored_table => [ { A => { A => 1 } }, 'col_labels', [qw(A C)] ],
 );
 foreach my $type ( sort keys %KEY_ORDER ) {
 	my ( $data, $option, $order ) = @{ $KEY_ORDER{$type} };
 	dies_with(
-		{ 'plot.type' => $type, data => $data, $option => $order },
+		{ plot_type => $type, data => $data, $option => $order },
 		qr/named in "\Q$option\E" but are not keys of "data"/,
 		"$type: \"$option\" naming a key that data has not is refused"
 	);
@@ -244,16 +247,19 @@ foreach my $type (qw(boxplot hist hist2d plot scatter violin)) {
 	my %data = (
 		boxplot       => { A => [@g1], B => [@g2] },
 		hist          => { A => [@g1] },
-		hist2d        => { X => [@cx], Y => [@cy] },
+		# Y above 0: @cy holds 0, and a log axis of hist2d is binned from
+		# log10 of its lowest value, which since 0.319 is refused by name
+		# rather than written into a script that dies on it.
+		hist2d        => { X => [@cx], Y => [ map { $_ + 1 } @cy ] },
 		plot          => { A => [ [@xs], [@xs] ] },
 		scatter       => { X => [@cx], Y => [@cy] },
 		violin        => { A => [@g1] },
 	);
-	dies_with( { 'plot.type' => $type, data => $data{$type}, logscale => ['xy'] },
+	dies_with( { plot_type => $type, data => $data{$type}, logscale => ['xy'] },
 		qr/only "x" and "y" are allowed in "logscale"/, "$type: logscale => ['xy'] is refused" );
-	dies_with( { 'plot.type' => $type, data => $data{$type}, logscale => 'y' },
+	dies_with( { plot_type => $type, data => $data{$type}, logscale => 'y' },
 		qr/must be an array of axis names/, "$type: a scalar logscale is refused" );
-	my ($py) = gen( 'plot.type' => $type, data => $data{$type}, logscale => ['y'] );
+	my ($py) = gen( plot_type => $type, data => $data{$type}, logscale => ['y'] );
 	like( $py, qr/set_yscale\("log"\)/, "$type: logscale => ['y'] still reaches the script" );
 }
 
@@ -262,7 +268,7 @@ foreach my $type (qw(boxplot hist hist2d plot scatter violin)) {
 # script, so "xscale => 'log'" left a plt.xscale(log) that raised NameError
 # before the correct line below it could run.
 {
-	my ( $py, $file ) = gen( 'plot.type' => 'bar', data => { A => 1, B => 2 }, xscale => 'log' );
+	my ( $py, $file ) = gen( plot_type => 'bar', data => { A => 1, B => 2 }, xscale => 'log' );
 	my $n = () = $py =~ /plt\.xscale\(/g;
 	is( $n, 1, 'single plot: a pyplot option is written once' );
 	like( $py, qr/plt\.xscale\('log'\)/, 'single plot: ... and quoted' );
@@ -274,24 +280,24 @@ foreach my $type (qw(boxplot hist hist2d plot scatter violin)) {
 # ----------------------------------------------------------------------------
 {
 	my ($py) = gen(
-		'plot.type'   => 'colored_table',
+		plot_type     => 'colored_table',
 		data          => { H => { H => 432 }, C => { H => 411, C => 346 } },
-		'colorbar.on' => 0,
+		colorbar_on => 0,
 		cblabel       => 'counts'
 	);
-	unlike( $py, qr/colorbar/, 'colored_table: colorbar.on => 0 wins over cblabel' );
+	unlike( $py, qr/colorbar/, 'colored_table: colorbar_on => 0 wins over cblabel' );
 }
 foreach my $type (qw(hexbin hist2d)) {
 	my ($py) = gen(
-		'plot.type'   => $type,
+		plot_type     => $type,
 		data          => { X => [@cx], Y => [@cy] },
-		'colorbar.on' => 0
+		colorbar_on => 0
 	);
-	unlike( $py, qr/colorbar/, "$type: colorbar.on => 0 draws no colorbar" );
+	unlike( $py, qr/colorbar/, "$type: colorbar_on => 0 draws no colorbar" );
 }
 {
 	my ($py) = gen(
-		'plot.type'        => 'colored_table',
+		plot_type          => 'colored_table',
 		data               => { H => { H => 432 }, C => { H => 411, C => 346 } },
 		default_undefined  => 0
 	);
@@ -299,7 +305,7 @@ foreach my $type (qw(hexbin hist2d)) {
 }
 {	# per-set bin edges: the whole-plot form has always taken an array
 	my ($py) = gen(
-		'plot.type' => 'hist',
+		plot_type => 'hist',
 		data        => { A => [@g1], B => [@g2] },
 		bins        => { A => [ 0, 2, 4, 6, 8 ], B => 3 }
 	);
@@ -308,7 +314,7 @@ foreach my $type (qw(hexbin hist2d)) {
 }
 {	# the inner keys of a hash of hashes are the series, so they can be colored
 	my ($py) = gen(
-		'plot.type' => 'bar',
+		plot_type => 'bar',
 		data        => { 1941 => { North => 1, South => 2 }, 1942 => { North => 3, South => 4 } },
 		color       => { North => 'red', South => 'blue' }
 	);
@@ -316,7 +322,7 @@ foreach my $type (qw(hexbin hist2d)) {
 	like( $py, qr/color = 'blue'/, 'bar: ... every one of them' );
 }
 dies_with(
-	{ 'plot.type' => 'bar', data => { A => [ 1, 2 ], B => [ 3, 4 ] }, color => { A => 'red' } },
+	{ plot_type => 'bar', data => { A => [ 1, 2 ], B => [ 3, 4 ] }, color => { A => 'red' } },
 	qr/series have no names to key it by/,
 	'bar: a color hash against a hash of arrays is refused rather than ignored'
 );
@@ -325,7 +331,7 @@ dies_with(
 	# that plt writes for every plot type, and died as
 	# "TypeError: 'Text' object is not callable" when the script ran
 	my ($py) = gen(
-		'plot.type' => 'colored_table',
+		plot_type => 'colored_table',
 		data        => { H => { H => 432 }, C => { H => 411, C => 346 } },
 		title       => 'a title'
 	);
@@ -336,55 +342,55 @@ dies_with(
 # index when it is an array of lines.  Each form used to ignore the other's
 # shape without a word, drawing no second axis and reporting nothing.
 dies_with(
-	{ 'plot.type' => 'plot', data => { A => [ [@xs], [@xs] ] }, twinx => ['A'] },
+	{ plot_type => 'plot', data => { A => [ [@xs], [@xs] ] }, twinx => ['A'] },
 	qr/not a ARRAY reference/,
 	'plot: twinx as an array against hash data is refused rather than ignored'
 );
 dies_with(
-	{ 'plot.type' => 'plot', data => [ [ [@xs], [@xs] ] ], twinx => { 0 => 1 } },
+	{ plot_type => 'plot', data => [ [ [@xs], [@xs] ] ], twinx => { 0 => 1 } },
 	qr/not a HASH reference/,
 	'plot: twinx as a hash against array data is refused rather than ignored'
 );
 dies_with(
 	{
 		plots             => [
-			{ 'plot.type' => 'hexbin', data => { X => [@cx], Y => [@cy] } },
-			{ 'plot.type' => 'hexbin', data => { X => [@cx], Y => [@cy] } }
+			{ plot_type => 'hexbin', data => { X => [@cx], Y => [@cy] } },
+			{ plot_type => 'hexbin', data => { X => [@cx], Y => [@cy] } }
 		],
 		ncols             => 2,
-		'shared.colorbar' => []
+		shared_colorbar => []
 	},
-	qr/"shared\.colorbar" is an empty array/,
-	'shared.colorbar: an empty array is refused'
+	qr/"shared_colorbar" is an empty array/,
+	'shared_colorbar: an empty array is refused'
 );
 
 dies_with(
 	{
 		plots             => [
-			{ 'plot.type' => 'hexbin', data => { X => [@cx], Y => [@cy] } },
-			{ 'plot.type' => 'hexbin', data => { X => [@cx], Y => [@cy] } }
+			{ plot_type => 'hexbin', data => { X => [@cx], Y => [@cy] } },
+			{ plot_type => 'hexbin', data => { X => [@cx], Y => [@cy] } }
 		],
 		ncols             => 2,
-		'shared.colorbar' => [ 0, 'one' ]
+		shared_colorbar => [ 0, 'one' ]
 	},
 	qr/not 0-based subplot indices/,
-	'shared.colorbar: an entry that is not an index is refused'
+	'shared_colorbar: an entry that is not an index is refused'
 );
 
 # colored_table has no "logscale": the loop that read one could never run, and
 # the option has to stay refused now that the loop is gone.
 dies_with(
-	{ 'plot.type' => 'colored_table', data => { A => { A => 1 } }, logscale => ['y'] },
-	qr/"logscale" isn't defined for plot\.type "colored_table"/,
+	{ plot_type => 'colored_table', data => { A => { A => 1 } }, logscale => ['y'] },
+	qr/"logscale" isn't defined for plot_type "colored_table"/,
 	'colored_table: logscale is not one of its options'
 );
 
-# "key.order" at a pie: accepted, and it orders the wedges.  The documentation
+# "key_order" at a pie: accepted, and it orders the wedges.  The documentation
 # used to say the option was not accepted at all.
 {
-	my ($py) = gen( 'plot.type' => 'pie', data => { A => 1, B => 2, C => 3 },
-		'key.order' => [qw(C A)] );
-	like( $py, qr/vals = \[3,1\]/, 'pie: key.order picks the wedges and their order' );
+	my ($py) = gen( plot_type => 'pie', data => { A => 1, B => 2, C => 3 },
+		key_order => [qw(C A)] );
+	like( $py, qr/vals = \[3,1\]/, 'pie: key_order picks the wedges and their order' );
 }
 
 # ----------------------------------------------------------------------------
@@ -403,8 +409,55 @@ my %DROPS = (
 foreach my $type ( sort keys %DROPS ) {
 	my @vals = @{ $DROPS{$type} };
 	my $n    = scalar @vals;
-	gen( 'plot.type' => $type, data => { A => \@vals } );
+	gen( plot_type => $type, data => { A => \@vals } );
 	is( scalar @vals, $n, "$type: the caller's array still holds every element it did" );
+}
+
+# ----------------------------------------------------------------------------
+# 7. A keyword in its pre-0.319 dotted spelling is refused by name.
+#
+#    The rename was a hard break, so a script written for 0.318 has to be told
+#    what each old keyword is called now. "plot.type" and "output.file" are
+#    asserted at the top level because they used to reach plt's "either ...
+#    must be defined" checks first, which name only the new spelling; the
+#    nested cases, because a subplot, an "add" graph and a "p" entry are each
+#    reached by a different branch.
+# ----------------------------------------------------------------------------
+my $SVG = File::Spec->catfile( $TMP, 'dotted.svg' );
+my @DOTTED = (
+	[ 'plot.type at the top',
+		{ 'plot.type' => 'bar', output_file => $SVG, data => { A => 1 } },
+		qr/"plot\.type" is now "plot_type"/ ],
+	[ 'output.file at the top',
+		{ plot_type => 'bar', 'output.file' => $SVG, data => { A => 1 } },
+		qr/"output\.file" is now "output_file"/ ],
+	[ 'a plot option at the top',
+		{ plot_type => 'bar', output_file => $SVG, data => { A => 1 }, 'key.order' => ['A'] },
+		qr/"key\.order" is now "key_order"/ ],
+	[ 'in a subplot',
+		{ output_file => $SVG, plots => [ { plot_type => 'bar', data => { A => 1 } }, { 'plot.type' => 'bar', data => { A => 1 } } ] },
+		qr/"plot\.type" is now "plot_type" at subplot 1/ ],
+	[ 'in an "add" graph of a subplot',
+		{ output_file => $SVG, plots => [ { plot_type => 'plot', data => { A => [ [1], [1] ] }, add => [ { plot_type => 'plot', data => { B => [ [1], [1] ] }, 'show.legend' => 0 } ] } ] },
+		qr/"show\.legend" is now "show_legend" in "add" graph 0 at subplot 0/ ],
+	[ 'in a "p" entry',
+		{ output_file => $SVG, p => [ [ { 'plot.type' => 'hist', data => { A => [1] } } ] ] },
+		qr/"plot\.type" is now "plot_type" at "p" entry 0/ ],
+);
+foreach my $case (@DOTTED) {
+	my ( $where, $spec, $like ) = @{$case};
+	my ( $out, $err ) = capture { eval { plt( { %{$spec}, execute => 0 } ) } };
+	my $died = "$@";
+	$died =~ s/\n\t.*\z//s;
+	like( $died, $like, "a dotted keyword $where is refused with its new name" );
+}
+{
+	my ( $out, $err ) = capture {
+		eval { plt( { 'plot.type' => 'bar', 'output.file' => $SVG, data => { A => 1 }, execute => 0 } ) }
+	};
+	my $died = "$@";
+	like( $died, qr/"output\.file" is now "output_file".*"plot\.type" is now "plot_type"/s,
+		'every dotted keyword is named in the one message, not only the first' );
 }
 
 done_testing();

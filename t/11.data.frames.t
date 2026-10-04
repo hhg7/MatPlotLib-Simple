@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # "df": a data frame given whole, with its columns named by role ("x", "y",
-# "by", and "color_key" for scatter), turned into the "data" each plot.type
+# "by", and "color_key" for scatter), turned into the "data" each plot_type
 # already takes.
 #
 # The four shapes are those of Stats::LikeR (lib/Stats/LikeR.pm, _df_shape):
@@ -94,7 +94,7 @@ sub slurp {
 # Build one figure with execute => 0 and return the generated python as text.
 sub gen {
 	my (%spec) = @_;
-	$spec{'output.file'} = out_file();
+	$spec{output_file} = out_file();
 	$spec{execute} = 0;
 	my ( $out, $err, $pyfile ) = capture { plt( \%spec ) };
 	return slurp($pyfile);
@@ -127,9 +127,9 @@ foreach my $shape ( sort keys %frame ) {
 {
 	my ($plot) = convert( 'hist2d', df => \@aoa, x => 2, y => -2 );
 	is_deeply( $plot->{data}, { 2 => [ 180, 175, 165, 170, 155 ], -2 => [ 80, 75, 60, 70, 50 ] }, 'hist2d from AoA: columns by position, negative from the end' );
-	is_deeply( $plot->{'key.order'}, [ 2, -2 ], 'hist2d: "key.order" is x then y, whatever the sort would say' );
+	is_deeply( $plot->{key_order}, [ 2, -2 ], 'hist2d: "key_order" is x then y, whatever the sort would say' );
 	($plot) = convert( 'hexbin', df => \%hoa, x => 'weight', y => 'height' );
-	is_deeply( $plot->{'key.order'}, [ 'weight', 'height' ], 'hexbin: weight on x, though "height" sorts first' );
+	is_deeply( $plot->{key_order}, [ 'weight', 'height' ], 'hexbin: weight on x, though "height" sorts first' );
 }
 
 # ----------------------------------------------------------------------------
@@ -138,13 +138,13 @@ foreach my $shape ( sort keys %frame ) {
 {
 	my ( $plot, $warned ) = convert( 'bar', df => \@aoh, x => 'name', y => 'height' );
 	is_deeply( $plot->{data}, { Al => 180, Bo => 160, Cy => 175, Di => 165, Ed => 170, Fi => 155 }, 'bar: label => value' );
-	is_deeply( $plot->{'key.order'}, [qw(Al Bo Cy Di Ed Fi)], 'bar: the bars are in row order' );
+	is_deeply( $plot->{key_order}, [qw(Al Bo Cy Di Ed Fi)], 'bar: the bars are in row order' );
 	is( $plot->{xlabel}, "'name'",   'bar: xlabel is the label column, as python text' );
 	is( $plot->{ylabel}, "'height'", 'bar: ylabel is the value column' );
 	is( scalar @{$warned}, 0, 'bar: nothing left out, nothing said' );
 
 	($plot) = convert( 'bar', df => [ reverse @aoh ], x => 'name', y => 'age', xlabel => 'Person' );
-	is_deeply( $plot->{'key.order'}, [qw(Fi Ed Di Cy Bo Al)], 'bar: a frame in another order keeps its order' );
+	is_deeply( $plot->{key_order}, [qw(Fi Ed Di Cy Bo Al)], 'bar: a frame in another order keeps its order' );
 	is( $plot->{xlabel}, 'Person', 'bar: the caller\'s own xlabel stands' );
 
 	($plot) = convert( 'barh', df => \%hoh, y => 'age' );
@@ -184,16 +184,17 @@ foreach my $shape ( sort keys %frame ) {
 	my ( $plot, $warned ) = convert( 'hist', df => \@aoh, x => [ 'weight', 'age' ] );
 	is_deeply( $plot->{data}, { weight => [ 80, 75, 60, 70, 50 ], age => [ 30, 25, 41, 35, 52, 28 ] }, 'hist with two columns: a missing weight costs only the weight' );
 	is( scalar @{$warned}, 1, 'hist with two columns: one warning, for the one column with a gap' );
-	ok( !exists $plot->{'key.order'}, 'hist: no "key.order", which hist does not take' );
+	# hist takes "key_order" since 0.319, and before then was given none here.
+	is_deeply( $plot->{key_order}, [ 'weight', 'age' ], 'hist: the histograms in the order "x" gave' );
 
 	($plot) = convert( 'boxplot', df => \%hoa, y => 'height', by => 'sex' );
 	is_deeply( $plot->{data}, { M => [ 180, 175, 170 ], F => [ 160, 165, 155 ] }, 'boxplot by: values grouped' );
-	is_deeply( $plot->{'key.order'}, [ 'F', 'M' ], 'boxplot by: groups in sorted order' );
+	is_deeply( $plot->{key_order}, [ 'F', 'M' ], 'boxplot by: groups in sorted order' );
 	is( $plot->{xlabel}, "'sex'",    'boxplot by: x is the grouping column' );
 	is( $plot->{ylabel}, "'height'", 'boxplot by: y is the value column' );
 
 	($plot) = convert( 'violin', df => \@aoh, y => [ 'weight', 'height' ], orientation => 'horizontal' );
-	is_deeply( $plot->{'key.order'}, [ 'weight', 'height' ], 'violin: columns in the order "y" gave' );
+	is_deeply( $plot->{key_order}, [ 'weight', 'height' ], 'violin: columns in the order "y" gave' );
 	ok( !defined $plot->{xlabel} && !defined $plot->{ylabel}, 'violin with two columns: no one column to label the axis by' );
 
 	($plot) = convert( 'boxplot', df => \@aoh, y => 'age', by => 'sex', orientation => 'horizontal' );
@@ -206,12 +207,12 @@ foreach my $shape ( sort keys %frame ) {
 {
 	my ($plot) = convert( 'plot', df => \@aoh, x => 'height', y => 'age' );
 	is_deeply( $plot->{data}{age}, [ [ 155, 160, 165, 170, 175, 180 ], [ 28, 25, 35, 52, 41, 30 ] ], 'plot: one line, sorted by x' );
-	is( $plot->{'show.legend'}, 0, 'plot: one line needs no legend' );
+	is( $plot->{show_legend}, 0, 'plot: one line needs no legend' );
 
 	($plot) = convert( 'plot', df => \%hoh, x => 'height', y => 'weight', by => 'sex' );
 	is_deeply( $plot->{data}{F}, [ [ 155, 165 ], [ 50, 60 ] ], 'plot by: one line per group, Bo left out' );
-	is_deeply( $plot->{'key.order'}, [ 'F', 'M' ], 'plot by: the groups in order' );
-	ok( !exists $plot->{'show.legend'}, 'plot by: the legend is left on' );
+	is_deeply( $plot->{key_order}, [ 'F', 'M' ], 'plot by: the groups in order' );
+	ok( !exists $plot->{show_legend}, 'plot by: the legend is left on' );
 
 	($plot) = convert( 'plot', df => \@aoh, x => 'height', y => [ 'weight', 'age' ] );
 	is( scalar @{ $plot->{data}{age}[0] }, 6, 'plot with two y columns: each line keeps the rows it has values for' );
@@ -235,13 +236,13 @@ converts_dying( 'bar', { df => \@aoh, x => 'name', y => 'hieght' }, qr/no column
 converts_dying( 'bar', { df => \%hoa, x => 'name', y => 'hieght' }, qr/no column "hieght"/, 'and in a hash of arrays' );
 converts_dying( 'bar', { df => \@aoh, y => 'height' }, qr/needs "x".*only a hash of hashes has row names/, 'bar without "x" needs row names' );
 converts_dying( 'hist', { df => \@aoh, y => 'height' }, qr/takes its columns of "df" in "x" and "by", not in "y"/, 'a role the type does not read is refused' );
-converts_dying( 'scatter', { df => \@aoh, x => 'height', y => [ 'weight', 'age' ] }, qr/"y" can name only one column for plot.type "scatter"/, 'only the "many" role takes several' );
+converts_dying( 'scatter', { df => \@aoh, x => 'height', y => [ 'weight', 'age' ] }, qr/"y" can name only one column for plot_type "scatter"/, 'only the "many" role takes several' );
 converts_dying( 'boxplot', { df => \@aoh, y => [ 'weight', 'age' ], by => 'sex' }, qr/"by" splits one column/, '"by" with several columns is refused' );
 converts_dying( 'scatter', { df => \@aoh, x => 'height', y => 'height' }, qr/"height" is named more than once/, 'a column named twice is refused' );
 converts_dying( 'scatter', { df => \@aoh, x => 'height', y => 'weight', keys => [ 'weight', 'height' ] }, qr/"keys" cannot be given with "df"/, '"keys" would contradict x and y' );
-converts_dying( 'hist2d', { df => \@aoh, x => 'height', y => 'weight', 'key.order' => [ 'weight', 'height' ] }, qr/"key.order" cannot be given with "df"/, 'so would "key.order" for hist2d' );
+converts_dying( 'hist2d', { df => \@aoh, x => 'height', y => 'weight', key_order => [ 'weight', 'height' ] }, qr/"key_order" cannot be given with "df"/, 'so would "key_order" for hist2d' );
 converts_dying( 'bar', { df => \@aoh, x => 'sex', y => 'height' }, qr/"M" appears in more than one row of "sex".*agg/, 'bar: a repeated label is refused' );
-converts_dying( 'wide', { df => \@aoh, x => 'height', y => 'weight' }, qr/plot.type "wide" does not take "df"/, 'a type that cannot read a frame says so' );
+converts_dying( 'wide', { df => \@aoh, x => 'height', y => 'weight' }, qr/plot_type "wide" does not take "df"/, 'a type that cannot read a frame says so' );
 converts_dying( 'bar', { df => \@aoh, data => { A => 1 }, x => 'name', y => 'age' }, qr/"df" and "data" cannot both be given/, '"df" with "data" is refused' );
 converts_dying( 'bar', { df => { A => [1], B => { C => 1 } }, x => 'A', y => 'B' }, qr/all be ARRAY \(HoA.*or all HASH \(HoH/, 'a hash mixing arrays and hashes is refused' );
 converts_dying( 'bar', { df => [ 1, 2 ], x => 0, y => 1 }, qr/rows must be ARRAY \(AoA\) or HASH \(AoH\)/, 'an array of plain values is refused' );
@@ -253,7 +254,7 @@ converts_dying( 'bar', { x => 'name', y => 'age' }, qr/"x", "y" name columns of 
 # 7. Through plt: the wrappers, subplots, "add" graphs, and the caller's data.
 # ----------------------------------------------------------------------------
 {
-	my %spec   = ( 'plot.type' => 'scatter', df => \@aoh, x => 'height', y => 'weight' );
+	my %spec   = ( plot_type => 'scatter', df => \@aoh, x => 'height', y => 'weight' );
 	my @before = map { { %{$_} } } @aoh;
 	my $py;
 	{
@@ -266,20 +267,20 @@ converts_dying( 'bar', { x => 'name', y => 'age' }, qr/"x", "y" name columns of 
 
 	local $SIG{__WARN__} = sub { };
 	my ( $out, $err, $file ) = capture {
-		Matplotlib::Simple::bar( 'output.file' => out_file(), execute => 0, df => \%hoa, x => 'name', y => 'age' );
+		Matplotlib::Simple::bar( output_file => out_file(), execute => 0, df => \%hoa, x => 'name', y => 'age' );
 	};
 	like( slurp($file), qr/ax0\.bar\(/, 'bar(): the wrapper takes "df"' );
 
 	$py = gen(
 		p => [
-			{ 'plot.type' => 'hist', df => \@aoh, x => 'age' },
-			[ { 'plot.type' => 'scatter', df => \@aoh, x => 'height', y => 'weight' }, { 'plot.type' => 'plot', df => \@aoh, x => 'height', y => 'age' } ],
+			{ plot_type => 'hist', df => \@aoh, x => 'age' },
+			[ { plot_type => 'scatter', df => \@aoh, x => 'height', y => 'weight' }, { plot_type => 'plot', df => \@aoh, x => 'height', y => 'age' } ],
 		]
 	);
 	like( $py, qr/ax0\.hist\(/,    'p: a subplot takes "df"' );
 	like( $py, qr/ax1\.plot\(/,    'p: and so does an overlay, from its own frame' );
-	gen_dying( { plots => [ { 'plot.type' => 'hist', data => [1] } ], df => \@aoh }, qr/"df" belongs to a subplot/, '"df" at the top of a figure of subplots is refused' );
-	gen_dying( { 'plot.type' => 'scatter', df => \@aoh, x => 'height', y => 'weight', notch => 1 }, qr/"notch".*isn't defined|notch/, 'the other options are still checked after "df" is turned into "data"' );
+	gen_dying( { plots => [ { plot_type => 'hist', data => [1] } ], df => \@aoh }, qr/"df" belongs to a subplot/, '"df" at the top of a figure of subplots is refused' );
+	gen_dying( { plot_type => 'scatter', df => \@aoh, x => 'height', y => 'weight', notch => 1 }, qr/"notch".*isn't defined|notch/, 'the other options are still checked after "df" is turned into "data"' );
 }
 
 # ----------------------------------------------------------------------------
@@ -291,12 +292,12 @@ SKIP: {
 	my ( $out, $err, $died ) = capture {
 		eval {
 			plt(
-				'output.file' => $file,
+				output_file => $file,
 				p             => [
-					{ 'plot.type' => 'bar',     df => \@aoh, x => 'name',   y => [ 'age', 'height' ] },
-					{ 'plot.type' => 'boxplot', df => \%hoa, y => 'height', by => 'sex' },
-					{ 'plot.type' => 'scatter', df => \%hoh, x => 'height', y => 'weight', color_key => 'age', by => 'sex' },
-					{ 'plot.type' => 'hist2d',  df => \@aoa, x => 2,        y => 4 },
+					{ plot_type => 'bar',     df => \@aoh, x => 'name',   y => [ 'age', 'height' ] },
+					{ plot_type => 'boxplot', df => \%hoa, y => 'height', by => 'sex' },
+					{ plot_type => 'scatter', df => \%hoh, x => 'height', y => 'weight', color_key => 'age', by => 'sex' },
+					{ plot_type => 'hist2d',  df => \@aoa, x => 2,        y => 4 },
 				],
 			);
 			1;

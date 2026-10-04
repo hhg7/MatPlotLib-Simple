@@ -237,7 +237,13 @@ foreach my ($table_i, $table_start) (indexed reverse @table_start) {
 	splice @md, $idx[$table_start], scalar @md_table; # remove the original MD code
 	my @table;
 	foreach my $line (@md_table) {
-		push @table, [grep {$_ ne ''} split /\h*\|\h*/, $line];
+		# Only the empty cells outside the outer pipes are dropped. Every empty
+		# cell was, and an empty cell inside a row -- the "df" roles table leaves
+		# "y" empty for hist -- moved every cell after it one column left, so
+		# the POD said hist took its groups from "y".
+		( my $row = $line ) =~ s/^\h*\|//;
+		$row =~ s/\|\h*$//;
+		push @table, [ map { s/^\h+|\h+$//gr } split /\|/, $row, -1 ];
 	}
 	my $t =  HTML::Table->new(-data => \@table);
 	my $table = $t->getTable;
@@ -249,11 +255,6 @@ foreach my ($table_i, $table_start) (indexed reverse @table_start) {
 }
 $md = join ("\n", @md);
 my $pod = markdown_to_pod($md);
-say 'Writing README.pod from README.md, which must be copied into lib/Matplotlib/Simple.pm';
-open my $tmp, '>', 'README.pod';
-say $tmp $pod;
-close $tmp;
-$pod = file2string('README.pod');
 my @pod = split /\n/, $pod;
 
 # get table start and end indices
@@ -296,10 +297,6 @@ while ($over_depth > 0) { # close out any block that the wrapping above opened
 }
 @pod = @fixed_pod;
 
-open my $fh, '>', 'README.pod';
-say $fh join ("\n", @pod);
-close $fh;
-
 my $lib = file2string('lib/Matplotlib/Simple.pm');
 my @lib = split /\n/, $lib;
 my $line = first_index {$_ eq '# from md2pod.pl πατερ ημων ο εν τοις ουρανοις, ἁγιασθήτω τὸ ὄνομά σου'} @lib;
@@ -308,7 +305,7 @@ if ($line == -1) {
 }
 splice @lib, 1-(scalar @lib - $line);
 push @lib, @pod; # add properly formatted POD text
-open $fh, '>', 'lib/Matplotlib/Simple.pm';
+open my $fh, '>', 'lib/Matplotlib/Simple.pm';
 say $fh join ("\n", @lib);
 close $fh;
 
@@ -341,7 +338,7 @@ foreach my ($idx, $line) (indexed @test) {
 	$line =~ s{'output\.images/([^']+)'}{outfile('$1')}g;
 	$line =~ s{'/tmp/([^']+\.svg)'}{outfile('$1')}g;
 	# The basename alone: the test maps them back through outfile() itself.
-	if ($line =~ m/output\.file'\h*=>\h*outfile\('([^']+\.svg)'\)/) {
+	if ($line =~ m/\boutput_file\h*=>\h*outfile\('([^']+\.svg)'\)/) {
 		# dies_ok files are written by calls that are meant to die, so there is
 		# nothing to check afterwards. They are spelled "$tmpdir/dies_ok.svg" in
 		# the hand-written half of the test and so never reach this, but the

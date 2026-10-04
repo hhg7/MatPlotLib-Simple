@@ -158,7 +158,7 @@ SKIP: {
 		local $ENV{TMPDIR} = $spaced;
 		local $Matplotlib::Simple::python_command = [$ok_stub];
 		my ( $out, $err, $pyfile ) = capture {
-			plt( 'plot.type' => 'bar', data => { A => 1 }, 'output.file' => File::Spec->catfile( $TMP, 'x.svg' ) );
+			plt( plot_type => 'bar', data => { A => 1 }, output_file => File::Spec->catfile( $TMP, 'x.svg' ) );
 		};
 		open my $in, '<', $record or die "can't read $record: $!";
 		chomp( my @argv = <$in> );
@@ -172,7 +172,7 @@ SKIP: {
 		local $ENV{MATPLOTLIB_SIMPLE_PYTHON} = $env_stub;
 		local $Matplotlib::Simple::python_command = undef;
 		my ( $out, $err, $pyfile ) = capture {
-			plt( 'plot.type' => 'bar', data => { A => 1 }, 'output.file' => File::Spec->catfile( $TMP, 'v.svg' ) );
+			plt( plot_type => 'bar', data => { A => 1 }, output_file => File::Spec->catfile( $TMP, 'v.svg' ) );
 		};
 		open my $in, '<', $env_record or die "can't read $env_record: $!";
 		chomp( my @argv = <$in> );
@@ -184,7 +184,7 @@ SKIP: {
 	{
 		local $Matplotlib::Simple::python_command = [ $fail_stub, '-X' ];
 		my ( $out, $err ) = capture {
-			eval { plt( 'plot.type' => 'bar', data => { A => 1 }, 'output.file' => File::Spec->catfile( $TMP, 'y.svg' ) ) };
+			eval { plt( plot_type => 'bar', data => { A => 1 }, output_file => File::Spec->catfile( $TMP, 'y.svg' ) ) };
 		};
 		( my $died = "$@" ) =~ s/\n\t.*\z//s;
 		like( $died, qr/^\Q$fail_stub\E -X \S+ unexpectedly returned exit value 3/, 'plt: a failing script is reported under the command actually run' );
@@ -197,12 +197,12 @@ SKIP: {
 {
 	local $Matplotlib::Simple::python_command = [];    # looked for, none found
 	my ( $out, $err ) = capture {
-		eval { plt( 'plot.type' => 'bar', data => { A => 1 }, 'output.file' => File::Spec->catfile( $TMP, 'z.svg' ) ) };
+		eval { plt( plot_type => 'bar', data => { A => 1 }, output_file => File::Spec->catfile( $TMP, 'z.svg' ) ) };
 	};
 	( my $died = "$@" ) =~ s/\n\t.*\z//s;
 	like( $died, qr/no Python 3 interpreter was found to run .* tried "python", "py -3", "python3"/, 'plt: no interpreter is an error naming the ones tried' );
 	my @r;
-	capture { @r = eval { plt( 'plot.type' => 'bar', data => { A => 1 }, execute => 0, 'output.file' => File::Spec->catfile( $TMP, 'w.svg' ) ) } };
+	capture { @r = eval { plt( plot_type => 'bar', data => { A => 1 }, execute => 0, output_file => File::Spec->catfile( $TMP, 'w.svg' ) ) } };
 	ok( defined $r[0] && -f $r[0], 'plt: with no interpreter, execute => 0 still writes the script' );
 }
 

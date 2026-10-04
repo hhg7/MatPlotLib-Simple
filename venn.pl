@@ -9,12 +9,12 @@ use Devel::Confess 'color';
 use Matplotlib::Simple;
 
 plt(
- 	'output.file' => 'output.images/venn.svg',
+ 	output_file => 'output.images/venn.svg',
  	ncols         => 2,
  	suptitle      => 'Proportional-area Venn diagrams',
  	plots => [
  		{
- 			'plot.type' => 'venn_proportional_area',
+ 			plot_type => 'venn_proportional_area',
  			title       => 'Two sets',
  			data        => {
  				Perl   => [qw(regex hashes CPAN sigils)],
@@ -22,7 +22,7 @@ plt(
  			},
  		},
  		{
- 			'plot.type'  => 'venn_proportional_area',
+ 			plot_type    => 'venn_proportional_area',
  			title        => 'Three sets with colors',
  			set_colors   => [qw(skyblue lightgreen salmon)],
  			alpha        => 0.5,

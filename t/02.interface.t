@@ -59,7 +59,7 @@ sub slurp {
 }
 
 # Build a figure with "p" but DON'T run python (execute => 0). "show => 1"
-# satisfies plt()'s "need output.file or show" guard without touching the
+# satisfies plt()'s "need output_file or show" guard without touching the
 # output-file machinery, so these structural checks are pure and offline.
 # Returns the generated python source text.
 sub build_py {
@@ -82,7 +82,7 @@ sub count_matches {
 # A minimal, valid single-plot spec (hist needs numeric data only).
 sub H {
 	my ( $key, @vals ) = @_;
-	return { 'plot.type' => 'hist', data => { $key => [@vals] } };
+	return { plot_type => 'hist', data => { $key => [@vals] } };
 }
 
 # ----------------------------------------------------------------------------
@@ -113,9 +113,9 @@ sub H {
 	my $py;
 	lives_ok {
 		$py = build_py(
-			{ 'plot.type' => 'hist', data => { A => [1,2,3] }, title => 'single' },
+			{ plot_type => 'hist', data => { A => [1,2,3] }, title => 'single' },
 			[ H('B',1,2), H('C',3,4) ],                      # overlaid in ONE subplot
-			{ 'plot.type' => 'hist', data => { D => [5,6] }, title => 'third' },
+			{ plot_type => 'hist', data => { D => [5,6] }, title => 'third' },
 		);
 	} 'mixed p: hash + array-of-hashes + hash builds without dying';
 
@@ -198,8 +198,8 @@ throws_msg_like { plt({ p => [ [ 42 ] ],        show => 1 }) }
 	qr/every plot must be a HASH/,         'non-hash inside an inner array dies';
 throws_msg_like { plt({ p => [ H('A',1) ], data => { X => [1] },     show => 1 }) }
 	qr/cannot be combined with/,           '"data" combined with "p" dies';
-throws_msg_like { plt({ p => [ H('A',1) ], 'plot.type' => 'hist',    show => 1 }) }
-	qr/cannot be combined with/,           '"plot.type" combined with "p" dies';
+throws_msg_like { plt({ p => [ H('A',1) ], plot_type => 'hist',    show => 1 }) }
+	qr/cannot be combined with/,           '"plot_type" combined with "p" dies';
 throws_msg_like { plt({ p => [ H('A',1) ], plots => [ H('A',1) ],    show => 1 }) }
 	qr/cannot be combined with/,           '"plots" combined with "p" dies';
 throws_msg_like { plt({ p => [ H('A',1) ], add => [ H('A',1) ],      show => 1 }) }
@@ -226,7 +226,7 @@ SKIP: {
 					[ H('B',1,1,2,2,3), H('C',2,3,3,4,4,5) ],   # overlay -> one subplot
 					H('D',5,5,6,6,6,7),
 				],
-				'output.file' => $svg,
+				output_file => $svg,
 				execute       => 1,
 			});
 		};

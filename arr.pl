@@ -9,13 +9,13 @@ use DDP;
 
 plt(
 	data => [0..7],
-	'plot.type' => 'violin',
-	'output.file' => '/tmp/single.arr.violin.svg'
+	plot_type => 'violin',
+	output_file => '/tmp/single.arr.violin.svg'
 );
 p %ENV;
 =my @arr = (
 	{
-		'plot.type' => 'plot',
+		plot_type => 'plot',
 		data        => {
 			[0..3],
 			[0..3]
@@ -24,5 +24,5 @@ p %ENV;
 );
 plt({
 	arr           => \@arr,
-	'output.file' => '/tmp/opt.arr.svg'
+	output_file => '/tmp/opt.arr.svg'
 });

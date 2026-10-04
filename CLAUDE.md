@@ -27,7 +27,7 @@ subtests failed. One hardcoded path took down the whole distribution.
 **Never hardcode `/tmp`, or any absolute path, in `lib/` or `t/`.** Use
 `File::Spec->tmpdir` (which is `/tmp` on unix, so unix behaviour is unchanged)
 or `File::Temp`'s `tempdir`. This applies to test output files as much as to
-the generated script: `'output.file' => '/tmp/foo.svg'` in a test is the same
+the generated script: `output_file => '/tmp/foo.svg'` in a test is the same
 bug wearing a different hat.
 
 **Never interpolate a filesystem path into the generated Python.** A Windows
@@ -174,7 +174,7 @@ suite's dependencies. The check is cheap: hide the test-only modules from
     perl -e 'BEGIN { unshift @INC, sub {
         die "hidden\n" if $_[1] =~ m{^(autodie|Test/More|Test/Exception)\.pm$} } }
         use lib "lib"; use Matplotlib::Simple;
-        bar("output.file" => "/tmp/x.svg", data => { A => 1, B => 2 })'
+        bar(output_file => "/tmp/x.svg", data => { A => 1, B => 2 })'
 
 The scripts in the repository root and in `t/` that are not `.t` files
 (`md2pod.pl` uses `Test::More`, `Markdown::To::POD`, `HTML::Table` and more)
@@ -206,6 +206,8 @@ problem, not an installer's.
 - `t/11.data.frames.t` — `df`: each of the four frame shapes turned into each
   plot type's `data`, mostly by calling `frame_to_data` directly, so it runs
   without Python.
+- `t/12.review.fixes.0.319.t` — one block per fix of 0.319, in the form of
+  `t/10.review.fixes.0.317.t`.
 - `t/utf8.mojibake.t` — labels arriving as raw utf8 bytes rather than wide
   characters.
 - `Matplotlib-Simple-0.3*/` and the matching `.tar.gz` — snapshots of past
@@ -219,7 +221,7 @@ problem, not an installer's.
 
     prove -Ilib t/
 
-The full suite is 999 tests in about 150 seconds on a machine with python3 and
+The full suite is 1122 tests in about 160 seconds on a machine with python3 and
 matplotlib. `perl Makefile.PL && make test` also works.
 
 ## Releasing
@@ -230,8 +232,11 @@ version, then:
 
     sh dzil.sh    # md2pod.pl, Makefile.PL, dzil release, dzil build
 
-`md2pod.pl` regenerates `README.pod` from `README.md`; edit the markdown, not
-the POD.
+`md2pod.pl` regenerates the POD at the end of `lib/Matplotlib/Simple.pm` from
+`README.md`, and the example block of `t/01.all.tests.t` from `mpl.examples.pl`;
+edit those two, not what is generated from them. There is no `README.pod`:
+it was only ever a scratch copy, which the tarball never shipped, and was
+removed in 0.319.
 
 A `Changes` entry says what was wrong and what the user will now observe, in
 the same voice as the existing entries — not "fixed a bug". When the entry is

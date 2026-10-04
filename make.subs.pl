@@ -13,15 +13,15 @@ my $base_code = <<'END_OF_CODE';
 sub bar { # a wrapper to simplify calling
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1];
-	if ((defined $args->{'plot.type'}) && ($args->{'plot.type'} ne $current_sub)) {
-		warn "$args->{'plot.type'} will be ignored for $current_sub";
+	if ((defined $args->{'plot_type'}) && ($args->{'plot_type'} ne $current_sub)) {
+		warn "$args->{'plot_type'} will be ignored for $current_sub";
 	}
 	if (defined $args->{plots}) {
 		die "\"plots\" is meant for the subroutin \"plot\"; $current_sub is single-only";
 	}
 	plot({
 		%{ $args },
-		'plot.type' => $current_sub
+		plot_type => $current_sub
 	});
 }
 END_OF_CODE
@@ -31,7 +31,7 @@ foreach my $m ('barh', 'boxplot','hist','hist2d','imshow','pie','scatter','violi
 	say $code;
 }
 =bar({
-   'output.file' => '/tmp/gospel.word.counts.png',
+   output_file => '/tmp/gospel.word.counts.png',
    data              => {
 	  Matthew => 18345,
 	  Mark    => 11304,

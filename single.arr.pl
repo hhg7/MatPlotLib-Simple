@@ -8,6 +8,6 @@ use Matplotlib::Simple;
 
 hist({
 	data          => [0..9],
-	'output.file' => '/tmp/hist.arr.svg',
+	output_file => '/tmp/hist.arr.svg',
 });
 

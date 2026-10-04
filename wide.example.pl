@@ -42,7 +42,7 @@ foreach my $group ( 'Clinical', 'HGI' ) {
 }
 
 wide(
-	'output.file' => 'output.images/single.wide.png',
+	output_file => 'output.images/single.wide.png',
 	data          => \%runs,
 	color         => {	# one color per group
 		Clinical => 'blue',
@@ -54,12 +54,12 @@ wide(
 );
 
 plt(
-	'output.file' => 'output.images/wide.png',
+	output_file => 'output.images/wide.png',
 	ncols         => 2,
 	suptitle      => 'Replicate runs, summarised',
 	plots         => [
 		{
-			'plot.type' => 'wide',
+			plot_type => 'wide',
 			data        => \%runs,                          # hash of groups of runs
 			color       => { Clinical => 'blue', HGI => 'green' },
 			title       => '"Two groups, mean +/- 1 s.d."', # comma: quoted
@@ -67,10 +67,10 @@ plt(
 			ylabel      => 'signal',
 		},
 		{
-			'plot.type'   => 'wide',
+			plot_type     => 'wide',
 			data          => $runs{Clinical},               # just the runs, unlabelled
 			color         => 'red',
-			'show.legend' => 0,
+			show_legend   => 0,
 			title         => 'One group with no legend',
 			xlabel        => 'time',
 		},
@@ -82,17 +82,17 @@ foreach my $group ( keys %runs ) {
 	@{ $endpoints{$group} } = map { $_->[1][-1] } @{ $runs{$group} };
 }
 plt(
-	'output.file' => 'output.images/wide.and.violin.png',
+	output_file => 'output.images/wide.and.violin.png',
 	ncols         => 2,
 	plots         => [
 		{
-			'plot.type' => 'wide',
+			plot_type => 'wide',
 			data        => \%runs,
 			color       => { Clinical => 'blue', HGI => 'green' },
 			title       => 'Runs over time',
 		},
 		{
-			'plot.type' => 'violinplot',
+			plot_type => 'violinplot',
 			data        => \%endpoints,	# hash of arrays, same keys
 			colors      => { Clinical => 'blue', HGI => 'green' },
 			title       => 'Final values',
