@@ -1,10 +1,88 @@
 Revision history for Matplotlib-Simple
 
-0.318 2026-10-02 CDT
+0.319 2026-10-05 CDT
+
+ [Keywords are spelled with "_", not "."]
+
+ - Every keyword that was spelled with a dot is now spelled with an underscore: `col_labels`, `colorbar_on`, `key_order`, `output_file`, `plot_type`, `row_labels`, `set_options`, `shared_colorbar`, `show_colorbar`, `show_legend`, `show_numbers`, `twinx_args`, `undef_color`, `xscale_hexbin` and `yscale_hexbin`. A dotted name is not a Perl identifier, so it had to be quoted on the left of `=>`, as in `'output.file' => 'b.svg'`. The new names need no quotes, as in `output_file => 'b.svg'`, and are spelled like the keywords that already had an underscore, such as `cb_min`, `default_undefined` and `set_title`.
+
+ - The old spellings are refused, not accepted as synonyms. A script written for 0.317 or earlier dies before it writes anything, with one message that names every dotted keyword it was given, where it was given -- at the top, in a subplot, in a `p` entry or in an `add` graph -- and what it is called now: `plt: keywords are spelled with "_", not ".", since 0.319: "output.file" is now "output_file"; "plot.type" is now "plot_type"`. Without this check, `plot.type` and `output.file` would not have been named at all, because `plt` looks for `plot_type` and `output_file` before it checks any other keyword, so an old script would have died with "either "show" or "output_file" must be defined". Bringing a script up to date is a search and replace of the names above.
+
+ [Figures that were drawn incorrectly]
+
+ - `plot` with `twinx => { P => 1, H => 1 }` draws both series on one right-hand axis. Each twinned series had a twin axis of its own, with limits of its own, and their ticks were drawn over one another on the same spine. The same was true of array data with `twinx => [1, 2]`.
+
+ - A twinned series is in the legend, alongside the series on the left axis. It was in none; with `twinx_args`, it was in a second legend drawn in the same "best" place as the first, covering it.
+
+ - Subplots that share a colorbar share a color scale: one color is one value in all of them, and the colorbar is true of every one. Each subplot spread its own range over the whole colormap -- two scatters colored from 1..2 and 10..20 drew both in the same colors -- and the one colorbar, drawn from the last subplot, was true only of that one.
+
+ - Several subplots given `plot_type` and `data` at the top as well as `plots` refuse it. The top-level plot was drawn on `ax0` and the first subplot drawn on top of it, and with two subplots the script named an `ax1` that did not exist.
+
+ - A `title`, `xscale`, `ylim` or other pyplot option at the top of a figure of several subplots is refused, naming the subplot hash it belongs in and, for a title, `suptitle`. It was written as `plt.title()`, which acts on the last subplot drawn, and replaced that subplot's own title. A plot option (`color`, `cmap`), an axes method (`set_xlabel`), `add`, or `cbpad` without `shared_colorbar` at the top was accepted and dropped, and is refused too. The figure's own options -- `suptitle`, `set_figwidth`, `sharex`, `shared_colorbar` and the like -- are taken as before.
+
+ - `bar` and `barh` with a simple hash take `width`, which was read only by stacked groups, so every simple bar plot was drawn at the default 0.8 whatever it said. `barh` writes it as matplotlib's `height`.
+
+ - `bar` with a simple hash takes `edgecolor` as a hash of one color per bar, as it takes `color`. The hash was dropped without a word; a grouped plot refuses one, naming why.
+
+ - A `bar` hash of hashes whose inner keys differ only in case, such as `a` and `A`, draws its series in the same order every time. Hash order decided it, and the bars and legend changed places from run to run. `scatter`'s keys were ordered the same way, and are fixed the same way.
+
+ - `scatter` with several sets reads `show_legend`, which it accepted and ignored, so the legend could not be turned off.
+
+ - `hist` and `scatter` take `key_order`, the order their sets are drawn in, and the groups that `df` makes with `by` are in numeric order for them too, as documented for every type. Both sorted the groups as strings, 10 before 2.
+
+ [Text that came out wrong]
+
+ - A title or axis label holding an apostrophe or a comma is quoted, unless it opens as Python does, with a string literal or a keyword argument. `xlabel => "Bob's data"` was written as `set_xlabel(Bob's data)`, a SyntaxError, so prose of that kind had to carry its own quotes; text that does, and mathtext such as `'r"$\it{anno}$"'`, is left alone as before. `title => ''` was written as `set_title()`, a TypeError, and is now an empty title.
+
+ - A NUL or other control character in text is written as a Python escape. A NUL went in as it stood, and Python refused the whole script: "source code string cannot contain null bytes".
+
+ [Data and options that broke the script, or were silently dropped]
+
+ - An `imshow` of strings with a `stringmap` draws on a perl whose JSON::MaybeXS uses JSON::XS, which it does when JSON::XS is installed and Cpanel::JSON::XS is not. The script died with "TypeError: Image data of dtype <U21 cannot be converted to float", and so did test 47 of `t/10.review.fixes.0.317.t` and `t/01.all.tests.t`, which stopped the module from installing. The first category's 0 was copied from the count of an empty array, which perl keeps as a number that is also the string "0", and JSON::XS wrote it as a string; one string among the integers made numpy read the whole image as text. HitList's conda install found it on 2026-10-05 and put it down to numpy 2.5.3, which arrived at the same time, but numpy is not involved: it fails under JSON::XS 4.04 with numpy 2.4.6 and passes under Cpanel::JSON::XS and JSON::PP with numpy 2.5.3.
+
+ - A whole number with leading zeros, such as `007` from a column read from a file, is written without them. Python 3 refuses `007` ("leading zeros in decimal integer literals are not permitted"), so a bar plot of `{ A => '007' }` died when the script ran. The same went for `ncols => '02'`, and for `bins`, `cb_min`, `xmin` and the other numbers written as given.
+
+ - `inf` and `nan`, which Perl's `looks_like_number` accepts, are written as `float('inf')` and `float('nan')` in `vmin`, `vmax`, `mincnt`, `alpha`, `cb_min` and `cb_max`, where they were bare names and a NameError. Where an infinite value cannot mean anything -- `scale`, `width`, a `colored_table` scale end, a `wide` x value, a `hist2d` range end -- it is refused by name.
+
+ - Every switch -- `stacked`, `mirror`, `show_numbers`, `colorbar_on`, `show_colorbar`, `show_legend`, `cb_logscale`, `medians`, `whiskers`, `notch`, `showcaps`, `showfliers`, `showmeans` and `execute` -- takes `'True'` or `'False'` in any case, or a number, as `log` has since 0.317, and refuses anything else by name. `stacked => 'True'`, `mirror => 'True'` and `execute => 'yes'` died as 'Argument "True" isn't numeric'; `colorbar_on => 'False'` and `show_numbers => 'False'` turned the option on; `notch => 'false'` and `medians => 'yes'` were written into the script as bare names.
+
+ - `hist2d` checks `xmin`, `xmax`, `ymin` and `ymax`. Each was written as given, so `xmin => 'a'` was a NameError; a column with no finite value died as "Use of uninitialized value"; and a log axis whose data reached 0 died inside numpy as "invalid entry in coordinates array". `hexbin` and `hist2d` refuse a negative bin count, and a `cb_logscale` starting at 0, which matplotlib refused from inside itself.
+
+ - `scatter` with a `label` in a set's `set_options` uses it. A set without a color key was given `label = 'A'` as well, and the script was a SyntaxError: "keyword argument repeated".
+
+ - `boxplot` and `violin` refuse a `color` hash, pointing to `colors`; it was written into the script as `'HASH(0x...)'`.
+
+ - `hist` refuses an `orientation` hash, which was skipped as though it held a setting per set and then never read, and a `color` or `bins` hash naming a set that is not in `data`, which was ignored -- a typo, most often -- and the set drawn with the defaults.
+
+ - `scatter` refuses x, y and color axes of different lengths, and a `set_options` of the wrong shape for its data, by name. They died as "x and y must be the same size" from matplotlib, as "Can't use string as a HASH ref", or were ignored.
+
+ - `plot` with array data refuses a `twinx` or `twinx_args` index past the last line, which was ignored.
+
+ - `venn_proportional_area` refuses a `key_order` naming a set twice, which drew that set against itself and left the other out, and a `set_colors` that is not one color per set, which failed inside matplotlib_venn. Array `data`, and a string `key_order` or `set_colors`, died as Perl's own errors and are refused by name.
+
+ - Every `key_order`, `keys` and `col_labels` must be an array naming each key once. A string died as "Can't use string as an ARRAY ref", and a key named twice was drawn twice.
+
+ - `pie` refuses a negative wedge and a pie of nothing but zeros; `imshow` refuses rows of different lengths and names an undefined cell. Each was refused from inside matplotlib or numpy, naming nothing, and an undefined cell of numeric data was reported as needing a `stringmap`.
+
+ - `bar` refuses grouped data whose arrays are all empty, which died as "Can't use an undefined value as an ARRAY reference"; an `add` that holds something other than hashes, which died as "Can't use string as a HASH ref"; and `sharex` or `sharey` on a single plot is dropped with a warning, as `ncols` is, where `ax0.sharex(1)` was a TypeError.
+
+ - A `df` that is an array of arrays or of hashes may hold an undefined row, which is a row with no values, left out with the usual warning. It died as "row 0 of "df" is not an ARRAY reference". A `colored_table` frame with no columns says so, where it died as "Use of uninitialized value $x".
+
+ - `output_file => '0'` is a file name like any other, and was refused as missing.
+
+ [Documentation]
+
+ - The POD's table of which `df` column each plot type reads had its `hist`, `boxplot` and `violin` rows shifted one column left, so it said `boxplot` read its values from `x`, which the code refuses. README.md was right; `md2pod.pl` dropped every empty table cell rather than only those outside the outer pipes.
+
+ [Data Provenance]
+
+ - Provenance within svg files now prints Perl version, python version, and matplotlib version
 
  [Plotting a data frame]
 
  - `df` takes a data frame whole, in any of the four shapes `Stats::LikeR` uses (array of hashes, hash of arrays, hash of hashes, array of arrays), with the columns to draw named by `x`, `y` and `by`, and for `scatter` `color_key`: `bar(df => read_table('t.csv'), x => 'Method', y => 'BEDROC(32.2)', 'output.file' => 'b.svg')`. Until now a table had to be taken apart column by column with `avals` and put back together as the `data` hash of the plot type. Every plot type but `imshow`, `venn_proportional_area` and `wide` takes it, in a single plot, a subplot or an `add` graph. x goes on the x axis whatever the sorted order of the column names, the axes are labelled with the column names, bars keep the order of the rows, `plot` draws its lines in the order of x, and `by` groups are in numeric order when they are numbers. A row with no value in a column the plot uses is left out with a warning that counts it; a missing column, a repeated bar label and a grouped bar with a missing pair are refused by name. `Stats::LikeR` is not a prerequisite: the shapes are recognised by their structure.
+
+ - `hist` and `violin` given `df` without `x` or `y` draw every column of numbers, passing over columns of names or categories, as pandas' `DataFrame.hist` does; they died with 'plot_type "violin" needs "y" to name a column of "df"'. Without `by`, the columns of a hash of arrays need not be the same length, since each is a distribution of its own, so what `Stats::LikeR`'s `group_by` returns -- one column per group, as long as the group -- can be drawn whole: `violin(df => group_by($mtcars, 'mpg', 'cyl'), output_file => 'mpg.svg')` draws one violin per number of cylinders, in the order 4, 6, 8. It died with 'the columns of "df" must all have the same number of rows, but they have "4" 11, "6" 7, "8" 14'. With `by`, which reads a value and its group from the same row, the columns must still be the same length, and the column to split must still be named.
 
 0.317 2026-09-30 CDT
 

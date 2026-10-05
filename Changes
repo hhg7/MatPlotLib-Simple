@@ -1,6 +1,6 @@
 Revision history for Matplotlib-Simple
 
-0.319 2026-10-04 CDT
+0.319 2026-10-05 CDT
 
  [Keywords are spelled with "_", not "."]
 
@@ -8,7 +8,7 @@ Revision history for Matplotlib-Simple
 
  - The old spellings are refused, not accepted as synonyms. A script written for 0.317 or earlier dies before it writes anything, with one message that names every dotted keyword it was given, where it was given -- at the top, in a subplot, in a `p` entry or in an `add` graph -- and what it is called now: `plt: keywords are spelled with "_", not ".", since 0.319: "output.file" is now "output_file"; "plot.type" is now "plot_type"`. Without this check, `plot.type` and `output.file` would not have been named at all, because `plt` looks for `plot_type` and `output_file` before it checks any other keyword, so an old script would have died with "either "show" or "output_file" must be defined". Bringing a script up to date is a search and replace of the names above.
 
- [Figures that were drawn wrong]
+ [Figures that were drawn incorrectly]
 
  - `plot` with `twinx => { P => 1, H => 1 }` draws both series on one right-hand axis. Each twinned series had a twin axis of its own, with limits of its own, and their ticks were drawn over one another on the same spine. The same was true of array data with `twinx => [1, 2]`.
 
@@ -37,6 +37,8 @@ Revision history for Matplotlib-Simple
  - A NUL or other control character in text is written as a Python escape. A NUL went in as it stood, and Python refused the whole script: "source code string cannot contain null bytes".
 
  [Data and options that broke the script, or were silently dropped]
+
+ - An `imshow` of strings with a `stringmap` draws on a perl whose JSON::MaybeXS uses JSON::XS, which it does when JSON::XS is installed and Cpanel::JSON::XS is not. The script died with "TypeError: Image data of dtype <U21 cannot be converted to float", and so did test 47 of `t/10.review.fixes.0.317.t` and `t/01.all.tests.t`, which stopped the module from installing. The first category's 0 was copied from the count of an empty array, which perl keeps as a number that is also the string "0", and JSON::XS wrote it as a string; one string among the integers made numpy read the whole image as text. HitList's conda install found it on 2026-10-05 and put it down to numpy 2.5.3, which arrived at the same time, but numpy is not involved: it fails under JSON::XS 4.04 with numpy 2.4.6 and passes under Cpanel::JSON::XS and JSON::PP with numpy 2.5.3.
 
  - A whole number with leading zeros, such as `007` from a column read from a file, is written without them. Python 3 refuses `007` ("leading zeros in decimal integer literals are not permitted"), so a bar plot of `{ A => '007' }` died when the script ran. The same went for `ncols => '02'`, and for `bins`, `cb_min`, `xmin` and the other numbers written as given.
 
@@ -79,6 +81,8 @@ Revision history for Matplotlib-Simple
  [Plotting a data frame]
 
  - `df` takes a data frame whole, in any of the four shapes `Stats::LikeR` uses (array of hashes, hash of arrays, hash of hashes, array of arrays), with the columns to draw named by `x`, `y` and `by`, and for `scatter` `color_key`: `bar(df => read_table('t.csv'), x => 'Method', y => 'BEDROC(32.2)', 'output.file' => 'b.svg')`. Until now a table had to be taken apart column by column with `avals` and put back together as the `data` hash of the plot type. Every plot type but `imshow`, `venn_proportional_area` and `wide` takes it, in a single plot, a subplot or an `add` graph. x goes on the x axis whatever the sorted order of the column names, the axes are labelled with the column names, bars keep the order of the rows, `plot` draws its lines in the order of x, and `by` groups are in numeric order when they are numbers. A row with no value in a column the plot uses is left out with a warning that counts it; a missing column, a repeated bar label and a grouped bar with a missing pair are refused by name. `Stats::LikeR` is not a prerequisite: the shapes are recognised by their structure.
+
+ - `hist` and `violin` given `df` without `x` or `y` draw every column of numbers, passing over columns of names or categories, as pandas' `DataFrame.hist` does; they died with 'plot_type "violin" needs "y" to name a column of "df"'. Without `by`, the columns of a hash of arrays need not be the same length, since each is a distribution of its own, so what `Stats::LikeR`'s `group_by` returns -- one column per group, as long as the group -- can be drawn whole: `violin(df => group_by($mtcars, 'mpg', 'cyl'), output_file => 'mpg.svg')` draws one violin per number of cylinders, in the order 4, 6, 8. It died with 'the columns of "df" must all have the same number of rows, but they have "4" 11, "6" 7, "8" 14'. With `by`, which reads a value and its group from the same row, the columns must still be the same length, and the column to split must still be named.
 
 0.317 2026-09-30 CDT
 

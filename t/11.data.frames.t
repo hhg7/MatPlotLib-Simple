@@ -202,6 +202,39 @@ foreach my $shape ( sort keys %frame ) {
 }
 
 # ----------------------------------------------------------------------------
+# 3a. hist and violin: every column of numbers by default, and columns that
+#     need not be the same length, since no row is read across them. The
+#     ragged hash of arrays is the shape of Stats::LikeR's group_by, which
+#     gives one column per group.
+# ----------------------------------------------------------------------------
+{
+	my %by_cyl = ( 8 => [ 18.7, 14.3, 16.4, 17.3 ], 4 => [ 22.8, 24.4 ], 10 => [ 21, undef, 21.4 ] );
+	foreach my $type ( 'hist', 'violin', 'violinplot' ) {
+		my ( $plot, $warned ) = convert( $type, df => \@aoh );
+		is_deeply( $plot->{data}, { height => [ 180, 160, 175, 165, 170, 155 ], weight => [ 80, 75, 60, 70, 50 ], age => [ 30, 25, 41, 35, 52, 28 ] },
+			"$type without a column named: every column of numbers, and not \"name\" or \"sex\"" );
+		is_deeply( $plot->{key_order}, [ 'age', 'height', 'weight' ], "$type without a column named: the columns in sorted order" );
+		is( scalar @{$warned}, 1, "$type without a column named: still one warning, for Bo's weight" );
+
+		( $plot, $warned ) = convert( $type, df => \%by_cyl );
+		is_deeply( $plot->{data}, { 8 => [ 18.7, 14.3, 16.4, 17.3 ], 4 => [ 22.8, 24.4 ], 10 => [ 21, 21.4 ] }, "$type: a ragged hash of arrays, each column whole" );
+		is_deeply( $plot->{key_order}, [ 4, 8, 10 ], "$type: columns named by numbers in numeric order, as the groups of group_by are" );
+		is( scalar @{$warned}, 1, "$type ragged: one warning, for the one gap" );
+		like( $warned->[0], qr/left out 1 of 3 rows/, "$type ragged: the gap counted against its own column's length, not the longest" );
+
+		my $role = $type eq 'hist' ? 'x' : 'y';
+		($plot) = convert( $type, df => \%by_cyl, $role => [ 4, 10 ] );
+		is_deeply( $plot->{data}, { 4 => [ 22.8, 24.4 ], 10 => [ 21, 21.4 ] }, "$type: a ragged hash of arrays with the columns named" );
+
+		converts_dying( $type, { df => { a => [ 1, 2 ], g => ['u'] }, $role => 'a', by => 'g' },
+			qr/same number of rows, but they have "a" 2, "g" 1/, "$type: a ragged hash of arrays is still refused with \"by\", which reads across a row" );
+		converts_dying( $type, { df => \@aoh, by => 'sex' }, qr/needs "$role" to name a column/, "$type: \"by\" still needs the one column it splits" );
+		converts_dying( $type, { df => [ { n => 'a' }, { n => 'b' } ] }, qr/has no column of numbers to draw/, "$type: a frame with no column of numbers is refused" );
+	}
+	converts_dying( 'boxplot', { df => \@aoh }, qr/needs "y" to name a column/, 'boxplot still needs "y"' );
+}
+
+# ----------------------------------------------------------------------------
 # 4. plot: lines in the order of x.
 # ----------------------------------------------------------------------------
 {
@@ -298,12 +331,14 @@ SKIP: {
 					{ plot_type => 'boxplot', df => \%hoa, y => 'height', by => 'sex' },
 					{ plot_type => 'scatter', df => \%hoh, x => 'height', y => 'weight', color_key => 'age', by => 'sex' },
 					{ plot_type => 'hist2d',  df => \@aoa, x => 2,        y => 4 },
+					{ plot_type => 'violin',  df => { 4 => [ 22.8, 24.4, 30.4 ], 8 => [ 18.7, 14.3 ] } },
+					{ plot_type => 'hist',    df => { 4 => [ 22.8, 24.4, 30.4 ], 8 => [ 18.7, 14.3 ] } },
 				],
 			);
 			1;
 		} ? '' : "$@";
 	};
-	ok( !length $died && -s $file, 'bar, boxplot, scatter by group and hist2d from four shapes render' ) or diag("  died: $died$err");
+	ok( !length $died && -s $file, 'bar, boxplot, scatter by group and hist2d from four shapes, and violin and hist of a ragged hash of arrays, render' ) or diag("  died: $died$err");
 }
 
 done_testing();

@@ -63,7 +63,7 @@ sub slurp {
 # Build one figure with execute => 0 and return the generated python as text.
 sub gen {
 	my (%spec) = @_;
-	$spec{'output.file'} = out_file();
+	$spec{output_file} = out_file();
 	$spec{execute} = 0;
 	my ( $out, $err, $pyfile ) = capture { plt( \%spec ) };
 	return ( slurp($pyfile), $pyfile );
@@ -132,7 +132,7 @@ sub b64_var {
 # 1. "log => 'False'" turned the log scale on.
 # ----------------------------------------------------------------------------
 {
-	my %bar = ( 'plot.type' => 'bar', data => { A => 1, B => 2 } );
+	my %bar = ( plot_type => 'bar', data => { A => 1, B => 2 } );
 	my ($py) = gen( %bar, log => 'False' );
 	unlike( $py, qr/log = True/, 'log => "False": no log scale (the string is true in Perl)' );
 	($py) = gen( %bar, log => 0 );
@@ -152,7 +152,7 @@ sub b64_var {
 	# The POD's own "Entering data" example. The table drew columns C and H,
 	# lost every Br and Cl value, and left the C column empty.
 	my ($py, $file) = gen(
-		'plot.type' => 'colored_table',
+		plot_type => 'colored_table',
 		data        => {
 			H => { H => 432, Cl => 427, Br => 363 },
 			C => { H => 413, Cl => 339, Br => 276 },
@@ -165,7 +165,7 @@ sub b64_var {
 	parses_ok( $file, 'the table script parses' );
 	# mirror: square, and a given cell is not overwritten by its reflection
 	($py) = gen(
-		'plot.type' => 'colored_table',
+		plot_type => 'colored_table',
 		mirror      => 1,
 		data        => { A => { A => 1, B => 2 }, B => { A => 3 } },
 	);
@@ -173,49 +173,49 @@ sub b64_var {
 	like( $py, qr/^d\.append\(\[1,2\]\)$/m, 'mirror: row A is A/A and A/B as given' );
 	like( $py, qr/^d\.append\(\[3,np\.nan\]\)$/m, 'mirror: B/A keeps the 3 it was given rather than the reflected 2' );
 	dies_with(
-		{ 'plot.type' => 'colored_table', data => { A => { A => 1 }, B => { B => 2 } }, 'row.labels' => ['a'] },
-		qr/"row\.labels" has 1 labels, but the table has 2 rows/,
-		'a row.labels of the wrong length is refused by name'
+		{ plot_type => 'colored_table', data => { A => { A => 1 }, B => { B => 2 } }, row_labels => ['a'] },
+		qr/"row_labels" has 1 labels, but the table has 2 rows/,
+		'a row_labels of the wrong length is refused by name'
 	);
 	dies_with(
-		{ 'plot.type' => 'colored_table', data => { A => [ 1, 2 ] } },
+		{ plot_type => 'colored_table', data => { A => [ 1, 2 ] } },
 		qr/row "A" of "data" is a ARRAY reference/,
 		'a row that is not a hash is refused by name'
 	);
 }
 
 # ----------------------------------------------------------------------------
-# 3. shared.colorbar gave subplots keywords their helpers refused.
+# 3. shared_colorbar gave subplots keywords their helpers refused.
 # ----------------------------------------------------------------------------
 {
-	my @imshow = ( 'plot.type' => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ] );
+	my @imshow = ( plot_type => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ] );
 	dies_with(
-		{ ncols => 2, 'shared.colorbar' => [ 0, 1 ], plots => [ { 'plot.type' => 'plot', data => { A => [ [ 1, 2 ], [ 3, 4 ] ] } }, {@imshow} ] },
-		qr/"shared\.colorbar" lists subplot 0 \("plot"\), but only these plot types draw a colorbar/,
-		'a plot in shared.colorbar is refused, naming it; it died over "colorbar.on"'
+		{ ncols => 2, shared_colorbar => [ 0, 1 ], plots => [ { plot_type => 'plot', data => { A => [ [ 1, 2 ], [ 3, 4 ] ] } }, {@imshow} ] },
+		qr/"shared_colorbar" lists subplot 0 \("plot"\), but only these plot types draw a colorbar/,
+		'a plot in shared_colorbar is refused, naming it; it died over "colorbar_on"'
 	);
 	# kept: two imshows still share one colorbar, and no cbpad is passed
-	my ( $py, $file ) = lives( { ncols => 2, 'shared.colorbar' => [ 0, 1 ], plots => [ {@imshow}, {@imshow} ] }, 'two imshows share a colorbar' );
+	my ( $py, $file ) = lives( { ncols => 2, shared_colorbar => [ 0, 1 ], plots => [ {@imshow}, {@imshow} ] }, 'two imshows share a colorbar' );
 	my @colorbars = $py =~ m/(fig\.colorbar\([^\n]*)/g;
 	is( scalar @colorbars, 1, 'two imshows: one colorbar' );
 	like( $colorbars[0] // '', qr/ax = \[ax0,ax1\]/, 'two imshows: the colorbar spans both' );
 	unlike( $py, qr/pad = /, 'no cbpad is written when none was given' );
-	# scatter accepted shared.colorbar and colorbar.on, and ignored both
-	my @scatter = ( 'plot.type' => 'scatter', data => { x => [ 1, 2 ], y => [ 3, 4 ], z => [ 5, 6 ] } );
-	($py) = lives( { ncols => 2, 'shared.colorbar' => [ 0, 1 ], plots => [ {@scatter}, {@scatter} ] }, 'two scatters share a colorbar' );
+	# scatter accepted shared_colorbar and colorbar_on, and ignored both
+	my @scatter = ( plot_type => 'scatter', data => { x => [ 1, 2 ], y => [ 3, 4 ], z => [ 5, 6 ] } );
+	($py) = lives( { ncols => 2, shared_colorbar => [ 0, 1 ], plots => [ {@scatter}, {@scatter} ] }, 'two scatters share a colorbar' );
 	@colorbars = $py =~ m/(fig\.colorbar\([^\n]*)/g;
 	is( scalar @colorbars, 1, 'two scatters: one colorbar, not one each' );
 	like( $colorbars[0] // '', qr/ax = \[ax0,ax1\]/, 'two scatters: the colorbar spans both' );
 }
 
 # ----------------------------------------------------------------------------
-# 4. A shared.colorbar index could name an empty cell of the grid.
+# 4. A shared_colorbar index could name an empty cell of the grid.
 # ----------------------------------------------------------------------------
 {
-	my @imshow = ( 'plot.type' => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ] );
+	my @imshow = ( plot_type => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ] );
 	dies_with(
-		{ ncols => 2, nrows => 2, 'shared.colorbar' => [ 0, 3 ], plots => [ {@imshow}, {@imshow}, {@imshow} ] },
-		qr/the max "shared\.colorbar" index 3 > than the max index of plots, 2/,
+		{ ncols => 2, nrows => 2, shared_colorbar => [ 0, 3 ], plots => [ {@imshow}, {@imshow}, {@imshow} ] },
+		qr/the max "shared_colorbar" index 3 > than the max index of plots, 2/,
 		'an index past the last plot is refused; no colorbar was drawn at all'
 	);
 }
@@ -224,23 +224,23 @@ sub b64_var {
 # 5. NaN and infinity passed looks_like_number and broke the script.
 # ----------------------------------------------------------------------------
 {
-	my ( $py, $file ) = gen( 'plot.type' => 'plot', data => { A => [ [ 1, 2, 3 ], [ 1, 'NaN' + 0, 3 ] ] } );
+	my ( $py, $file ) = gen( plot_type => 'plot', data => { A => [ [ 1, 2, 3 ], [ 1, 'NaN' + 0, 3 ] ] } );
 	like( $py, qr/^y = \[1,float\('nan'\),3\]$/m, 'plot: a Perl NaN is written as float("nan"), not NaN' );
 	parses_ok( $file, 'plot with NaN parses' );
-	($py, $file) = gen( 'plot.type' => 'imshow', data => [ [ 1, 'nan' ], [ 3, 'inf' ] ] );
+	($py, $file) = gen( plot_type => 'imshow', data => [ [ 1, 'nan' ], [ 3, 'inf' ] ] );
 	like( $py, qr/^d = np\.asarray\(d, dtype = float\)$/m, 'imshow: the data is converted to floats' );
 	like( $py, qr/vmax = 3\b/, 'imshow: the color scale ends at the largest finite value, not at Inf' );
 	is_deeply( b64_var( $py, 'd' ), [ [ 1, 'nan' ], [ 3, 'inf' ] ], 'imshow: NaN and inf travel as strings numpy reads, not as JSON null' );
-	($py) = gen( 'plot.type' => 'boxplot', data => { A => [ 1, 2, 'nan', 3 ] } );
+	($py) = gen( plot_type => 'boxplot', data => { A => [ 1, 2, 'nan', 3 ] } );
 	like( $py, qr/'A \(3\)'/, 'boxplot: NaN is left out, as undef is' );
-	($py) = gen( 'plot.type' => 'colored_table', data => { A => { A => 1, B => 'nan' }, B => { A => 2, B => 3 } } );
+	($py) = gen( plot_type => 'colored_table', data => { A => { A => 1, B => 'nan' }, B => { A => 2, B => 3 } } );
 	like( $py, qr/^d\.append\(\[1,float\('nan'\)\]\)$/m, 'colored_table: a NaN cell is written as float("nan")' );
-	dies_with( { 'plot.type' => 'pie',    data => { A => 1, B => 'inf' } },       qr/"B" is not a finite number/, 'pie: an infinite wedge is refused' );
-	dies_with( { 'plot.type' => 'hist',   data => { A => [ 1, 'inf' ] } },         qr/infinite values, which hist_helper cannot bin/, 'hist: an infinity is refused' );
-	dies_with( { 'plot.type' => 'violin', data => { A => [ 1, 2, 'inf' ] } },      qr/infinite values, which violin_helper cannot draw/, 'violin: an infinity is refused' );
+	dies_with( { plot_type => 'pie',    data => { A => 1, B => 'inf' } },       qr/"B" is not a finite number/, 'pie: an infinite wedge is refused' );
+	dies_with( { plot_type => 'hist',   data => { A => [ 1, 'inf' ] } },         qr/infinite values, which hist_helper cannot bin/, 'hist: an infinity is refused' );
+	dies_with( { plot_type => 'violin', data => { A => [ 1, 2, 'inf' ] } },      qr/infinite values, which violin_helper cannot draw/, 'violin: an infinity is refused' );
 	SKIP: {
 		skip( 'no matplotlib >= 3.10', 1 ) unless $mpl_available;
-		($py, $file) = gen( 'plot.type' => 'imshow', data => [ [ 1, 'nan' ], [ 3, 4 ] ] );
+		($py, $file) = gen( plot_type => 'imshow', data => [ [ 1, 'nan' ], [ 3, 4 ] ] );
 		like( run_py( $file, 'print("OK")' ), qr/^OK$/m, 'imshow with NaN runs; it died "Image data of dtype object"' );
 	}
 }
@@ -249,12 +249,12 @@ sub b64_var {
 # 6. A native Latin-1 title was decoded as UTF-8 and became U+FFFD.
 # ----------------------------------------------------------------------------
 {
-	my ($py) = gen( 'plot.type' => 'bar', data => { A => 1 }, title => "Temperature (\xb0C)", ylabel => chr(176) . 'C' );
+	my ($py) = gen( plot_type => 'bar', data => { A => 1 }, title => "Temperature (\xb0C)", ylabel => chr(176) . 'C' );
 	like( $py, qr/set_title\('Temperature \(\x{b0}C\)'\)/, 'the degree sign of a title survives' );
 	like( $py, qr/set_ylabel\('\x{b0}C'\)/,                 'the degree sign of a ylabel survives' );
 	unlike( $py, qr/\x{fffd}/, 'no replacement character anywhere' );
 	# kept: raw UTF-8 bytes in a title are still decoded (t/utf8.mojibake.t)
-	($py) = gen( 'plot.type' => 'bar', data => { A => 1 }, title => encode_utf8("\x{394}G") );
+	($py) = gen( plot_type => 'bar', data => { A => 1 }, title => encode_utf8("\x{394}G") );
 	like( $py, qr/set_title\('\x{394}G'\)/, 'a title in raw UTF-8 bytes is still decoded' );
 }
 
@@ -263,11 +263,11 @@ sub b64_var {
 # ----------------------------------------------------------------------------
 {
 	my ( $rho, $tau ) = ( encode_utf8("\x{3c1}"), encode_utf8("\x{3c4}") );
-	my ($py) = gen( 'plot.type' => 'bar', data => { $rho => 1, $tau => 2 } );
+	my ($py) = gen( plot_type => 'bar', data => { $rho => 1, $tau => 2 } );
 	is_deeply( b64_var( $py, 'labels' ), [ "\x{3c1}", "\x{3c4}" ], 'bar: labels from raw-byte keys are the Greek letters' );
-	($py) = gen( 'plot.type' => 'boxplot', data => { $rho => [ 1, 2, 3 ] } );
+	($py) = gen( plot_type => 'boxplot', data => { $rho => [ 1, 2, 3 ] } );
 	like( $py, qr/\['\x{3c1} \(3\)'\]/, 'boxplot: a tick label from a raw-byte key is the Greek letter' );
-	($py) = gen( 'plot.type' => 'plot', data => { $rho => [ [ 1, 2 ], [ 3, 4 ] ] } );
+	($py) = gen( plot_type => 'plot', data => { $rho => [ [ 1, 2 ], [ 3, 4 ] ] } );
 	like( $py, qr/label = '\x{3c1}'/, 'plot: a legend label from a raw-byte key is the Greek letter' );
 }
 
@@ -275,10 +275,10 @@ sub b64_var {
 # 8. An array of titles was written as "ARRAY(0x...)".
 # ----------------------------------------------------------------------------
 {
-	my ($py) = gen( 'plot.type' => 'plot', data => { A => [ [ 1, 2 ], [ 3, 4 ] ] }, set_title => [ 'First', 'Second' ] );
+	my ($py) = gen( plot_type => 'plot', data => { A => [ [ 1, 2 ], [ 3, 4 ] ] }, set_title => [ 'First', 'Second' ] );
 	like( $py, qr/set_title\('First'\).*set_title\('Second'\)/s, 'each title is written' );
 	unlike( $py, qr/ARRAY\(0x/, 'no stringified array reference' );
-	($py) = gen( ncols => 2, plots => [ { 'plot.type' => 'bar', data => { A => 1 }, set_title => [ 'One', 'Two' ] }, { 'plot.type' => 'bar', data => { A => 2 } } ] );
+	($py) = gen( ncols => 2, plots => [ { plot_type => 'bar', data => { A => 1 }, set_title => [ 'One', 'Two' ] }, { plot_type => 'bar', data => { A => 2 } } ] );
 	like( $py, qr/ax0\.set_title\('One'\).*ax0\.set_title\('Two'\)/s, 'at a subplot too' );
 }
 
@@ -287,7 +287,7 @@ sub b64_var {
 # ----------------------------------------------------------------------------
 {
 	my %spec = (
-		'plot.type'   => 'imshow',
+		plot_type     => 'imshow',
 		data          => [ [ 'H', 'E' ], [ 'E', 'C' ] ],
 		stringmap     => { H => 'helix', E => 'strand', C => 'coil' },
 		cborientation => 'horizontal',
@@ -305,14 +305,14 @@ sub b64_var {
 # 10. Documented options that were accepted and ignored.
 # ----------------------------------------------------------------------------
 {
-	my ($py) = gen( 'plot.type' => 'colored_table', data => { A => { A => 1 } }, cborientation => 'horizontal', cbpad => 0.2 );
+	my ($py) = gen( plot_type => 'colored_table', data => { A => { A => 1 } }, cborientation => 'horizontal', cbpad => 0.2 );
 	like( $py, qr/fig\.colorbar\(img, orientation = 'horizontal', pad = 0\.2\)/, 'colored_table: the colorbar options are written' );
-	($py) = gen( 'plot.type' => 'violin', data => { A => [ 1, 2, 3 ] }, edgecolor => 'red' );
+	($py) = gen( plot_type => 'violin', data => { A => [ 1, 2, 3 ] }, edgecolor => 'red' );
 	like( $py, qr/pc\.set_edgecolor\('red'\)/, 'violin: edgecolor is used' );
 	unlike( $py, qr/set_edgecolor\('black'\)/, 'violin: and black is not' );
-	my @scatter = ( 'plot.type' => 'scatter', data => { x => [ 1, 2 ], y => [ 3, 4 ], z => [ 5, 6 ] } );
-	($py) = gen( @scatter, 'colorbar.on' => 0, cblabel => 'my label' );
-	unlike( $py, qr/colorbar\(/, 'scatter: colorbar.on => 0 draws no colorbar' );
+	my @scatter = ( plot_type => 'scatter', data => { x => [ 1, 2 ], y => [ 3, 4 ], z => [ 5, 6 ] } );
+	($py) = gen( @scatter, colorbar_on => 0, cblabel => 'my label' );
+	unlike( $py, qr/colorbar\(/, 'scatter: colorbar_on => 0 draws no colorbar' );
 	($py) = gen( @scatter, cblabel => 'my label', cblocation => 'top' );
 	like( $py, qr/fig\.colorbar\(im, label = 'my label' , location = 'top'\)/, 'scatter: cblabel and cblocation are used' );
 	# kept: the default label is the color key
@@ -321,23 +321,25 @@ sub b64_var {
 }
 
 # ----------------------------------------------------------------------------
-# 11. A mistyped keyword in twinx.args was dropped.
+# 11. A mistyped keyword in twinx_args was dropped.
 # ----------------------------------------------------------------------------
 {
 	dies_with(
-		{ 'plot.type' => 'plot', data => { A => [ [ 1, 2 ], [ 3, 4 ] ], B => [ [ 1, 2 ], [ 5, 6 ] ] }, 'twinx.args' => { B => { ylable => 'oops' } } },
-		qr/"ylable" isn't defined in plot_helper "twinx\.args" for "B", perhaps you meant one of these defined keywords: \(ylabel/,
-		'a typo in twinx.args is refused, with a suggestion'
+		{ plot_type => 'plot', data => { A => [ [ 1, 2 ], [ 3, 4 ] ], B => [ [ 1, 2 ], [ 5, 6 ] ] }, twinx_args => { B => { ylable => 'oops' } } },
+		qr/"ylable" isn't defined in plot_helper "twinx_args" for "B", perhaps you meant one of these defined keywords: \(ylabel/,
+		'a typo in twinx_args is refused, with a suggestion'
 	);
-	my ($py) = lives( { 'plot.type' => 'plot', data => { A => [ [ 1, 2 ], [ 3, 4 ] ], B => [ [ 1, 2 ], [ 5, 6 ] ] }, 'twinx.args' => { B => { set_ylabel => 'ok' } } }, 'a correct twinx.args is taken' );
-	like( $py // '', qr/twinx_ax0_1\.set_ylabel\('ok'\)/, 'and written on the twin' );
+	my ($py) = lives( { plot_type => 'plot', data => { A => [ [ 1, 2 ], [ 3, 4 ] ], B => [ [ 1, 2 ], [ 5, 6 ] ] }, twinx_args => { B => { set_ylabel => 'ok' } } }, 'a correct twinx_args is taken' );
+	# "twinx_ax0" since 0.319, when the twinned lines of an axes came to share
+	# one twin; it was "twinx_ax0_<n>", one per line.
+	like( $py // '', qr/twinx_ax0\.set_ylabel\('ok'\)/, 'and written on the twin' );
 }
 
 # ----------------------------------------------------------------------------
 # 12. A single-set scatter whose keys name x and y of three was not colored.
 # ----------------------------------------------------------------------------
 {
-	my ($py) = gen( 'plot.type' => 'scatter', data => { a => [ 1, 2 ], b => [ 3, 4 ], c => [ 5, 6 ] }, keys => [ 'a', 'b' ] );
+	my ($py) = gen( plot_type => 'scatter', data => { a => [ 1, 2 ], b => [ 3, 4 ], c => [ 5, 6 ] }, keys => [ 'a', 'b' ] );
 	like( $py, qr/^z = \[5,6\]$/m, 'the key left out of "keys" is the color' );
 	like( $py, qr/scatter\(x, y, c = z/, 'and the points are colored by it' );
 }
@@ -346,7 +348,7 @@ sub b64_var {
 # 13. A word for sharex/sharey was written unquoted.
 # ----------------------------------------------------------------------------
 {
-	my @plots = ( ncols => 2, plots => [ { 'plot.type' => 'bar', data => { A => 1 } }, { 'plot.type' => 'bar', data => { A => 2 } } ] );
+	my @plots = ( ncols => 2, plots => [ { plot_type => 'bar', data => { A => 1 } }, { plot_type => 'bar', data => { A => 2 } } ] );
 	my ( $py, $file ) = gen( @plots, sharey => 'row', sharex => 1 );
 	like( $py, qr/sharex = 1, sharey = 'row'/, 'sharey => "row" is quoted; sharex => 1 is left a number' );
 	parses_ok( $file, 'the shared-axes script parses' );
@@ -359,7 +361,7 @@ sub b64_var {
 # 14. bar refused error bars given as an array.
 # ----------------------------------------------------------------------------
 {
-	my %bar = ( 'plot.type' => 'bar', data => { A => 1, B => 2 } );
+	my %bar = ( plot_type => 'bar', data => { A => 1, B => 2 } );
 	my ($py) = gen( %bar, yerr => [ 0.1, 0.2 ] );
 	like( $py, qr/yerr = \[0\.1,0\.2\]/, 'one error per bar' );
 	($py) = gen( %bar, yerr => [ [ 0.1, 0.2 ], [ 0.3, 0.4 ] ] );
@@ -379,22 +381,22 @@ sub b64_var {
 # 15. Numeric options written into the script without a check.
 # ----------------------------------------------------------------------------
 {
-	my @hist2d = ( 'plot.type' => 'hist2d', data => { A => [ 1, 2, 3 ], B => [ 4, 5, 6 ] } );
+	my @hist2d = ( plot_type => 'hist2d', data => { A => [ 1, 2, 3 ], B => [ 4, 5, 6 ] } );
 	dies_with( { @hist2d, vmin => 'low' }, qr/"vmin" must be numeric for hist2d_helper/, 'hist2d: vmin must be a number' );
 	dies_with( { @hist2d, cmax => 'lots' }, qr/"cmax" must be numeric for hist2d_helper/, 'hist2d: cmax must be a number' );
 	my ($py) = gen( @hist2d, density => 1 );
 	like( $py, qr/density = True/, 'hist2d: density => 1 is True' );
-	dies_with( { 'plot.type' => 'pie', data => { A => 1 }, labeldistance => 'far' }, qr/"labeldistance" must be numeric/, 'pie: labeldistance must be a number' );
-	dies_with( { 'plot.type' => 'hist', data => { A => [ 1, 2 ] }, alpha => 'half' }, qr/"alpha" must be numeric/, 'hist: alpha must be a number' );
-	dies_with( { 'plot.type' => 'venn_proportional_area', data => { A => [1], B => [2] }, alpha => 'half' }, qr/"alpha" must be numeric/, 'venn: alpha must be a number' );
+	dies_with( { plot_type => 'pie', data => { A => 1 }, labeldistance => 'far' }, qr/"labeldistance" must be numeric/, 'pie: labeldistance must be a number' );
+	dies_with( { plot_type => 'hist', data => { A => [ 1, 2 ] }, alpha => 'half' }, qr/"alpha" must be numeric/, 'hist: alpha must be a number' );
+	dies_with( { plot_type => 'venn_proportional_area', data => { A => [1], B => [2] }, alpha => 'half' }, qr/"alpha" must be numeric/, 'venn: alpha must be a number' );
 }
 
 # ----------------------------------------------------------------------------
 # 16. A bad grid size or subplot died with a raw Perl error.
 # ----------------------------------------------------------------------------
 {
-	dies_with( { ncols => 'two', plots => [ { 'plot.type' => 'bar', data => { A => 1 } } ] }, qr/"ncols" = "two" must be a whole number of at least 1/, 'ncols => "two" is refused by name' );
-	dies_with( { ncols => 'two', p => [ { 'plot.type' => 'bar', data => { A => 1 } } ] },     qr/"ncols" = "two" must be a whole number/, 'and through "p"' );
+	dies_with( { ncols => 'two', plots => [ { plot_type => 'bar', data => { A => 1 } } ] }, qr/"ncols" = "two" must be a whole number of at least 1/, 'ncols => "two" is refused by name' );
+	dies_with( { ncols => 'two', p => [ { plot_type => 'bar', data => { A => 1 } } ] },     qr/"ncols" = "two" must be a whole number/, 'and through "p"' );
 	dies_with( { plots => [ [ 1, 2 ] ] }, qr/"plots" holds one HASH reference per subplot, but index 0 is not one/, 'a subplot that is not a hash is refused by name' );
 }
 
@@ -405,8 +407,8 @@ sub b64_var {
 	my ( $py, $file ) = gen(
 		ncols => 2,
 		plots => [
-			{ 'plot.type' => 'hist', data => { A => [ 1, 1, 2 ] }, add => [ { data => { B => [ 5, 5, 5, 5 ] } } ] },
-			{ 'plot.type' => 'bar',  data => { A => 1 } },
+			{ plot_type => 'hist', data => { A => [ 1, 1, 2 ] }, add => [ { data => { B => [ 5, 5, 5, 5 ] } } ] },
+			{ plot_type => 'bar',  data => { A => 1 } },
 		],
 	);
 	my @starts  = $py =~ m/^(hist_counts0 = \[\])$/mg;
@@ -417,7 +419,7 @@ sub b64_var {
 		skip( 'no matplotlib >= 3.10', 1 ) unless $mpl_available;
 		like( run_py( $file, '' ), qr/^plot 0 hist range = \[0, 4\]$/m, 'the range includes the overlay\'s tallest bin' );
 	}
-	($py) = gen( 'plot.type' => 'plot', data => { A => [ [ 1, 2 ], [ 3, 4 ] ] }, legend => "loc = 'upper left'" );
+	($py) = gen( plot_type => 'plot', data => { A => [ [ 1, 2 ], [ 3, 4 ] ] }, legend => "loc = 'upper left'" );
 	my @legends = $py =~ m/(\.legend\()/g;
 	is( scalar @legends, 1, 'a single plot writes its legend once' );
 	like( $py, qr/^\tax0\.legend\(loc = 'upper left'\)$/m, 'inside the check for labels' );
@@ -427,39 +429,39 @@ sub b64_var {
 # 18. cb_min, cb_max and cb_logscale were accepted and not read.
 # ----------------------------------------------------------------------------
 {
-	my @scatter = ( 'plot.type' => 'scatter', data => { x => [ 1, 2, 3 ], y => [ 1, 2, 3 ], z => [ 1, 10, 100 ] } );
+	my @scatter = ( plot_type => 'scatter', data => { x => [ 1, 2, 3 ], y => [ 1, 2, 3 ], z => [ 1, 10, 100 ] } );
 	my ( $py, $file ) = gen( @scatter, cb_min => 5, cb_max => 50 );
 	like( $py, qr/c = z, cmap = 'gist_rainbow', vmin = 5, vmax = 50 /, 'scatter: cb_min and cb_max set the ends of the scale' );
 	($py) = gen( @scatter, cb_logscale => 1 );
 	like( $py, qr/c = z, cmap = 'gist_rainbow', norm = LogNorm\(vmin = 1, vmax = 100\)/, 'scatter: cb_logscale colors through a LogNorm' );
 	like( $py, qr/^from matplotlib\.colors import LogNorm$/m, 'scatter: and imports it' );
-	($py) = gen( 'plot.type' => 'scatter', cb_logscale => 1, data => { a => { x => [ 1, 2 ], y => [ 1, 2 ], z => [ 1, 10 ] }, b => { x => [3], y => [3], z => [100] } } );
+	($py) = gen( plot_type => 'scatter', cb_logscale => 1, data => { a => { x => [ 1, 2 ], y => [ 1, 2 ], z => [ 1, 10 ] }, b => { x => [3], y => [3], z => [100] } } );
 	my @norms = $py =~ m/(norm = LogNorm\(vmin = 1, vmax = 100\))/g;
 	is( scalar @norms, 2, 'scatter of several sets: one log scale over every set' );
 	# kept: a scatter with none of them draws as before
 	($py) = gen(@scatter);
 	like( $py, qr/c = z, cmap = 'gist_rainbow' \)/, 'scatter: no scale is written unless one is asked for' );
 
-	($py, $file) = gen( 'plot.type' => 'imshow', data => [ [ 1, 2 ], [ 3, 40 ] ], cb_min => 2, cb_max => 30 );
+	($py, $file) = gen( plot_type => 'imshow', data => [ [ 1, 2 ], [ 3, 40 ] ], cb_min => 2, cb_max => 30 );
 	like( $py, qr/imshow\(d, aspect = 'auto' , vmin = 2, vmax = 30\)/, 'imshow: cb_min and cb_max are vmin and vmax' );
-	($py) = gen( 'plot.type' => 'imshow', data => [ [ 0, 2 ], [ 3, 40 ] ], cb_logscale => 1 );
+	($py) = gen( plot_type => 'imshow', data => [ [ 0, 2 ], [ 3, 40 ] ], cb_logscale => 1 );
 	like( $py, qr/norm = LogNorm\(vmin = 2, vmax = 40\)/, 'imshow: a log scale starts at the smallest value above 0' );
-	dies_with( { 'plot.type' => 'imshow', data => [ [ 1, 2 ] ], cb_min => 1, vmin => 2 }, qr/"cb_min" and "vmin" both set the same end/, 'imshow: cb_min and vmin together are refused' );
-	dies_with( { 'plot.type' => 'imshow', data => [ [ 1, 2 ] ], vmin => 'low' }, qr/"vmin" must be numeric for imshow_helper/, 'imshow: vmin must be a number' );
+	dies_with( { plot_type => 'imshow', data => [ [ 1, 2 ] ], cb_min => 1, vmin => 2 }, qr/"cb_min" and "vmin" both set the same end/, 'imshow: cb_min and vmin together are refused' );
+	dies_with( { plot_type => 'imshow', data => [ [ 1, 2 ] ], vmin => 'low' }, qr/"vmin" must be numeric for imshow_helper/, 'imshow: vmin must be a number' );
 	dies_with( { @scatter, cb_min => 'low' }, qr/"cb_min" must be numeric for scatter_helper/, 'scatter: cb_min must be a number' );
 	dies_with(
-		{ 'plot.type' => 'imshow', data => [ [ 'H', 'E' ] ], stringmap => { H => 'helix', E => 'strand' }, cb_logscale => 1 },
+		{ plot_type => 'imshow', data => [ [ 'H', 'E' ] ], stringmap => { H => 'helix', E => 'strand' }, cb_logscale => 1 },
 		qr/"cb_logscale" means nothing for imshow_helper with a "stringmap"/,
 		'imshow: a log scale of categories is refused'
 	);
-	dies_with( { 'plot.type' => 'imshow', data => [ [ 0, -1 ] ], cb_logscale => 1 }, qr/"cb_logscale" needs a color value above 0/, 'imshow: a log scale with nothing above 0 is refused' );
-	($py) = gen( 'plot.type' => 'imshow', data => [ [ 'nan', 'nan' ] ] );
+	dies_with( { plot_type => 'imshow', data => [ [ 0, -1 ] ], cb_logscale => 1 }, qr/"cb_logscale" needs a color value above 0/, 'imshow: a log scale with nothing above 0 is refused' );
+	($py) = gen( plot_type => 'imshow', data => [ [ 'nan', 'nan' ] ] );
 	unlike( $py, qr/vmin|vmax/, 'imshow: with no finite value the scale is left to matplotlib, not "vmin = inf"' );
 
 	my %xy = ( x => [ 1 .. 20 ], y => [ map { $_ % 7 } 1 .. 20 ] );
-	($py) = gen( 'plot.type' => 'hexbin', data => {%xy}, cb_max => 3 );
+	($py) = gen( plot_type => 'hexbin', data => {%xy}, cb_max => 3 );
 	like( $py, qr/hexbin\(x, y .*, vmax = 3\)/, 'hexbin: cb_max is vmax' );
-	($py) = gen( 'plot.type' => 'hist2d', data => {%xy}, cb_min => 1, cb_logscale => 1 );
+	($py) = gen( plot_type => 'hist2d', data => {%xy}, cb_min => 1, cb_logscale => 1 );
 	like( $py, qr/norm = LogNorm\(vmin = 1\)/, 'hist2d: cb_min goes to the LogNorm, as vmin does' );
 	SKIP: {
 		skip( 'no matplotlib >= 3.10', 1 ) unless $mpl_available;
@@ -469,31 +471,31 @@ sub b64_var {
 }
 
 # ----------------------------------------------------------------------------
-# 19. hist and violin accepted colorbar.on and drew no colorbar.
+# 19. hist and violin accepted colorbar_on and drew no colorbar.
 # ----------------------------------------------------------------------------
 {
-	dies_with( { 'plot.type' => 'hist',   data => { A => [ 1, 2 ] }, 'colorbar.on' => 0 }, qr/"colorbar\.on" isn't defined for plot\.type "hist"/,   'hist refuses colorbar.on' );
-	dies_with( { 'plot.type' => 'violin', data => { A => [ 1, 2 ] }, 'colorbar.on' => 0 }, qr/"colorbar\.on" isn't defined for plot\.type "violin"/, 'violin refuses colorbar.on' );
+	dies_with( { plot_type => 'hist',   data => { A => [ 1, 2 ] }, colorbar_on => 0 }, qr/"colorbar_on" isn't defined for plot_type "hist"/,   'hist refuses colorbar_on' );
+	dies_with( { plot_type => 'violin', data => { A => [ 1, 2 ] }, colorbar_on => 0 }, qr/"colorbar_on" isn't defined for plot_type "violin"/, 'violin refuses colorbar_on' );
 }
 
 # ----------------------------------------------------------------------------
-# 20. Every plot type accepted "shared.colorbar" inside a subplot.
+# 20. Every plot type accepted "shared_colorbar" inside a subplot.
 # ----------------------------------------------------------------------------
 {
-	my @bar = ( 'plot.type' => 'bar', data => { A => 1 } );
+	my @bar = ( plot_type => 'bar', data => { A => 1 } );
 	dies_with(
-		{ ncols => 2, plots => [ { @bar, 'shared.colorbar' => [ 0, 1 ] }, {@bar} ] },
-		qr/"shared\.colorbar" isn't defined for plot\.type "bar"/,
-		'a bar subplot refuses shared.colorbar, which it ignored'
+		{ ncols => 2, plots => [ { @bar, shared_colorbar => [ 0, 1 ] }, {@bar} ] },
+		qr/"shared_colorbar" isn't defined for plot_type "bar"/,
+		'a bar subplot refuses shared_colorbar, which it ignored'
 	);
 	# kept: it is still a figure-wide option of plt, and a single plot is
 	# still warned about it rather than refused
-	my @imshow = ( 'plot.type' => 'imshow', data => [ [ 1, 2 ] ] );
-	lives( { ncols => 2, 'shared.colorbar' => [ 0, 1 ], plots => [ {@imshow}, {@imshow} ] }, 'shared.colorbar is still taken by plt' );
+	my @imshow = ( plot_type => 'imshow', data => [ [ 1, 2 ] ] );
+	lives( { ncols => 2, shared_colorbar => [ 0, 1 ], plots => [ {@imshow}, {@imshow} ] }, 'shared_colorbar is still taken by plt' );
 	my $warned = '';
 	{
 		local $SIG{__WARN__} = sub { $warned .= $_[0] };
-		lives( { @bar, 'shared.colorbar' => [ 0, 1 ] }, 'a single plot is still given shared.colorbar without dying' );
+		lives( { @bar, shared_colorbar => [ 0, 1 ] }, 'a single plot is still given shared_colorbar without dying' );
 	}
 	like( $warned, qr/shared colorbars make no sense/, 'and is warned that it means nothing there' );
 }

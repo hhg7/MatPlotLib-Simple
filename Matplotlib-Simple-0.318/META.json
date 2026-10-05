@@ -46,7 +46,7 @@
          "version" : "0.318"
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
          "web" : "https://github.com/hhg7/MatPlotLib-Simple/issues"

@@ -66,7 +66,7 @@ sub slurp {
 # Build one figure with execute => 0 and return the generated python as text.
 sub gen {
 	my (%spec) = @_;
-	$spec{'output.file'} = out_file();
+	$spec{output_file} = out_file();
 	$spec{execute} = 0;
 	my ( $out, $err, $pyfile ) = capture { plt( \%spec ) };
 	return ( slurp($pyfile), $pyfile );
@@ -138,8 +138,8 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	my ( $py, $file ) = gen(
 		ncols => 2,
 		plots => [
-			{ 'plot.type' => 'plot', data => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] }, axhline => 2 },
-			{ 'plot.type' => 'plot', data => { B => [ [ 1, 2, 3 ], [ 3, 2, 1 ] ] } },
+			{ plot_type => 'plot', data => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] }, axhline => 2 },
+			{ plot_type => 'plot', data => { B => [ [ 1, 2, 3 ], [ 3, 2, 1 ] ] } },
 		],
 	);
 	like( $py, qr/^plt\.sca\(ax0\).*\n^plt\.axhline\(2\)/m, 'subplot: its own axes is made current before its pyplot options' );
@@ -150,7 +150,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	# A single plot's twinx() leaves the twin current, so its axhline went to
 	# the twin: "L [1, 2]". ax0 holds A and the axhline, the twin holds B.
 	( $py, $file ) = gen(
-		'plot.type' => 'plot',
+		plot_type => 'plot',
 		data        => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ], B => [ [ 1, 2, 3 ], [ 30, 20, 10 ] ] },
 		twinx       => 'B',
 		axhline     => 2,
@@ -159,7 +159,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 		skip( 'matplotlib >= 3.10 not found', 1 ) unless $mpl_available;
 		like( run_py( $file, $LINES_PER_AXES ), qr/^L \[2, 1\]$/m, 'single plot: an axhline is drawn on the plot, not on its twinx' );
 	}
-	($py) = gen( 'plot.type' => 'plot', data => { A => [ [ 1, 2 ], [ 1, 2 ] ] } );
+	($py) = gen( plot_type => 'plot', data => { A => [ [ 1, 2 ], [ 1, 2 ] ] } );
 	unlike( $py, qr/plt\.sca/, 'single plot: no plt.sca() is written when there is no pyplot option' );
 }
 
@@ -172,7 +172,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	# "Image data of dtype <U1 cannot be converted to float".
 	my @rows = map { [ split ' ' ] } ( '1 2 3', '4 5 6' );
 	my $before = dclone( \@rows );
-	my ( $py, $file ) = lives( { 'plot.type' => 'imshow', data => \@rows }, 'imshow: rows of numeric strings are accepted' );
+	my ( $py, $file ) = lives( { plot_type => 'imshow', data => \@rows }, 'imshow: rows of numeric strings are accepted' );
 	my ($b64) = $py =~ m/^d_b64 = '([^']*)'$/m;
 	is( ( defined $b64 ? decode_base64($b64) : '' ), '[[1,2,3],[4,5,6]]', 'imshow: numeric strings reach python as JSON numbers' );
 	is_deeply( \@rows, $before, "imshow: the caller's rows are left as they were given" );
@@ -188,11 +188,11 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 {
 	# An overlay as the 2nd hash of an inner array, an "add" graph of that
 	# subplot's base plot, and an "add" graph of a plain-hash subplot: all
-	# three came back with "plot.type", "alpha" and "show.legend" added, and
+	# three came back with "plot_type", "alpha" and "show_legend" added, and
 	# their array "data" rewrapped as { A => [...] }.
 	my @p = (
-		[ { 'plot.type' => 'hist', data => [ 1, 2, 3 ], add => [ { data => [ 7, 8 ] } ] }, { data => [ 4, 5, 6 ] } ],
-		{ 'plot.type' => 'hist', data => [ 1, 2 ], add => [ { data => [ 3, 4 ] } ] },
+		[ { plot_type => 'hist', data => [ 1, 2, 3 ], add => [ { data => [ 7, 8 ] } ] }, { data => [ 4, 5, 6 ] } ],
+		{ plot_type => 'hist', data => [ 1, 2 ], add => [ { data => [ 3, 4 ] } ] },
 	);
 	my $before = dclone( \@p );
 	lives( { p => \@p }, 'p: a figure with overlays is drawn' );
@@ -208,7 +208,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	# of uninitialized value $keys[1] in hash element".
 	my ( $py, $file ) = lives(
 		{
-			'plot.type' => 'scatter',
+			plot_type => 'scatter',
 			data        => { S => { a => [ 1, 2 ], b => [ 3, 4 ], c => [ 5, 6 ] }, T => { a => [1], b => [2], c => [9] } },
 			keys        => [ 'a', 'b' ],
 		},
@@ -218,7 +218,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	like( $py // '', qr/^plt\.colorbar\(im, label = 'c'\)$/m, 'scatter: the colorbar is labelled with the key left out' );
 	parses_ok( $file, 'scatter: the script parses' ) if defined $file;
 	dies_with(
-		{ 'plot.type' => 'scatter', data => { S => { a => [ 1, 2 ], b => [ 3, 4 ], c => [ 5, 6 ] } }, keys => ['a'] },
+		{ plot_type => 'scatter', data => { S => { a => [ 1, 2 ], b => [ 3, 4 ], c => [ 5, 6 ] } }, keys => ['a'] },
 		qr/scatter_helper set "S" needs one key for x and one for y, but "keys" and "color_key" leave the 1 above/,
 		'scatter: a "keys" that leaves no y is refused by name'
 	);
@@ -229,18 +229,18 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 # ----------------------------------------------------------------------------
 {
 	# plt.ylim('0, 10') died as "ValueError: too many values to unpack".
-	my ( $py, $file ) = gen( 'plot.type' => 'plot', data => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] }, ylim => '0, 10' );
+	my ( $py, $file ) = gen( plot_type => 'plot', data => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] }, ylim => '0, 10' );
 	like( $py, qr/^plt\.ylim\(0, 10\)#\d+$/m, 'single plot: "ylim => \'0, 10\'" is written as an argument list' );
 	parses_ok( $file, 'single plot: the ylim script parses' );
 	SKIP: {
 		skip( 'matplotlib >= 3.10 not found', 1 ) unless $mpl_available;
 		like( run_py( $file, 'print("Y", tuple(float(v) for v in ax0.get_ylim()))' ), qr/^Y \(0\.0, 10\.0\)$/m, 'single plot: the y axis runs from 0 to 10' );
 	}
-	($py) = gen( 'plot.type' => 'plot', data => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] }, ylim => 'None, 10' );
+	($py) = gen( plot_type => 'plot', data => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] }, ylim => 'None, 10' );
 	like( $py, qr/^plt\.ylim\(None, 10\)#\d+$/m, 'single plot: None is a bare value in an argument list' );
 	# The quoting of a lone word, pinned in t/06.escaping.and.validation.t, is
 	# what the fix had to leave alone; a list holding a word is still text.
-	($py) = gen( 'plot.type' => 'plot', data => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] }, xscale => 'log', ylim => '0, top' );
+	($py) = gen( plot_type => 'plot', data => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] }, xscale => 'log', ylim => '0, top' );
 	like( $py, qr/^plt\.xscale\('log'\)#\d+$/m, 'single plot: a lone word is still quoted' );
 	like( $py, qr/^plt\.ylim\('0, top'\)#\d+$/m, 'single plot: a list holding a word is still quoted' );
 }
@@ -253,7 +253,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	# second subplot has no options of its own and stays linear.
 	my @xy = ( data => { A => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ] } );
 	my ( $py, $file ) = gen(
-		plots => [ { 'plot.type' => 'plot', @xy, xscale => 'log' }, { 'plot.type' => 'plot', @xy } ],
+		plots => [ { plot_type => 'plot', @xy, xscale => 'log' }, { plot_type => 'plot', @xy } ],
 		ncols => 2
 	);
 	like( $py, qr/^plt\.xscale\('log'\) #line\d+$/m, 'subplot: "xscale => \'log\'" is quoted' );
@@ -266,8 +266,8 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	# group, a lone True, a call, and an argument list holding a quote.
 	($py) = gen(
 		plots => [
-			{ 'plot.type' => 'plot', @xy, ylim => '(0, 10)', grid => 'True', axvline => 'float(2)', axhline => ['y = 1, color = "red"'] },
-			{ 'plot.type' => 'plot', @xy }
+			{ plot_type => 'plot', @xy, ylim => '(0, 10)', grid => 'True', axvline => 'float(2)', axhline => ['y = 1, color = "red"'] },
+			{ plot_type => 'plot', @xy }
 		],
 		ncols => 2
 	);
@@ -278,7 +278,7 @@ my $LINES_PER_AXES = 'print("L", [len(a.lines) for a in fig.axes])';
 	# The same three were quoted into strings at a single plot. There
 	# plt.ylim('(0, 10)') died as "ValueError: too many values to unpack",
 	# and plt.axvline('float(2)') ran, taking the text "float(2)" as its x.
-	( $py, $file ) = gen( 'plot.type' => 'plot', @xy, ylim => '(0, 10)', grid => 'True', axvline => 'float(2)' );
+	( $py, $file ) = gen( plot_type => 'plot', @xy, ylim => '(0, 10)', grid => 'True', axvline => 'float(2)' );
 	like( $py, qr/^plt\.ylim\(\(0, 10\)\)#\d+$/m, 'single plot: a bracketed group is bare' );
 	like( $py, qr/^plt\.grid\(True\)#\d+$/m, 'single plot: a lone True is bare' );
 	like( $py, qr/^plt\.axvline\(float\(2\)\)#\d+$/m, 'single plot: a call is bare' );

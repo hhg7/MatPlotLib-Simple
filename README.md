@@ -422,7 +422,7 @@ structure, so `Stats::LikeR` itself is not needed:
 | shape | example | rows are taken |
 | -------- | ------- | ------- |
 | array of hashes | `[ { name => 'Al', age => 30 }, ... ]` | in array order |
-| hash of arrays | `{ name => ['Al', ...], age => [30, ...] }` | in array order; every column used must be the same length |
+| hash of arrays | `{ name => ['Al', ...], age => [30, ...] }` | in array order; every column used must be the same length, except by `hist` and `violin` without `by` |
 | hash of hashes | `{ Al => { age => 30 }, ... }` | in the sorted order of the row names, as `Stats::LikeR`'s `vals` takes them |
 | array of arrays | `[ [ 'Al', 30 ], ... ]` | in array order; columns are 0-based positions, negative from the end |
 
@@ -432,8 +432,9 @@ The roles each plot type reads:
 | -------- | ------- | ------- | ------- |
 | `bar`, `barh` | the labels; leave it out of a hash of hashes to label by row name | the heights; several columns make grouped bars | one bar per group within each label |
 | `pie` | the labels, as for `bar` | the sizes | |
-| `hist` | the values; several columns make several histograms | | one histogram per group |
-| `boxplot`, `violin` | | the values; several columns make several boxes | one box per group |
+| `hist` | the values; several columns make several histograms; every column of numbers if left out | | one histogram per group |
+| `boxplot` | | the values; several columns make several boxes | one box per group |
+| `violin` | | the values, as for `boxplot`; every column of numbers if left out | one violin per group |
 | `scatter` | x | y | one set of points per group |
 | `plot` | x | y; several columns make several lines | one line per group |
 | `hist2d`, `hexbin` | x | y | |
@@ -470,6 +471,19 @@ Things `df` does for you:
   `colored_table` keeps such cells, and draws them as undefined.  A row that is
   itself `undef`, in an array of arrays or of hashes, is a row with no values.
 - **A color hash keyed by group or column** works for grouped bars.
+- **`hist` and `violin` draw every column of numbers when `x` or `y` is left
+  out**, as pandas' `DataFrame.hist` does: a column holding anything but numbers,
+  such as names, is passed over.  The columns are in numeric order when every
+  name is a number, and in string order otherwise.  Each column is one
+  distribution, so without `by` the columns of a hash of arrays need not be the
+  same length.  That is the shape `Stats::LikeR`'s `group_by` returns, one
+  column per group, and it can be drawn whole:
+
+      my $mpg_by_cyl = group_by( $mtcars, 'mpg', 'cyl' );    # { 4 => [...], 6 => [...], 8 => [...] }
+      violin(
+      	output_file => 'mpg.svg',
+      	df          => $mpg_by_cyl,                         # one violin per number of cylinders
+      );
 
 And things it refuses, by name:
 

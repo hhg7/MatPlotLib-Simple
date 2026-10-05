@@ -5,7 +5,7 @@ use warnings FATAL => 'all';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.318;
+our $VERSION = 0.319;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Cwd 'getcwd';
@@ -2338,12 +2338,17 @@ sub imshow_helper {
 		p $args;
 		die "$current_sub needs a map to translate strings to integers";
 	}
-	my (@ytick_labels, %intmap);
-	# assign integers for each key in stringmap
-	foreach my $string (sort keys %{ $plot->{stringmap} }) {
-		$intmap{$string} = scalar @ytick_labels;
-		push @ytick_labels, $plot->{stringmap}{$string};
-	}
+	# Each key of stringmap gets an integer, in sorted order. The integers come
+	# from a range, not from "scalar @ytick_labels" as they were: perl returns
+	# the count of an empty array as a shared 0 that also carries the string
+	# "0", the first category's 0 was copied from it, and JSON::XS -- which
+	# JSON::MaybeXS uses when it has no Cpanel::JSON::XS -- wrote it as "0".
+	# One string among the integers made numpy read the whole image as text,
+	# and imshow died as "Image data of dtype <U21 cannot be converted to
+	# float".
+	my @strings = sort keys %{ $plot->{stringmap} };
+	my %intmap = map { $strings[$_] => $_ } 0 .. $#strings;
+	my @ytick_labels = @{ $plot->{stringmap} }{@strings};
 	# The rows drawn: the caller's own, or for string data a translated copy.
 	# The strings used to be replaced in place, so the caller's array came back
 	# holding integers; and a string that "stringmap" did not name became an
@@ -3881,19 +3886,22 @@ sub refuse_dotted_keywords {
 #   many => the one role that may name several columns, as an array ref
 #   rows => 1 if "x" may be left out of a hash-of-hashes frame, whose row names
 #           are then the labels
+#   each => 1 if each column is one distribution of its own: "many" may be left
+#           out, for every column of numbers, and without "by" the columns
+#           need not be the same length, since no row is read across them
 my %frame_roles = (
 	bar           => { take => [ 'x', 'y', 'by' ], need => ['y'],        many => 'y', rows => 1 },
 	barh          => { take => [ 'x', 'y', 'by' ], need => ['y'],        many => 'y', rows => 1 },
 	boxplot       => { take => [ 'y', 'by' ],      need => ['y'],        many => 'y' },
 	colored_table => { take => [ 'x', 'y' ],       need => [],           many => 'y', rows => 1 },
 	hexbin        => { take => [ 'x', 'y' ],       need => [ 'x', 'y' ] },
-	hist          => { take => [ 'x', 'by' ],      need => ['x'],        many => 'x' },
+	hist          => { take => [ 'x', 'by' ],      need => [],           many => 'x', each => 1 },
 	hist2d        => { take => [ 'x', 'y' ],       need => [ 'x', 'y' ] },
 	pie           => { take => [ 'x', 'y' ],       need => ['y'],                     rows => 1 },
 	plot          => { take => [ 'x', 'y', 'by' ], need => [ 'x', 'y' ], many => 'y' },
 	scatter       => { take => [ 'x', 'y', 'by' ], need => [ 'x', 'y' ] },
-	violin        => { take => [ 'y', 'by' ],      need => ['y'],        many => 'y' },
-	violinplot    => { take => [ 'y', 'by' ],      need => ['y'],        many => 'y' },
+	violin        => { take => [ 'y', 'by' ],      need => [],           many => 'y', each => 1 },
+	violinplot    => { take => [ 'y', 'by' ],      need => [],           many => 'y', each => 1 },
 );
 my @frame_keys = ( 'df', 'x', 'y', 'by' );
 sub frame_shape {
@@ -3947,7 +3955,11 @@ sub frame_columns {
 	# has none, and its rows are taken in the sorted order of their names,
 	# which is the order Stats::LikeR's vals() and view() give them. A column
 	# that no row has is refused by name, as Stats::LikeR refuses it.
-	my ( $df, $shape, $columns, $where ) = @_;
+	#
+	# $ragged is true when no row is read across the columns, so that the
+	# columns of a hash of arrays need not be the same length; Stats::LikeR's
+	# group_by gives one column per group, each as long as its group.
+	my ( $df, $shape, $columns, $where, $ragged ) = @_;
 	my %seen;
 	my @columns = grep { not $seen{$_}++ } @{$columns};
 	my ( %out, @row_names );
@@ -3969,7 +3981,7 @@ sub frame_columns {
 		}
 		my %n_rows = map { $_ => scalar @{ $df->{$_} } } @columns;
 		my %lengths = map { $_ => 1 } values %n_rows;
-		if ( scalar keys %lengths > 1 ) {
+		if ( ( not $ragged ) && ( scalar keys %lengths > 1 ) ) {
 			die "the columns of \"df\"$where must all have the same number of rows, but they have "
 			 . join( ', ', map { "\"$_\" $n_rows{$_}" } @columns );
 		}
@@ -4099,6 +4111,7 @@ sub frame_to_data {
 	my $shape = frame_shape( $df, $where );
 	my @need  = @{ $roles->{need} };
 	push @need, 'x' if ( $takes{x} ) && ( $roles->{rows} ) && ( $shape ne 'HoH' );
+	push @need, $roles->{many} if ( $roles->{each} ) && ( defined $plot->{by} );    # the one column "by" splits
 	my @absent = grep { not defined $plot->{$_} } @need;
 	if ( scalar @absent ) {
 		die "$sub: plot_type \"$type\"$where needs " . join( ' and ', map { "\"$_\"" } @absent ) . ' to name '
@@ -4150,9 +4163,25 @@ sub frame_to_data {
 		$col{y} = \@default_y;
 		@used = ( @{ $col{x} // [] }, @default_y );
 	}
-	my ( $cells, $row_names ) = frame_columns( $df, $shape, \@used, $where );
-	my $n_rows = scalar( @{$row_names} ) || ( scalar @used ? scalar @{ $cells->{ $used[0] } } : 0 );
+	my $every_column = ( $roles->{each} ) && ( not defined $col{$many} );
+	@used = frame_column_names( $df, $shape ) if $every_column;
+	my ( $cells, $row_names ) = frame_columns( $df, $shape, \@used, $where, $roles->{each} && ( not defined $col{by} ) );
+	# the longest column, as the columns of "each" need not be the same length
+	my $n_rows = scalar( @{$row_names} ) || max( 0, map { scalar @{ $cells->{$_} } } @used );
 	die "\"df\"$where has no rows" if $n_rows == 0;
+	if ($every_column) {
+		# Every column that holds numbers and nothing else, as pandas' DataFrame.hist
+		# and .boxplot take every numeric column: a column of names or of
+		# categories is not a distribution, and most tables have one.
+		my @numeric = grep {
+			my @values = grep { defined } @{ $cells->{$_} };
+			( scalar @values ) && ( not grep { not looks_like_number($_) } @values );
+		} @used;
+		die "$sub: \"df\"$where has no column of numbers to draw" if scalar @numeric == 0;
+		# in numeric order when every name is a number, as the groups of
+		# group_by are, so that 4, 6 and 8 cylinders are drawn in that order
+		$col{$many} = [ group_order(@numeric) ];
+	}
 	my ($x)  = @{ $col{x}  // [] };
 	my ($by) = @{ $col{by} // [] };
 	my @y    = @{ $col{y}  // [] };
@@ -4257,7 +4286,7 @@ sub frame_to_data {
 			# Column by column: a value missing from one column says nothing about the others.
 			foreach my $column (@value_cols) {
 				$data{$column} = [ grep { defined } @{ $cells->{$column} } ];
-				warn_dropped( scalar @{ $data{$column} }, $n_rows, [$column], $where, $sub );
+				warn_dropped( scalar @{ $data{$column} }, scalar @{ $cells->{$column} }, [$column], $where, $sub );
 			}
 			$plot->{key_order} = $plot->{key_order} // [@value_cols];
 		}
@@ -5686,7 +5715,7 @@ structure, so C<Stats::LikeR> itself is not needed:
 <tr><td>shape</td><td>example</td><td>rows are taken</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
 <tr><td>array of hashes</td><td><code>[ { name => 'Al', age => 30 }, ... ]</code></td><td>in array order</td></tr>
-<tr><td>hash of arrays</td><td><code>{ name => ['Al', ...], age => [30, ...] }</code></td><td>in array order; every column used must be the same length</td></tr>
+<tr><td>hash of arrays</td><td><code>{ name => ['Al', ...], age => [30, ...] }</code></td><td>in array order; every column used must be the same length, except by <code>hist</code> and <code>violin</code> without <code>by</code></td></tr>
 <tr><td>hash of hashes</td><td><code>{ Al => { age => 30 }, ... }</code></td><td>in the sorted order of the row names, as <code>Stats::LikeR</code>'s <code>vals</code> takes them</td></tr>
 <tr><td>array of arrays</td><td><code>[ [ 'Al', 30 ], ... ]</code></td><td>in array order; columns are 0-based positions, negative from the end</td></tr>
 </tbody>
@@ -5701,8 +5730,9 @@ The roles each plot type reads:
 <tr><td>--------</td><td>-------</td><td>-------</td><td>-------</td></tr>
 <tr><td><code>bar</code>, <code>barh</code></td><td>the labels; leave it out of a hash of hashes to label by row name</td><td>the heights; several columns make grouped bars</td><td>one bar per group within each label</td></tr>
 <tr><td><code>pie</code></td><td>the labels, as for <code>bar</code></td><td>the sizes</td><td></td></tr>
-<tr><td><code>hist</code></td><td>the values; several columns make several histograms</td><td></td><td>one histogram per group</td></tr>
-<tr><td><code>boxplot</code>, <code>violin</code></td><td></td><td>the values; several columns make several boxes</td><td>one box per group</td></tr>
+<tr><td><code>hist</code></td><td>the values; several columns make several histograms; every column of numbers if left out</td><td></td><td>one histogram per group</td></tr>
+<tr><td><code>boxplot</code></td><td></td><td>the values; several columns make several boxes</td><td>one box per group</td></tr>
+<tr><td><code>violin</code></td><td></td><td>the values, as for <code>boxplot</code>; every column of numbers if left out</td><td>one violin per group</td></tr>
 <tr><td><code>scatter</code></td><td>x</td><td>y</td><td>one set of points per group</td></tr>
 <tr><td><code>plot</code></td><td>x</td><td>y; several columns make several lines</td><td>one line per group</td></tr>
 <tr><td><code>hist2d</code>, <code>hexbin</code></td><td>x</td><td>y</td><td></td></tr>
@@ -5748,6 +5778,20 @@ C<colored_table> keeps such cells, and draws them as undefined.  A row that is
 itself C<undef>, in an array of arrays or of hashes, is a row with no values.
 
 =item * B<A color hash keyed by group or column> works for grouped bars.
+
+=item * B<< C<hist> and C<violin> draw every column of numbers when C<x> or C<y> is left
+out >>, as pandas' C<DataFrame.hist> does: a column holding anything but numbers,
+such as names, is passed over.  The columns are in numeric order when every
+name is a number, and in string order otherwise.  Each column is one
+distribution, so without C<by> the columns of a hash of arrays need not be the
+same length.  That is the shape C<Stats::LikeR>'s C<group_by> returns, one
+column per group, and it can be drawn whole:
+
+  my $mpg_by_cyl = group_by( $mtcars, 'mpg', 'cyl' );    # { 4 => [...], 6 => [...], 8 => [...] }
+  violin(
+    output_file => 'mpg.svg',
+    df          => $mpg_by_cyl,                         # one violin per number of cylinders
+  );
 
 =back
 

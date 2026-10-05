@@ -20,6 +20,8 @@ t/07.review.fixes.t
 t/08.python.interpreter.t
 t/09.review.fixes.0.316.t
 t/10.review.fixes.0.317.t
+t/11.data.frames.t
+t/12.review.fixes.0.319.t
 t/output.images/add.single.svg
 t/output.images/bar.sub.self.svg
 t/output.images/bar.sub.svg

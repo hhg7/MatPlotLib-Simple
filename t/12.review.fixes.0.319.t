@@ -497,4 +497,41 @@ my %two_lines = ( T => [ [ 1, 2, 3 ], [ 1, 2, 3 ] ], P => [ [ 1, 2, 3 ], [ 900, 
 	unlike( $py, qr/adjacent_values/, 'violin: whiskers => "False" draws none' );
 }
 
+# ----------------------------------------------------------------------------
+# 29. imshow's first stringmap category reached JSON::XS as the string "0".
+#
+# Reported from HitList's conda install on 2026-10-05, whose perl had JSON::XS
+# 4.04 and, when this distribution was tested, no Cpanel::JSON::XS, so
+# JSON::MaybeXS used JSON::XS: test 47 of t/10.review.fixes.0.317.t and
+# t/01.all.tests.t died as "Image data of dtype <U21 cannot be converted to
+# float". It was first put down to numpy 2.5.3, which the same install
+# brought; with numpy 2.5.3 it passes under Cpanel::JSON::XS 4.43 and JSON::PP
+# 4.16, and fails under JSON::XS 4.04.
+#
+# Each backend JSON::MaybeXS would choose is tried that is installed.
+# JSON::MaybeXS->new builds an object of the class in $JSON_Class, which it
+# reads at each call, so a local class there is the backend write_data uses;
+# a backend is skipped if that stops being so. JSON::XS before 3.0 is skipped
+# because JSON::MaybeXS never chooses it.
+# ----------------------------------------------------------------------------
+foreach my $backend ( [ 'Cpanel::JSON::XS', 0 ], [ 'JSON::XS', 3.0 ], [ 'JSON::PP', 0 ] ) {
+	my ( $class, $min_version ) = @{$backend};
+	SKIP: {
+		skip( "no $class $min_version", 2 ) unless eval "require $class; $class->VERSION($min_version); 1";
+		local $JSON::MaybeXS::JSON_Class = $class;
+		skip( 'JSON::MaybeXS no longer reads $JSON_Class in new()', 2 ) unless JSON::MaybeXS->new->isa($class);
+		my ( $py, $file ) = gen(
+			plot_type => 'imshow',
+			data      => [ [ 'H', 'E' ], [ 'E', 'C' ] ],
+			stringmap => { H => 'helix', E => 'strand', C => 'coil' },
+		);
+		my ($b64) = $py =~ m/^d_b64 = '([^']*)'$/m;
+		is( decode_base64( $b64 // '' ), '[[2,1],[1,0]]', "imshow: $class writes every category as a number" );
+		SKIP: {
+			skip( 'no matplotlib >= 3.10', 1 ) unless $mpl_available;
+			like( run_py( $file, 'print("A", im0.get_array().dtype.kind)' ), qr/^A [iuf]$/m, "imshow: and draws them as numbers under $class" );
+		}
+	}
+}
+
 done_testing();

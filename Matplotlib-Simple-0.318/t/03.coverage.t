@@ -170,24 +170,24 @@ my %matrix = (      # symmetric-ish matrix for colored_table
 #    correct helper/dispatch branch.
 # ============================================================================
 my @type_cases = (
-	[ 'bar',        qr/\.bar\(/,        'plot.type' => 'bar',      data => { A => 1, B => 2, C => 3 } ],
-	[ 'barh',       qr/\.barh\(/,       'plot.type' => 'barh',     data => { A => 1, B => 2, C => 3 } ],
-	[ 'boxplot',    qr/\.boxplot\(/,    'plot.type' => 'boxplot',  data => { A => [@g1], B => [@g2] } ],
-	[ 'violinplot', qr/\.violinplot\(/, 'plot.type' => 'violinplot', data => { A => [@g1], B => [@g2] } ],
-	[ 'hist',       qr/\.hist\(/,       'plot.type' => 'hist',     data => { A => [@g1], B => [@g2] } ],
-	[ 'hist2d',     qr/\.hist2d\(/,     'plot.type' => 'hist2d',   data => { X => [@xw], Y => [@yv] } ],
-	[ 'hexbin',     qr/\.hexbin\(/,     'plot.type' => 'hexbin',   data => { X => [@xw], Y => [@yv] } ],
-	[ 'pie',        qr/\.pie\(/,        'plot.type' => 'pie',      data => { A => 10, B => 20, C => 30 } ],
-	[ 'plot',       qr/\.plot\(/,       'plot.type' => 'plot',     data => { L => [ [@xw], [@yv] ] } ],
-	[ 'scatter',    qr/\.scatter\(/,    'plot.type' => 'scatter',  data => { A => [@xw], B => [@yv], Z => [@cx] }, color_key => 'Z' ],
-	[ 'imshow',     qr/\.imshow\(/,     'plot.type' => 'imshow',   data => [ [ 1, 2, 3 ], [ 4, 5, 6 ] ] ],
-	[ 'colored_table', qr/table_cmap/,  'plot.type' => 'colored_table', data => { %matrix } ],
-	[ 'wide',       qr/base_x = np\.linspace/, 'plot.type' => 'wide', data => wide_lines(), color => 'red' ],
+	[ 'bar',        qr/\.bar\(/,        plot_type => 'bar',      data => { A => 1, B => 2, C => 3 } ],
+	[ 'barh',       qr/\.barh\(/,       plot_type => 'barh',     data => { A => 1, B => 2, C => 3 } ],
+	[ 'boxplot',    qr/\.boxplot\(/,    plot_type => 'boxplot',  data => { A => [@g1], B => [@g2] } ],
+	[ 'violinplot', qr/\.violinplot\(/, plot_type => 'violinplot', data => { A => [@g1], B => [@g2] } ],
+	[ 'hist',       qr/\.hist\(/,       plot_type => 'hist',     data => { A => [@g1], B => [@g2] } ],
+	[ 'hist2d',     qr/\.hist2d\(/,     plot_type => 'hist2d',   data => { X => [@xw], Y => [@yv] } ],
+	[ 'hexbin',     qr/\.hexbin\(/,     plot_type => 'hexbin',   data => { X => [@xw], Y => [@yv] } ],
+	[ 'pie',        qr/\.pie\(/,        plot_type => 'pie',      data => { A => 10, B => 20, C => 30 } ],
+	[ 'plot',       qr/\.plot\(/,       plot_type => 'plot',     data => { L => [ [@xw], [@yv] ] } ],
+	[ 'scatter',    qr/\.scatter\(/,    plot_type => 'scatter',  data => { A => [@xw], B => [@yv], Z => [@cx] }, color_key => 'Z' ],
+	[ 'imshow',     qr/\.imshow\(/,     plot_type => 'imshow',   data => [ [ 1, 2, 3 ], [ 4, 5, 6 ] ] ],
+	[ 'colored_table', qr/table_cmap/,  plot_type => 'colored_table', data => { %matrix } ],
+	[ 'wide',       qr/base_x = np\.linspace/, plot_type => 'wide', data => wide_lines(), color => 'red' ],
 );
 for my $case (@type_cases) {
 	my ( $name, $re, @args ) = @{$case};
-	my $py = gen_py( @args, 'output.file' => outfile("type.$name.svg") );
-	like( $py, $re, "plt plot.type => '$name' emits its matplotlib call" );
+	my $py = gen_py( @args, output_file => outfile("type.$name.svg") );
+	like( $py, $re, "plt plot_type => '$name' emits its matplotlib call" );
 }
 
 # ============================================================================
@@ -232,7 +232,7 @@ for my $case (@type_cases) {
 				$wrapper_call{$w}->(
 					%{ $wrapper_data{$w} },
 					execute       => 0,
-					'output.file' => outfile("wrap.$w.svg"),
+					output_file => outfile("wrap.$w.svg"),
 				);
 			},
 			"wrapper $w() dispatches without dying"
@@ -245,34 +245,34 @@ for my $case (@type_cases) {
 # ============================================================================
 {
 	# single distribution as a bare array (boxplot/hist/violin)
-	like( gen_py( 'plot.type' => 'hist',    data => [@g1], 'output.file' => outfile('arr.hist.svg') ),
+	like( gen_py( plot_type => 'hist',    data => [@g1], output_file => outfile('arr.hist.svg') ),
 		qr/\.hist\(/, 'hist accepts a bare array (single distribution)' );
-	like( gen_py( 'plot.type' => 'boxplot', data => [@g1], 'output.file' => outfile('arr.box.svg') ),
+	like( gen_py( plot_type => 'boxplot', data => [@g1], output_file => outfile('arr.box.svg') ),
 		qr/\.boxplot\(/, 'boxplot accepts a bare array' );
-	like( gen_py( 'plot.type' => 'violin',  data => [@g1], 'output.file' => outfile('arr.vio.svg') ),
+	like( gen_py( plot_type => 'violin',  data => [@g1], output_file => outfile('arr.vio.svg') ),
 		qr/\.violinplot\(/, 'violin accepts a bare array' );
 
 	# plot: simplified single line data => [ \@x, \@y ]
 	is( count_matches(
-			gen_py( 'plot.type' => 'plot', data => [ [ 5 .. 9 ], [ 5 .. 9 ] ], 'output.file' => outfile('one.line.svg') ),
+			gen_py( plot_type => 'plot', data => [ [ 5 .. 9 ], [ 5 .. 9 ] ], output_file => outfile('one.line.svg') ),
 			qr/^ax0\.plot\(/m ),
 		1, 'plot: [ \@x, \@y ] is a single line' );
 
 	# plot: multi-line array data
 	is( count_matches(
-			gen_py( 'plot.type' => 'plot', data => [ [ [ 1 .. 3 ], [ 1 .. 3 ] ], [ [ 1 .. 3 ], [ 3, 2, 1 ] ] ], 'output.file' => outfile('multi.line.svg') ),
+			gen_py( plot_type => 'plot', data => [ [ [ 1 .. 3 ], [ 1 .. 3 ] ], [ [ 1 .. 3 ], [ 3, 2, 1 ] ] ], output_file => outfile('multi.line.svg') ),
 			qr/^ax0\.plot\(/m ),
 		2, 'plot: array of lines makes multiple lines' );
 
 	# scatter: multiple sets (hash of hashes)
 	like(
 		gen_py(
-			'plot.type' => 'scatter',
+			plot_type => 'scatter',
 			data        => {
 				S1 => { A => [@xw], B => [@yv] },
 				S2 => { A => [ jitter(@xw) ], B => [ jitter(@yv) ] },
 			},
-			'output.file' => outfile('scatter.multi.svg'),
+			output_file => outfile('scatter.multi.svg'),
 		),
 		qr/\.scatter\(/, 'scatter accepts multiple sets (hash of hashes)'
 	);
@@ -286,10 +286,10 @@ for my $case (@type_cases) {
 			lightgbm   => { MAE => 0.45, MSE => 0.33, R2 => 0.80 },
 		);
 		my $py = gen_py(
-			'plot.type'   => 'scatter',
+			plot_type     => 'scatter',
 			data          => \%points,
-			'set.options' => { lightgbm => 'marker = "^", vmin = 0' },
-			'output.file' => outfile('scatter.points.svg'),
+			set_options => { lightgbm => 'marker = "^", vmin = 0' },
+			output_file => outfile('scatter.points.svg'),
 		);
 		is( count_matches( $py, qr/^x = \[0\.\d+\]$/m ), 3, 'scatter: a set of numbers is drawn as one point' );
 		like( $py, qr/c = z, cmap = 'gist_rainbow', vmin = 0\.61, vmax = 0\.83 , label = 'catboost'/,
@@ -300,20 +300,20 @@ for my $case (@type_cases) {
 		# lightgbm names "^" itself, so elasticnet skips it and takes the next
 		like( $py, qr/label = 'elasticnet', marker = 's'\)/, 'scatter: the next set takes the next marker' );
 		is( count_matches( $py, qr/marker = /), 3, 'scatter: a set naming its own marker is given no second one' );
-		unlike( gen_py( 'plot.type' => 'scatter', data => { A => { x => 1, y => 2 }, B => { x => 2, y => 1 } }, 'output.file' => outfile('scatter.plain.svg') ),
+		unlike( gen_py( plot_type => 'scatter', data => { A => { x => 1, y => 2 }, B => { x => 2, y => 1 } }, output_file => outfile('scatter.plain.svg') ),
 			qr/marker/, 'scatter: sets told apart by color are given no marker' );
 		is( ref $points{catboost}{MAE}, '', 'scatter: the caller\'s numbers are not wrapped in place' );
-		dies_like( sub { gen_py( 'plot.type' => 'scatter', data => { A => { x => 1, y => [ 1, 2 ] } }, 'output.file' => outfile('e.svg') ) },
+		dies_like( sub { gen_py( plot_type => 'scatter', data => { A => { x => 1, y => [ 1, 2 ] } }, output_file => outfile('e.svg') ) },
 			qr/"x" of set "A" must be an array of numbers, not a scalar/, 'scatter: a set mixing numbers and arrays is refused' );
 	}
 
 	# imshow: string data with a stringmap
 	like(
 		gen_py(
-			'plot.type' => 'imshow',
+			plot_type => 'imshow',
 			data        => [ [ 'H', 'E' ], [ 'C', 'H' ] ],
 			stringmap   => { H => 'helix', E => 'strand', C => 'coil' },
-			'output.file' => outfile('imshow.str.svg'),
+			output_file => outfile('imshow.str.svg'),
 		),
 		qr/\.imshow\(/, 'imshow accepts a string map'
 	);
@@ -324,7 +324,7 @@ for my $case (@type_cases) {
 # ============================================================================
 {
 	my $py = gen_py(
-		'plot.type'     => 'hist2d',
+		plot_type       => 'hist2d',
 		data            => { X => [@xw], Y => [@yv] },
 		cblabel         => 'counts',
 		cbdrawedges     => 1,
@@ -333,23 +333,23 @@ for my $case (@type_cases) {
 		cmap            => 'terrain',
 		vmin            => 0,
 		vmax            => 10,
-		'output.file'   => outfile('cb.opts.svg'),
+		output_file     => outfile('cb.opts.svg'),
 	);
 	like( $py, qr/colorbar\(/,        'hist2d draws a colorbar' );
 	like( $py, qr/terrain/,           'hist2d honors cmap' );
 
 	# cb_logscale switches to a log norm
-	like( gen_py( 'plot.type' => 'hist2d', data => { X => [@xw], Y => [@yv] }, cb_logscale => 1, 'output.file' => outfile('cb.log.svg') ),
+	like( gen_py( plot_type => 'hist2d', data => { X => [@xw], Y => [@yv] }, cb_logscale => 1, output_file => outfile('cb.log.svg') ),
 		qr/LogNorm/, 'hist2d cb_logscale uses LogNorm' );
 
-	# show.colorbar => 0 suppresses it
-	unlike( gen_py( 'plot.type' => 'hist2d', data => { X => [@xw], Y => [@yv] }, 'show.colorbar' => 0, 'output.file' => outfile('cb.off.svg') ),
-		qr/colorbar\(/, 'hist2d show.colorbar => 0 suppresses the colorbar' );
+	# show_colorbar => 0 suppresses it
+	unlike( gen_py( plot_type => 'hist2d', data => { X => [@xw], Y => [@yv] }, show_colorbar => 0, output_file => outfile('cb.off.svg') ),
+		qr/colorbar\(/, 'hist2d show_colorbar => 0 suppresses the colorbar' );
 
-	# key.order flips the axes
+	# key_order flips the axes
 	lives_ok_t( sub {
-		plt( 'plot.type' => 'hexbin', data => { X => [@xw], Y => [@yv] }, 'key.order' => [ 'Y', 'X' ], execute => 0, 'output.file' => outfile('keyorder.svg') );
-	}, 'hexbin honors key.order' );
+		plt( plot_type => 'hexbin', data => { X => [@xw], Y => [@yv] }, key_order => [ 'Y', 'X' ], execute => 0, output_file => outfile('keyorder.svg') );
+	}, 'hexbin honors key_order' );
 }
 
 # ============================================================================
@@ -357,13 +357,13 @@ for my $case (@type_cases) {
 # ============================================================================
 {
 	my $py = gen_py(
-		'plot.type'   => 'plot',
+		plot_type     => 'plot',
 		data          => { L => [ [@xw], [@yv] ] },
 		title         => 'My Title',
 		xlabel        => 'the x',
 		ylabel        => 'the y',
-		'show.legend' => 0,
-		'output.file' => outfile('labels.svg'),
+		show_legend => 0,
+		output_file => outfile('labels.svg'),
 	);
 	like( $py, qr/set_title\('My Title'\)/, 'title becomes set_title' );
 	like( $py, qr/set_xlabel\(/,            'xlabel becomes set_xlabel' );
@@ -372,45 +372,45 @@ for my $case (@type_cases) {
 	# hlines and set_xlim pass through as plt-method strings
 	like(
 		gen_py(
-			'plot.type'   => 'plot',
+			plot_type     => 'plot',
 			data          => { L => [ [@xw], [@yv] ] },
 			hlines        => "1, $xw[0], $xw[-1], linestyles = 'dashed'",
 			set_xlim      => "$xw[0], $xw[-1]",
-			'show.legend' => 0,
-			'output.file' => outfile('hlines.svg'),
+			show_legend => 0,
+			output_file => outfile('hlines.svg'),
 		),
 		qr/hlines\(/, 'hlines passes through to matplotlib'
 	);
 }
 
 # ============================================================================
-# 6. set.options (scalar / array / per-key hash) and logscale.
+# 6. set_options (scalar / array / per-key hash) and logscale.
 # ============================================================================
 {
-	# scalar set.options on a single line
-	like( gen_py( 'plot.type' => 'plot', 'show.legend' => 0, data => [ [ 1 .. 5 ], [ 1 .. 5 ] ], 'set.options' => 'color = "red"', 'output.file' => outfile('so.scalar.svg') ),
-		qr/color = "red"/, 'scalar set.options applied to a single line' );
+	# scalar set_options on a single line
+	like( gen_py( plot_type => 'plot', show_legend => 0, data => [ [ 1 .. 5 ], [ 1 .. 5 ] ], set_options => 'color = "red"', output_file => outfile('so.scalar.svg') ),
+		qr/color = "red"/, 'scalar set_options applied to a single line' );
 
-	# scalar set.options broadcast to every line of array data
+	# scalar set_options broadcast to every line of array data
 	is( count_matches(
-			gen_py( 'plot.type' => 'plot', data => [ [ [ 1 .. 3 ], [ 1 .. 3 ] ], [ [ 1 .. 3 ], [ 3, 2, 1 ] ] ], 'set.options' => 'linewidth = 2', 'output.file' => outfile('so.broadcast.svg') ),
+			gen_py( plot_type => 'plot', data => [ [ [ 1 .. 3 ], [ 1 .. 3 ] ], [ [ 1 .. 3 ], [ 3, 2, 1 ] ] ], set_options => 'linewidth = 2', output_file => outfile('so.broadcast.svg') ),
 			qr/linewidth = 2/ ),
-		2, 'scalar set.options broadcast to all array lines' );
+		2, 'scalar set_options broadcast to all array lines' );
 
-	# array set.options is positional
-	my $pos = gen_py( 'plot.type' => 'plot', data => [ [ [ 1 .. 3 ], [ 1 .. 3 ] ], [ [ 1 .. 3 ], [ 3, 2, 1 ] ] ], 'set.options' => [ 'color = "red"', 'color = "blue"' ], 'output.file' => outfile('so.array.svg') );
-	like( $pos, qr/color = "red"/,  'array set.options: first line' );
-	like( $pos, qr/color = "blue"/, 'array set.options: second line' );
+	# array set_options is positional
+	my $pos = gen_py( plot_type => 'plot', data => [ [ [ 1 .. 3 ], [ 1 .. 3 ] ], [ [ 1 .. 3 ], [ 3, 2, 1 ] ] ], set_options => [ 'color = "red"', 'color = "blue"' ], output_file => outfile('so.array.svg') );
+	like( $pos, qr/color = "red"/,  'array set_options: first line' );
+	like( $pos, qr/color = "blue"/, 'array set_options: second line' );
 
-	# per-key hash set.options on hash data
+	# per-key hash set_options on hash data
 	like(
-		gen_py( 'plot.type' => 'plot', data => { sinL => [ [@t], [ map { sin $_ } @t ] ] }, 'set.options' => { sinL => 'color = "green"' }, 'show.legend' => 0, 'output.file' => outfile('so.hash.svg') ),
-		qr/color = "green"/, 'per-key hash set.options applied'
+		gen_py( plot_type => 'plot', data => { sinL => [ [@t], [ map { sin $_ } @t ] ] }, set_options => { sinL => 'color = "green"' }, show_legend => 0, output_file => outfile('so.hash.svg') ),
+		qr/color = "green"/, 'per-key hash set_options applied'
 	);
 
 	# logscale on both axes
 	like(
-		gen_py( 'plot.type' => 'scatter', data => { A => [@xw], B => [@yv], Z => [@cx] }, color_key => 'Z', logscale => [ 'x', 'y' ], 'output.file' => outfile('logscale.svg') ),
+		gen_py( plot_type => 'scatter', data => { A => [@xw], B => [@yv], Z => [@cx] }, color_key => 'Z', logscale => [ 'x', 'y' ], output_file => outfile('logscale.svg') ),
 		qr/set_[xy]scale\(\s*["']log["']/, 'logscale => [x,y] sets a log scale'
 	);
 }
@@ -421,26 +421,26 @@ for my $case (@type_cases) {
 {
 	# scatter with an overlaid line via "add"; the overlay draws on the same axis
 	my $py = gen_py(
-		'plot.type' => 'scatter',
+		plot_type => 'scatter',
 		data        => { A => [@xw], B => [@yv], Z => [@cx] },
 		color_key   => 'Z',
 		add         => [
-			{ 'plot.type' => 'plot', 'show.legend' => 0, data => { over => [ [@xw], [@yv] ] } },
+			{ plot_type => 'plot', show_legend => 0, data => { over => [ [@xw], [@yv] ] } },
 		],
-		'output.file' => outfile('add.svg'),
+		output_file => outfile('add.svg'),
 	);
 	like( $py, qr/\.scatter\(/, 'add: base scatter present' );
 	like( $py, qr/\.plot\(/,    'add: overlaid line present on the same axis' );
 
-	# twinx: second line on a twinned y-axis (array form + twinx.args)
+	# twinx: second line on a twinned y-axis (array form + twinx_args)
 	my $tw = gen_py(
-		'plot.type'   => 'plot',
+		plot_type     => 'plot',
 		data          => [ [ [@t], [ map { sin $_ } @t ] ], [ [@t], [ map { exp $_ } @t ] ] ],
-		'set.options' => [ 'color = "blue"', 'color = "red"' ],
-		'twinx.args'  => { 1 => { ylabel => '"exp", color="red"' } },
-		'output.file' => outfile('twinx.svg'),
+		set_options => [ 'color = "blue"', 'color = "red"' ],
+		twinx_args    => { 1 => { ylabel => '"exp", color="red"' } },
+		output_file => outfile('twinx.svg'),
 	);
-	like( $tw, qr/twinx\(\)/, 'twinx.args creates a twinned axis' );
+	like( $tw, qr/twinx\(\)/, 'twinx_args creates a twinned axis' );
 }
 
 # ============================================================================
@@ -453,10 +453,10 @@ for my $case (@type_cases) {
 		sharey   => 1,
 		ncols    => 2,
 		plots    => [
-			{ 'plot.type' => 'hist',    data => { A => [@g1] }, title => 'a' },
-			{ 'plot.type' => 'boxplot', data => { B => [@g2] }, title => 'b' },
+			{ plot_type => 'hist',    data => { A => [@g1] }, title => 'a' },
+			{ plot_type => 'boxplot', data => { B => [@g2] }, title => 'b' },
 		],
-		'output.file' => outfile('grid.svg'),
+		output_file => outfile('grid.svg'),
 	);
 	like( $py, qr/plt\.subplots\(\s*1\s*,\s*2\b/, 'plots array + ncols=2 makes a 1x2 grid' );
 	like( $py, qr/suptitle\(/,                    'suptitle emitted for the figure' );
@@ -476,8 +476,8 @@ for my $case (@type_cases) {
 {
 	# flat: two hashes => two subplots (auto grid)
 	my $flat = gen_py(
-		p => [ { 'plot.type' => 'hist', data => { A => [@g1] } }, { 'plot.type' => 'hist', data => { B => [@g2] } } ],
-		'output.file' => outfile('p.flat.svg'),
+		p => [ { plot_type => 'hist', data => { A => [@g1] } }, { plot_type => 'hist', data => { B => [@g2] } } ],
+		output_file => outfile('p.flat.svg'),
 	);
 	like( $flat, qr/(?:^|= )ax0\.hist\(/m, 'p flat: subplot 0 on ax0' );
 	like( $flat, qr/(?:^|= )ax1\.hist\(/m, 'p flat: subplot 1 on ax1' );
@@ -485,11 +485,11 @@ for my $case (@type_cases) {
 	# mixed: an inner array is one subplot with overlays
 	my $mixed = gen_py(
 		p => [
-			{ 'plot.type' => 'hist', data => { A => [@g1] } },
-			[ { 'plot.type' => 'hist', data => { B => [@g2] } }, { 'plot.type' => 'hist', data => { C => [@g1] } } ],
+			{ plot_type => 'hist', data => { A => [@g1] } },
+			[ { plot_type => 'hist', data => { B => [@g2] } }, { plot_type => 'hist', data => { C => [@g1] } } ],
 		],
 		ncols         => 1,
-		'output.file' => outfile('p.mixed.svg'),
+		output_file => outfile('p.mixed.svg'),
 	);
 	is( count_matches( $mixed, qr/(?:^|= )ax1\.hist\(/m ), 2, 'p mixed: inner array overlays two plots on ax1' );
 	like( $mixed, qr/plt\.subplots\(\s*2\s*,\s*1\b/, 'p mixed: ncols=1 derives a 2x1 grid' );
@@ -507,12 +507,12 @@ for my $case (@type_cases) {
 {
 	my @spec = (
 		p => [
-			{ 'plot.type' => 'hist', data => { A => [ (0) x 12, 1, 2 ] }, bins => 3 },
-			{ 'plot.type' => 'hist', data => { B => [ 1 .. 8 ] },         bins => 2 },
+			{ plot_type => 'hist', data => { A => [ (0) x 12, 1, 2 ] }, bins => 3 },
+			{ plot_type => 'hist', data => { B => [ 1 .. 8 ] },         bins => 2 },
 		],
 		ncols => 1,
 	);
-	my $py = gen_py( @spec, 'output.file' => outfile('hist.range.svg') );
+	my $py = gen_py( @spec, output_file => outfile('hist.range.svg') );
 	like( $py, qr/^hist_counts0 = \[\]$/m,            'ax0 opens a list of bin heights' );
 	like( $py, qr/^hist_counts0 \+= list\(hist_n\)$/m, 'ax0 keeps what hist returned' );
 	like( $py, qr/^\tprint\(f'plot 0 hist range = /m, 'ax0 prints its range' );
@@ -528,7 +528,7 @@ for my $case (@type_cases) {
 			unless $mpl_available;
 		# capture, because the report arrives on the suite's own STDOUT.
 		my ($stdout) = capture {
-			plt( @spec, 'output.file' => outfile('hist.range.run.svg'), execute => 1 );
+			plt( @spec, output_file => outfile('hist.range.run.svg'), execute => 1 );
 		};
 		like( $stdout, qr/^plot 0 hist range = \[1, 12\]$/m, 'ax0 reports [1, 12]' );
 		like( $stdout, qr/^plot 1 hist range = \[4, 4\]$/m,  'ax1 reports [4, 4]' );
@@ -538,16 +538,16 @@ for my $case (@type_cases) {
 # ============================================================================
 # 10. Error branches specific to the helpers.
 # ============================================================================
-dies_like( sub { plt( 'plot.type' => 'nope', data => { A => 1 }, 'output.file' => outfile('e.svg') ) },
-	qr/\Q"nope" isn't a defined plot.type\E/, 'unknown plot.type dies' );
+dies_like( sub { plt( plot_type => 'nope', data => { A => 1 }, output_file => outfile('e.svg') ) },
+	qr/\Q"nope" isn't a defined plot_type\E/, 'unknown plot_type dies' );
 
-dies_like( sub { plt( 'plot.type' => 'imshow', data => { A => [ 0, 1 ], B => [ 0, 3 ] }, 'output.file' => outfile('e.svg') ) },
+dies_like( sub { plt( plot_type => 'imshow', data => { A => [ 0, 1 ], B => [ 0, 3 ] }, output_file => outfile('e.svg') ) },
 	qr/./, 'imshow rejects a hash (needs a 2-D array)' );
 
-dies_like( sub { plt( data => { A => 1 }, 'plot.type' => 'bar', orientation => 'sideways', 'output.file' => outfile('e.svg') ) },
+dies_like( sub { plt( data => { A => 1 }, plot_type => 'bar', orientation => 'sideways', output_file => outfile('e.svg') ) },
 	qr/./, 'bar rejects an undefined option value' );
 
-dies_like( sub { plt( 'plot.type' => 'bar', 'output.file' => outfile('e.svg') ) },
+dies_like( sub { plt( plot_type => 'bar', output_file => outfile('e.svg') ) },
 	qr/./, 'bar without data dies' );
 
 # ============================================================================
@@ -556,84 +556,84 @@ dies_like( sub { plt( 'plot.type' => 'bar', 'output.file' => outfile('e.svg') ) 
 {
 	# wide: hash form with a per-key color hash (array form covered above)
 	lives_ok_t( sub {
-		plt( 'plot.type' => 'wide',
+		plt( plot_type => 'wide',
 			data  => { Clinical => wide_lines(), HGI => wide_lines() },
 			color => { Clinical => 'blue', HGI => 'green' },
-			execute => 0, 'output.file' => outfile('wide.hash.svg') );
+			execute => 0, output_file => outfile('wide.hash.svg') );
 	}, 'wide accepts a hash of labelled line-sets with a color hash' );
 
-	# twinx: hash form with twinx.args keyed by the twinned label
+	# twinx: hash form with twinx_args keyed by the twinned label
 	lives_ok_t( sub {
-		plt( 'plot.type' => 'plot',
+		plt( plot_type => 'plot',
 			data => { sin => [ [@t], [ map { sin $_ } @t ] ], expo => [ [@t], [ map { exp $_ } @t ] ] },
-			'set.options' => { sin => 'color = "blue"', expo => 'color = "red"' },
-			'twinx.args'  => { expo => { ylabel => '"exp", color="red"' } },
-			execute => 0, 'output.file' => outfile('twinx.hash.svg') );
+			set_options => { sin => 'color = "blue"', expo => 'color = "red"' },
+			twinx_args    => { expo => { ylabel => '"exp", color="red"' } },
+			execute => 0, output_file => outfile('twinx.hash.svg') );
 	}, 'twinx hash form twins on the named key' );
 
 	# grouped bar (hash of hashes) with a single scalar color applied to all
 	lives_ok_t( sub {
-		plt( 'plot.type' => 'bar',
+		plt( plot_type => 'bar',
 			data  => { G1 => { A => 1, B => 2 }, G2 => { A => 3, B => 4 } },
 			color => 'green',
-			execute => 0, 'output.file' => outfile('bar.grouped.svg') );
+			execute => 0, output_file => outfile('bar.grouped.svg') );
 	}, 'grouped bar (hash of hashes) with a scalar color' );
 
 	# stacked barh
 	lives_ok_t( sub {
-		plt( 'plot.type' => 'barh', stacked => 1,
+		plt( plot_type => 'barh', stacked => 1,
 			data => { G1 => { A => 1, B => 2 }, G2 => { A => 3, B => 4 } },
-			execute => 0, 'output.file' => outfile('barh.stacked.svg') );
+			execute => 0, output_file => outfile('barh.stacked.svg') );
 	}, 'stacked barh' );
 
 	# colored_table with the full label/mirror/number option set
 	lives_ok_t( sub {
-		plt( 'plot.type' => 'colored_table',
+		plt( plot_type => 'colored_table',
 			data          => { %matrix },
 			cblabel       => 'energy',
-			'col.labels'  => [ 'H', 'C', 'N' ],
-			'row.labels'  => [ 'H', 'C', 'N' ],
+			col_labels    => [ 'H', 'C', 'N' ],
+			row_labels    => [ 'H', 'C', 'N' ],
 			mirror        => 1,
-			'show.numbers'=> 1,
-			'undef.color' => 'white',
-			execute => 0, 'output.file' => outfile('ctable.full.svg') );
-	}, 'colored_table honors labels, mirror, show.numbers, undef.color' );
+			show_numbers=> 1,
+			undef_color => 'white',
+			execute => 0, output_file => outfile('ctable.full.svg') );
+	}, 'colored_table honors labels, mirror, show_numbers, undef_color' );
 
-	# multiple-set scatter with per-set set.options and text annotations
+	# multiple-set scatter with per-set set_options and text annotations
 	lives_ok_t( sub {
-		plt( 'plot.type' => 'scatter',
+		plt( plot_type => 'scatter',
 			data => {
 				X => { A => [@xw], B => [@yv] },
 				W => { A => [ jitter(@xw) ], B => [ jitter(@yv) ] },
 			},
-			'set.options' => { X => 'marker = "."', W => 'marker = "d"' },
+			set_options => { X => 'marker = "."', W => 'marker = "d"' },
 			text          => [ '0.5, 1, "note"' ],
-			execute => 0, 'output.file' => outfile('scatter.opts.svg') );
+			execute => 0, output_file => outfile('scatter.opts.svg') );
 	}, 'multi-set scatter with per-set options and text' );
 
 	# a shared colorbar across two hist2d subplots
 	lives_ok_t( sub {
-		plt( ncols => 2, 'shared.colorbar' => [ 0, 1 ],
+		plt( ncols => 2, shared_colorbar => [ 0, 1 ],
 			plots => [
-				{ 'plot.type' => 'hist2d', data => { X => [@xw], Y => [@yv] } },
-				{ 'plot.type' => 'hist2d', data => { X => [@xw], Y => [@yv] } },
+				{ plot_type => 'hist2d', data => { X => [@xw], Y => [@yv] } },
+				{ plot_type => 'hist2d', data => { X => [@xw], Y => [@yv] } },
 			],
-			execute => 0, 'output.file' => outfile('shared.cb.svg') );
-	}, 'shared.colorbar across subplots' );
+			execute => 0, output_file => outfile('shared.cb.svg') );
+	}, 'shared_colorbar across subplots' );
 
 	# imshow with figure scaling and colorbar padding
 	lives_ok_t( sub {
-		plt( 'plot.type' => 'imshow',
+		plt( plot_type => 'imshow',
 			data   => [ [ 1, 2, 3 ], [ 4, 5, 6 ] ],
 			scale  => 1.5, scalex => 1.2, scaley => 1.1, cbpad => 0.02,
-			execute => 0, 'output.file' => outfile('imshow.scaled.svg') );
+			execute => 0, output_file => outfile('imshow.scaled.svg') );
 	}, 'imshow honors scale/scalex/scaley/cbpad' );
 
 	# hist with an explicit bins array and legend off
 	lives_ok_t( sub {
-		plt( 'plot.type' => 'hist',
-			data => { A => [@g1] }, bins => [ 0, 2, 4, 6, 8 ], 'show.legend' => 0,
-			execute => 0, 'output.file' => outfile('hist.bins.svg') );
+		plt( plot_type => 'hist',
+			data => { A => [@g1] }, bins => [ 0, 2, 4, 6, 8 ], show_legend => 0,
+			execute => 0, output_file => outfile('hist.bins.svg') );
 	}, 'hist accepts an explicit bins array' );
 }
 
@@ -645,24 +645,24 @@ SKIP: {
 		unless $mpl_available;
 
 	my @render = (
-		[ 'bar',        'plot.type' => 'bar',      data => { A => 1, B => 2, C => 3 } ],
-		[ 'barh',       'plot.type' => 'barh',     data => { A => 1, B => 2, C => 3 } ],
-		[ 'boxplot',    'plot.type' => 'boxplot',  data => { A => [@g1], B => [@g2] } ],
-		[ 'violinplot', 'plot.type' => 'violinplot', data => { A => [@g1], B => [@g2] } ],
-		[ 'hist',       'plot.type' => 'hist',     data => { A => [@g1], B => [@g2] } ],
-		[ 'hist2d',     'plot.type' => 'hist2d',   data => { X => [@xw], Y => [@yv] } ],
-		[ 'hexbin',     'plot.type' => 'hexbin',   data => { X => [@xw], Y => [@yv] } ],
-		[ 'pie',        'plot.type' => 'pie',      data => { A => 10, B => 20, C => 30 } ],
-		[ 'plot',       'plot.type' => 'plot',     data => { L => [ [@xw], [@yv] ] }, 'show.legend' => 0 ],
-		[ 'scatter',    'plot.type' => 'scatter',  data => { A => [@xw], B => [@yv], Z => [@cx] }, color_key => 'Z' ],
-		[ 'imshow',     'plot.type' => 'imshow',   data => [ [ 1, 2, 3 ], [ 4, 5, 6 ] ] ],
-		[ 'colored_table', 'plot.type' => 'colored_table', data => { %matrix } ],
-		[ 'wide',       'plot.type' => 'wide',     data => wide_lines(), color => 'red' ],
+		[ 'bar',        plot_type => 'bar',      data => { A => 1, B => 2, C => 3 } ],
+		[ 'barh',       plot_type => 'barh',     data => { A => 1, B => 2, C => 3 } ],
+		[ 'boxplot',    plot_type => 'boxplot',  data => { A => [@g1], B => [@g2] } ],
+		[ 'violinplot', plot_type => 'violinplot', data => { A => [@g1], B => [@g2] } ],
+		[ 'hist',       plot_type => 'hist',     data => { A => [@g1], B => [@g2] } ],
+		[ 'hist2d',     plot_type => 'hist2d',   data => { X => [@xw], Y => [@yv] } ],
+		[ 'hexbin',     plot_type => 'hexbin',   data => { X => [@xw], Y => [@yv] } ],
+		[ 'pie',        plot_type => 'pie',      data => { A => 10, B => 20, C => 30 } ],
+		[ 'plot',       plot_type => 'plot',     data => { L => [ [@xw], [@yv] ] }, show_legend => 0 ],
+		[ 'scatter',    plot_type => 'scatter',  data => { A => [@xw], B => [@yv], Z => [@cx] }, color_key => 'Z' ],
+		[ 'imshow',     plot_type => 'imshow',   data => [ [ 1, 2, 3 ], [ 4, 5, 6 ] ] ],
+		[ 'colored_table', plot_type => 'colored_table', data => { %matrix } ],
+		[ 'wide',       plot_type => 'wide',     data => wide_lines(), color => 'red' ],
 	);
 	for my $case (@render) {
 		my ( $name, @args ) = @{$case};
 		my $svg = outfile("render.$name.svg");
-		lives_ok_t( sub { plt( @args, 'output.file' => $svg, execute => 1 ) },
+		lives_ok_t( sub { plt( @args, output_file => $svg, execute => 1 ) },
 			"render '$name' runs through matplotlib" );
 		my $why = svg_problem($svg);
 		is( $why, '', "render '$name' produced a good SVG" . ( $why eq '' ? '' : " ($why)" ) );
@@ -693,8 +693,8 @@ SKIP: {
 		[ [@half], $line->( \@half ) ],
 	);
 
-	my $py = gen_py( 'plot.type' => 'wide', data => [@runs], color => 'red',
-		'output.file' => outfile('wide.guards.svg') );
+	my $py = gen_py( plot_type => 'wide', data => [@runs], color => 'red',
+		output_file => outfile('wide.guards.svg') );
 	like( $py, qr/np\.argsort\(x, kind = 'stable'\)/,
 		'wide: each run is sorted by x before it is interpolated' );
 	like( $py, qr/np\.interp\(base_x, x, y, left = np\.nan, right = np\.nan\)/,
@@ -715,8 +715,8 @@ CHECK_PY
 		my ( $cfh, $cname ) = tempfile( SUFFIX => '.py', UNLINK => 1 );
 		print {$cfh} $check;
 		close $cfh;
-		my $pyfile = plt( 'plot.type' => 'wide', data => [@runs], color => 'red',
-			execute => 0, 'output.file' => outfile('wide.summary.svg') );
+		my $pyfile = plt( plot_type => 'wide', data => [@runs], color => 'red',
+			execute => 0, output_file => outfile('wide.summary.svg') );
 		my $said = qx/$PY "$cname" "$pyfile" 2>&1/;
 		my ( $mean_err, $sd_max ) = $said =~ m/^([\d.e+-]+)\s+([\d.e+-]+)/;
 		$mean_err = defined $mean_err ? $mean_err : 'nan';
@@ -737,8 +737,8 @@ CHECK_PY
 	my $wide = sub {
 		my (%args) = @_;
 		return sub {
-			plt( 'plot.type' => 'wide', %args,
-				execute => 0, 'output.file' => outfile('wide.dies.svg') );
+			plt( plot_type => 'wide', %args,
+				execute => 0, output_file => outfile('wide.dies.svg') );
 		};
 	};
 	dies_like( $wide->( data => { A => [ [@xw], [@yv] ] } ),

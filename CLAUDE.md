@@ -99,6 +99,26 @@ one-argument form went through the shell and split on whitespace, so a temp
 path containing a space broke it. The call is now
 `system(@python, $fh->filename)`. Do not write the one-argument form back.
 
+## `write_data` runs on whichever JSON backend is installed
+
+JSON::MaybeXS uses Cpanel::JSON::XS if it can, else JSON::XS (>= 3.0), else
+JSON::PP, and they disagree about a scalar that is both a number and a string.
+JSON::XS 4.04 writes such a dualvar as a string; Cpanel::JSON::XS 4.43 and
+JSON::PP 4.16 write it as a number. Perl hands out dualvars where you would not
+expect one -- `scalar @empty` is a 0 that also carries the string "0" -- and a
+single string in an image makes numpy read the whole of it as text. That broke
+`imshow` with a `stringmap` on HitList's conda install in 0.318, and was first
+blamed on numpy 2.5.3.
+
+So a number bound for `write_data` is built as a number (`0 .. $#list`, or
+`0 + $x`), and a change to what reaches it is run under JSON::XS as well as the
+default. Hiding Cpanel::JSON::XS makes JSON::MaybeXS fall back to JSON::XS:
+
+    echo 'unshift @INC, sub { die "hidden\n" if $_[1] eq "Cpanel/JSON/XS.pm" }; 1;' > /path/HideXS.pm
+    PERL5OPT="-I/path -MHideXS" prove -Ilib t/
+
+Block 29 of `t/12.review.fixes.0.319.t` tries each installed backend in turn.
+
 ## The module does not use `autodie`
 
 `lib/Matplotlib/Simple.pm` opened with `use autodie ':all'` until 0.313, when
@@ -221,7 +241,7 @@ problem, not an installer's.
 
     prove -Ilib t/
 
-The full suite is 1122 tests in about 160 seconds on a machine with python3 and
+The full suite is 1162 tests in about 160 seconds on a machine with python3 and
 matplotlib. `perl Makefile.PL && make test` also works.
 
 ## Releasing
