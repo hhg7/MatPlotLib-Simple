@@ -5,7 +5,7 @@ use warnings FATAL => 'all';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.32;
+our $VERSION = 0.321;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Cwd 'getcwd';
@@ -2989,7 +2989,7 @@ sub scatter_tooltips {
 	my @urls = (undef) x $n_points;
 	foreach my $i (@labelled) {
 		$urls[$i] = $tooltip_url . scalar @tooltip_text;
-		push @tooltip_text, "$labels->[$i]";    # as text: a number is a dualvar to JSON::XS, see CLAUDE.md
+		push @tooltip_text, "$labels->[$i]";    # as text: ElementTree cannot write a python int as a <title>, and a number may be a dualvar to JSON::XS (see CLAUDE.md)
 	}
 	# Checked and counted either way, so that plt can say they were left out;
 	# a url in a PNG or PDF is a link to nowhere.
@@ -3186,7 +3186,7 @@ sub scatter_helper {
 			my $tt_ref = ref $plot->{tooltips};
 			if ( $tt_ref ne 'HASH' ) {
 				die "$current_sub: \"data\" is a hash of sets, so \"tooltips\" is a hash of one array of labels per set, e.g. { A => ['first', 'second'] }, not "
-				 . ( $tt_ref ? "a $tt_ref reference" : 'a string' );
+				 . ( $tt_ref ? ( $tt_ref eq 'ARRAY' ? 'an' : 'a' ) . " $tt_ref reference" : 'a string' );
 			}
 			my @no_set = grep { not exists $plot->{data}{$_} } sort keys %{ $plot->{tooltips} };
 			if ( scalar @no_set > 0 ) {
@@ -8302,8 +8302,37 @@ error.
 <tr><td><code>logscale</code></td><td>an array of the axes to put on a log scale</td><td><code>logscale => ['x', 'y']</code></td></tr>
 <tr><td><code>set_options</code></td><td>arguments passed straight to Matplotlib's <code>ax.scatter</code>: <code>marker</code>, <code>color</code>, <code>alpha</code>, <code>s</code>, …  A **scalar** for the single-set form; a **hash keyed by set name** for the multi-set form; the other shape is refused.  Options for a set that has no data are an error.  A <code>label</code> here replaces the set's name in the legend</td><td><code>set_options => 'marker = "v", alpha = 0.4'</code></td></tr>
 <tr><td><code>show_legend</code></td><td>the multi-set form only: label each set with its name, for the legend; on by default</td><td><code>show_legend => 0</code></td></tr>
+<tr><td><code>tooltips</code></td><td>text shown when the mouse is over a point, in an SVG; see [Tooltips](#tooltips).  An **array** of one label per point for the single-set form, <code>undef</code> for a point without one; a **hash keyed by set name** of such arrays for the multi-set form</td><td><code>tooltips => ['Sample 1', undef, 'Sample 3']</code></td></tr>
 </tbody>
 </table>
+
+=head3 Tooltips
+
+C<tooltips> puts a label on each point that appears when the mouse is over it.
+It is written into the SVG as each point's C<< E<lt>titleE<gt> >>, which a web browser
+(Firefox, Chrome, ...) shows on hovering.  Image viewers such as Eye of GNOME
+and Inkscape open the same file and show the plot as it is, without the
+labels.  C<output_file> must end in C<.svg> or C<.svgz>; any other format has no
+tooltips, and is drawn without them, with a warning.
+
+ scatter(
+     output_file => '/tmp/samples.svg',
+     data        => { Height => [ 150, 162, 175 ], Weight => [ 50, 61, 80 ] },
+     tooltips    => [ 'Sample 1', undef, 'Sample 3' ],    # the second point has none
+ );
+
+The array must hold exactly one entry per point, in the order of the data, so
+that each label lands on its own point; give C<undef> for a point that should
+have no label.  An array of the wrong length is refused, with both counts.  For
+the multi-set form, give a hash of such arrays keyed by set name, as for
+C<set_options>; a set that is left out has no labels, and a name that is not a
+set of C<data> is refused.  A one-point set takes an array of one label.
+
+A point that matplotlib does not draw, such as one with a NaN value or one that
+is not above 0 on a log axis, takes its label with it, and every other point
+keeps its own.  The labels reach each point through matplotlib's per-point
+C<urls>, so a set with C<tooltips> cannot also have a C<url> or C<urls> in its
+C<set_options>.
 
 x, y and the color key of a set must hold the same number of values; a set that
 does not is refused, naming its axes and their lengths.

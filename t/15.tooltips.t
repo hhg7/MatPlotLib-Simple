@@ -230,7 +230,7 @@ my %one = ( X => [ 1, 2, 3, 4 ], Y => [ 3, 1, 4, 2 ] );
 	dies_with( { plot_type => 'scatter', data => {%sets}, tooltips => { B => [ 'b0', 'b1' ] } },
 		qr/"tooltips" of set "B" has 2 labels, but there are 3 points/, 'several sets: a short array is refused, naming the set' );
 	dies_with( { plot_type => 'scatter', data => {%sets}, tooltips => [ 'a0', 'a1' ] },
-		qr/"data" is a hash of sets, so "tooltips" is a hash of one array of labels per set/, 'several sets: an array is refused' );
+		qr/"data" is a hash of sets, so "tooltips" is a hash of one array of labels per set, e.g. \{ A => \['first', 'second'\] \}, not an ARRAY reference/, 'several sets: an array is refused' );
 	dies_with( { plot_type => 'scatter', data => {%sets}, tooltips => { A => [ 'a0', 'a1' ], D => ['d0'], E => ['e0'] } },
 		qr/"tooltips" names "D", "E", which are not sets of "data"/, 'several sets: a set that is not in "data" is refused' );
 	dies_with( { plot_type => 'scatter', data => {%sets}, tooltips => { A => 'a' } },
@@ -353,6 +353,172 @@ SKIP: {
 	my $plain = render( plot_type => 'scatter', data => { X => \@x, Y => [ map { $_ % 17 } @x ] } );
 	my $tipped = render( plot_type => 'scatter', data => { X => \@x, Y => [ map { $_ % 17 } @x ] }, tooltips => [ map {"p$_"} @x ] );
 	is( scalar( () = $tipped =~ m/<use /g ), scalar( () = $plain =~ m/<use /g ), 'the same markers are drawn with tooltips as without' );
+}
+
+# ----------------------------------------------------------------------------
+# 10. A label is text, reaching the SVG exactly as given: nothing in it is
+#     python, and "0", "" and a dualvar are labels like any other.
+# ----------------------------------------------------------------------------
+my @awkward = (
+	q{it's},                   # closes a '...' literal
+	q{say "hi"},               # closes a "..." literal
+	q{C:\build\new},           # \b and \n are escapes in a python literal
+	"two\nlines",
+	q{''' """},                # closes a triple-quoted literal
+	'ρ = 0.5 ± 0.1',
+	'0',                       # false in Perl, and still a label
+	'',
+	q{urls = ['x']},           # looks like an option, but is a label
+);
+{
+	my @empty;
+	my $dualvar = scalar @empty;    # a 0 that is also the string "0"; see CLAUDE.md
+	my @labels = ( @awkward, $dualvar, 1e21 );
+	my %data = ( X => [ 1 .. @labels ], Y => [ 1 .. @labels ] );
+	my ( $py, $file ) = lives( { plot_type => 'scatter', data => \%data, tooltips => \@labels }, 'awkward text: accepted' );
+	is_deeply( written( $py, 'tooltip_text' ), [ @awkward, '0', '1e+21' ], 'awkward text: each label is written as the text it is, numbers as Perl prints them' );
+	is( scalar( grep { defined } @{ written( $py, 'tooltip_urls' ) } ), scalar @labels, 'awkward text: "0" and "" are labels, each with a url' );
+	unlike( $py, qr/it's|C:\\build/, 'awkward text: no label is pasted into the python' );
+	parses_ok( $file, 'awkward text: the script parses' );
+}
+
+# ----------------------------------------------------------------------------
+# 11. The numbering starts again with each figure, even after one that died
+#     part way through its labels.
+# ----------------------------------------------------------------------------
+{
+	# A is counted before B is found to be short
+	dies_with( { plot_type => 'scatter', data => { A => { X => [ 1, 2 ], Y => [ 1, 2 ] }, B => { X => [ 3, 4 ], Y => [ 3, 4 ] } }, tooltips => { A => [ 'a0', 'a1' ], B => ['b0'] } },
+		qr/"tooltips" of set "B" has 1 labels, but there are 2 points/, 'a figure dies at its second set' );
+	my ($py) = lives( { plot_type => 'scatter', data => { X => [1], Y => [1] }, tooltips => ['z'] }, 'the next figure is accepted' );
+	is_deeply( written( $py, 'tooltip_text' ), ['z'], 'the next figure has only its own label' );
+	is_deeply( written( $py, 'tooltip_urls' ), ['#matplotlib-simple-tooltip-0'], 'the next figure numbers from 0' );
+	($py) = lives( { plot_type => 'scatter', data => { X => [1], Y => [1] }, tooltips => ['y'] }, 'a figure after one that succeeded is accepted' );
+	is_deeply( written( $py, 'tooltip_text' ), ['y'], 'a figure after one that succeeded has only its own label' );
+}
+
+# ----------------------------------------------------------------------------
+# 12. Beside the other scatter options: color, "keys", "key_order", and the
+#     "label" and "marker" of set_options.
+# ----------------------------------------------------------------------------
+{
+	my %colored = ( X => [ 1, 2, 3 ], Y => [ 1, 2, 3 ], Z => [ 5, 6, 7 ] );
+	my ($py) = lives( { plot_type => 'scatter', data => {%colored}, tooltips => [qw(a b c)], cblabel => 'Z value' }, 'colored set: accepted' );
+	like( $py, qr/^im = ax0\.scatter\(x, y, c = z, .*, urls = tooltip_urls\)$/m, 'colored set: the urls reach the colored ax.scatter' );
+	like( $py, qr/^fig\.colorbar\(im, label = 'Z value'/m, 'colored set: the colorbar is still drawn' );
+	# "keys" chooses which array is drawn as x; the labels go by index all the same
+	($py) = lives( { plot_type => 'scatter', data => {%colored}, keys => [qw(Y X Z)], tooltips => [ 'a', undef, 'c' ] }, '"keys": accepted' );
+	is_deeply( written( $py, 'tooltip_urls' ), [ '#matplotlib-simple-tooltip-0', undef, '#matplotlib-simple-tooltip-1' ], '"keys": the urls are by point, as given' );
+	my %sets = ( A => { X => [1], Y => [1] }, B => { X => [2], Y => [2] } );
+	($py) = lives( { plot_type => 'scatter', data => {%sets}, key_order => [qw(B A)], tooltips => { A => ['a'], B => ['b'] },
+		set_options => { A => 'label = "first", marker = "s"' } }, 'key_order and set_options: accepted' );
+	my @calls = $py =~ m/^(ax0\.scatter\(.*\))$/mg;
+	like( $calls[0], qr/label = 'B', urls = tooltip_urls\)$/, 'key_order: B is drawn first, with its urls' );
+	like( $calls[1], qr/label = "first", marker = "s", urls = tooltip_urls\)$/, 'set_options: the label and marker of A are kept beside its urls' );
+}
+
+# ----------------------------------------------------------------------------
+# 13. The other ways into scatter: "p", "df", and an "add" graph on a plot of
+#     another type.
+# ----------------------------------------------------------------------------
+my @rows = (
+	{ name => 'Ann', height => 160, weight => 55, sex => 'F' },
+	{ name => 'Bo',  height => 180, weight => 80, sex => 'M' },
+	{ name => 'Cy',  height => 170, weight => 70, sex => 'M' },
+);
+{
+	my ($py) = lives( { p => [ { plot_type => 'scatter', data => {%one}, tooltips => [ 1 .. 4 ] }, { plot_type => 'bar', data => { A => 1 } } ] }, '"p": accepted' );
+	is_deeply( written( $py, 'tooltip_text' ), [ 1 .. 4 ], '"p": the labels are written' );
+	($py) = lives( { plot_type => 'scatter', df => \@rows, x => 'height', y => 'weight', tooltips => [ map { $_->{name} } @rows ] }, '"df": one label per row is accepted' );
+	is_deeply( written( $py, 'tooltip_text' ), [qw(Ann Bo Cy)], '"df": the labels are written in the order of the rows' );
+	($py) = lives( { plot_type => 'scatter', df => \@rows, x => 'height', y => 'weight', by => 'sex', tooltips => { F => ['Ann'], M => [ 'Bo', 'Cy' ] } }, '"df" with "by": a hash keyed by group is accepted' );
+	is_deeply( written( $py, 'tooltip_text' ), [qw(Ann Bo Cy)], '"df" with "by": the labels are written' );
+	# A row without a value is left out of the plot, so a label for every row
+	# no longer has a point each. It is refused rather than shifted onto the
+	# next row's point.
+	my @gappy = ( @rows, { name => 'Di', height => 175, weight => undef, sex => 'F' } );
+	dies_with( { plot_type => 'scatter', df => \@gappy, x => 'height', y => 'weight', tooltips => [ map { $_->{name} } @gappy ] },
+		qr/"tooltips" has 4 labels, but there are 3 points/, '"df" with a row left out: a label for every row is refused, not shifted' );
+	($py) = lives( { plot_type => 'plot', data => { A => [ [ 1, 2 ], [ 1, 2 ] ] }, add => [ { plot_type => 'scatter', data => { X => [1.5], Y => [1.5] }, tooltips => ['added'] } ] },
+		'an "add" scatter on a line plot is accepted' );
+	is_deeply( written( $py, 'tooltip_text' ), ['added'], 'an "add" scatter on a line plot has its label' );
+}
+
+# ----------------------------------------------------------------------------
+# 14. Refused where it would not reach a scatter.
+# ----------------------------------------------------------------------------
+{
+	dies_with( { %subplots, tooltips => [ 'a', 'b' ] }, qr/"tooltips" belongs to one subplot: give it in the hash of the subplot it belongs to/,
+		'at the top of a figure of subplots, it is refused' );
+	dies_with( { plot_type => 'scatter', data => {%one}, tooltip => [ 1 .. 4 ] }, qr/"tooltip" isn't defined.*perhaps you meant one of these defined keywords: \([^)]*\btooltips\b/s,
+		'"tooltip" is refused, with "tooltips" suggested' );
+	dies_with( { plot_type => 'hexbin', data => {%one}, tooltips => [ 1 .. 4 ] }, qr/"tooltips" isn't defined for plot_type "hexbin"/, 'hexbin refuses it' );
+}
+
+# ----------------------------------------------------------------------------
+# 15. The SVG is rewritten after it is saved and before it is shown, and its
+#     name reaches python only as data.
+# ----------------------------------------------------------------------------
+{
+	my ($py) = lives( { plot_type => 'scatter', data => {%one}, tooltips => [ 1 .. 4 ], show => 1 }, 'show and an SVG: accepted' );
+	my ( $saved, $rewritten, $shown ) = map { index( $py, $_ ) } ( 'plt.savefig(', 'svg_tree.write(', 'plt.show()' );
+	ok( $saved >= 0 && $saved < $rewritten, 'the SVG is rewritten after it is saved' );
+	ok( $rewritten < $shown, 'the SVG is rewritten before the figure is shown' );
+	my $quoted = File::Spec->catfile( $TMP, q{it's a \new} . $seq++ . '.svg' );
+	my $file;
+	( $py, $file ) = lives( { plot_type => 'scatter', data => {%one}, tooltips => [ 1 .. 4 ], output_file => $quoted }, 'a name with a quote and a backslash: accepted' );
+	is( index( $py, q{it's} ), -1, 'a name with a quote and a backslash is not pasted into the python' );
+	parses_ok( $file, 'a name with a quote and a backslash: the script parses' );
+}
+
+# ----------------------------------------------------------------------------
+# 16. Subplots that share a colorbar.
+# ----------------------------------------------------------------------------
+my %shared = (
+	plots => [
+		{ plot_type => 'scatter', data => { X => [ 1, 2 ], Y => [ 1, 2 ], Z => [ 1, 2 ] }, tooltips => [ 'l0', 'l1' ] },
+		{ plot_type => 'scatter', data => { X => [ 1, 2 ], Y => [ 1, 2 ], Z => [ 3, 4 ] }, tooltips => [ undef, 'r1' ] },
+	],
+	ncols           => 2,
+	shared_colorbar => [ 0, 1 ],
+);
+{
+	my ( $py, $file ) = lives( {%shared}, 'shared colorbar: accepted' );
+	is_deeply( written( $py, 'tooltip_text' ), [qw(l0 l1 r1)], 'shared colorbar: the labels of both subplots are written' );
+	parses_ok( $file, 'shared colorbar: the script parses' );
+}
+
+# ----------------------------------------------------------------------------
+# 17. Rendered, for the blocks above.
+# ----------------------------------------------------------------------------
+SKIP: {
+	skip( 'no matplotlib >= 3.10', 10 ) unless $mpl_available;
+	my @labels = @awkward;
+	my $svg = render( plot_type => 'scatter', data => { X => [ 1 .. @labels ], Y => [ 1 .. @labels ] }, tooltips => \@labels );
+	# ElementTree writes an empty <title/>, which titled_points does not match
+	is_deeply( [ labels_by_x($svg) ], [ grep { length } @awkward ], 'awkward text: each label is in the SVG as given' );
+	like( $svg, qr{<title\s*/>}, 'awkward text: the empty label is an empty title' );
+	# "keys" draws Y as x: sorted by the drawn x, the labels come back in the
+	# order of Y, which is 10, 20, 30
+	$svg = render( plot_type => 'scatter', data => { X => [ 1, 2, 3 ], Y => [ 30, 10, 20 ] }, keys => [ 'Y', 'X' ], tooltips => [qw(thirty ten twenty)] );
+	is_deeply( [ labels_by_x($svg) ], [qw(ten twenty thirty)], '"keys": each title is on its own point when the axes are swapped' );
+	$svg = render( plot_type => 'scatter', data => { X => [ 3, 1, 2 ], Y => [ 1, 2, 3 ], Z => [ 7, 8, 9 ] }, tooltips => [qw(c a b)] );
+	is_deeply( [ labels_by_x($svg) ], [qw(a b c)], 'colored set: each title is on its own point' );
+	$svg = render( p => [ { plot_type => 'scatter', data => { X => [ 2, 1 ], Y => [ 1, 2 ] }, tooltips => [qw(two one)] } ] );
+	is_deeply( [ labels_by_x($svg) ], [qw(one two)], '"p": each title is on its own point' );
+	$svg = render( plot_type => 'scatter', df => \@rows, x => 'height', y => 'weight', by => 'sex', tooltips => { F => ['Ann'], M => [ 'Bo', 'Cy' ] } );
+	is_deeply( [ labels_by_x($svg) ], [qw(Ann Cy Bo)], '"df" with "by": each title is on its own point' );
+	$svg = render(%shared);
+	is_deeply( [ map { $_->[0] } titled_points($svg) ], [qw(l0 l1 r1)], 'shared colorbar: both subplots have their titles' );
+	my $quoted = File::Spec->catfile( $TMP, q{it's a \new} . $seq++ . '.svg' );
+	$svg = render( plot_type => 'scatter', output_file => $quoted, data => {%one}, tooltips => [ 1 .. 4 ] );
+	is_deeply( [ labels_by_x($svg) ], [ 1 .. 4 ], 'a name with a quote and a backslash is rewritten in place' );
+	# The script stands alone: written with execute => 0 and run later, it
+	# still puts the titles in.
+	my ( undef, $script ) = gen( plot_type => 'scatter', data => {%one}, tooltips => [ 1 .. 4 ], output_file => ( my $later = out_file() ) );
+	my ( $out, $err, $status ) = capture { local $ENV{MPLBACKEND} = 'Agg'; system( @PY, $script ) };
+	is( $status, 0, 'a script written with execute => 0 runs later' ) or diag("  python: $err");
+	is_deeply( [ labels_by_x( -e $later ? slurp($later) : '' ) ], [ 1 .. 4 ], 'a script run later puts the titles in' );
 }
 
 done_testing();

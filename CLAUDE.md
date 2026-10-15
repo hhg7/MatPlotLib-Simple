@@ -247,7 +247,7 @@ problem, not an installer's.
 
     prove -Ilib t/
 
-The full suite is 1313 tests in about 80 seconds on a machine with python3 and
+The full suite is 1363 tests in about 90 seconds on a machine with python3 and
 matplotlib. `perl Makefile.PL && make test` also works.
 
 ## Releasing
