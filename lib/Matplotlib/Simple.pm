@@ -5,7 +5,7 @@ use warnings FATAL => 'all';
 
 package Matplotlib::Simple;
 require 5.010;
-our $VERSION = 0.319;
+our $VERSION = 0.32;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use Cwd 'getcwd';
@@ -850,7 +850,10 @@ sub write_data {
 # before it writes a figure, so a call that died part way leaves nothing behind.
 my %twin_axes;
 # The methods whose argument is usually bare text, which quote_text quotes.
-my @text_methods = ( 'set_title', 'set_xlabel', 'set_ylabel', 'suptitle', 'xlabel', 'ylabel', 'title' );
+# "supxlabel" and "supylabel" are figure methods, which are otherwise written
+# as given: until 0.32 they were not here, so "supxlabel => 'Time'" wrote
+# fig.supxlabel(Time), a NameError, where "suptitle => 'Time'" was quoted.
+my @text_methods = ( 'set_title', 'set_xlabel', 'set_ylabel', 'suptitle', 'supxlabel', 'supylabel', 'xlabel', 'ylabel', 'title' );
 sub quote_text {
 	# A title or axis label as python: quoted, unless it is already python.
 	#
@@ -862,14 +865,34 @@ sub quote_text {
 	# such text used to be left as written, so "Bob's data" became
 	# set_xlabel(Bob's data), a SyntaxError, and "" became set_title(), a
 	# TypeError for want of an argument.
+	#
+	# The literal has to close, and be all of the text or be followed by a
+	# comma and the next argument. An opening quote was enough until 0.32, so
+	# "'Tis the season" became set_title('Tis the season) and '"A" vs "B"'
+	# became set_title("A" vs "B"), both SyntaxErrors.
 	my ($text) = @_;
 	$text = decoded_text($text);
 	# py_str, not "'$text'": a backslash went through unescaped, so a
 	# mathtext '$\alpha$' reached matplotlib with a bell character in it.
 	return py_str($text) if $text =~ m/^([^\"\',]+)$/;
-	return $text if $text =~ m/^\s*[rRbBuUfF]{0,2}['"]/;
+	return $text if $text =~ m/^\s*[rRbBuUfF]{0,2}(['"])(?:\\.|(?!\1)[^\\])*\1\s*(?:,|$)/s;
 	return $text if $text =~ m/^\s*[A-Za-z_]\w*\s*=[^=]/;
 	return py_str($text);
+}
+sub default_axis_labels {
+	# "xlabel" and "ylabel" from the names of the two data keys of hexbin,
+	# hist2d or scatter, for each axis the caller labelled in neither form.
+	#
+	# Only "xlabel" was looked at, so "set_xlabel => 'Custom'" got an "xlabel"
+	# beside it, and plt's rename of "xlabel" to "set_xlabel" then wrote the
+	# key's name over the caller's label. frame_to_data's $label_axis already
+	# looked at both.
+	my ( $plot, $x_key, $y_key ) = @_;
+	foreach my $label ( [ 'xlabel', $x_key ], [ 'ylabel', $y_key ] ) {
+		my ( $axis, $key ) = @{$label};
+		next if ( defined $plot->{$axis} ) || ( defined $plot->{"set_$axis"} );
+		$plot->{$axis} = py_str($key);
+	}
 }
 sub plot_args {    # this is a helper function to other matplotlib subroutines
 	my ($args) = @_;
@@ -1443,6 +1466,63 @@ sub boxplot_helper {
 	}
 }
 
+sub table_cells {
+	# The keys of a colored_table's rows and columns, in the order drawn, and
+	# its cells, as ( \@row_keys, \@cols, \%data ). colored_table_helper draws
+	# these, and shared_table_range scales the colors of several tables by
+	# them, so that a cell "col_labels" leaves out of a table is left out of
+	# the scale it shares as well.
+	my ( $plot, $current_sub ) = @_;
+	my $mirror = bool_option( $plot->{mirror}, 'mirror', $current_sub );
+	# The rows and the columns. "data" is documented as outer key = row and
+	# inner key = column, but both were taken from the outer keys, so a column
+	# that was only ever an inner key was dropped: of
+	# { H => { H => 432, Cl => 427 }, C => { H => 413, Cl => 339 } } the table
+	# drew columns C and H, lost every Cl value and left the C column empty.
+	# "col_labels" still selects the rows and the columns together, as
+	# documented, and "mirror", which reflects the table, makes it square.
+	my %inner;
+	foreach my $k1 ( keys %{ $plot->{data} } ) {
+		my $ref = ref $plot->{data}{$k1};
+		if ( $ref ne 'HASH' ) {
+			die "$current_sub takes a hash of hashes, but row \"$k1\" of \"data\" is " . ( $ref ? "a $ref reference" : 'a scalar' );
+		}
+		$inner{$_} = 1 foreach keys %{ $plot->{data}{$k1} };
+	}
+	my %every_key = ( %inner, map { $_ => 1 } keys %{ $plot->{data} } );
+	my ( @row_keys, @cols, %data );
+	if (defined $plot->{col_labels}) {
+		@cols = check_key_order({
+			keys   => $plot->{col_labels},
+			data   => \%every_key,
+			option => 'col_labels',
+			sub    => $current_sub
+		});
+		@row_keys = @cols;
+	} elsif ( $mirror ) {
+		@row_keys = sort keys %every_key;
+		@cols     = @row_keys;
+	} else {
+		@row_keys = sort keys %{ $plot->{data} };
+		@cols     = sort keys %inner;
+	}
+	foreach my $k1 ( keys %{ $plot->{data} } ) {
+		foreach my $k2 ( keys %{ $plot->{data}{$k1} } ) {
+			$data{$k1}{$k2} = $plot->{data}{$k1}{$k2};
+		}
+	}
+	# A reflection fills only the cells the caller left empty. It used to
+	# overwrite, so where both $data{A}{B} and $data{B}{A} were given, which
+	# one the table showed depended on hash order.
+	if ( $mirror ) {
+		foreach my $k1 ( keys %{ $plot->{data} } ) {
+			foreach my $k2 ( keys %{ $plot->{data}{$k1} } ) {
+				$data{$k2}{$k1} = $plot->{data}{$k1}{$k2} unless defined $data{$k2}{$k1};
+			}
+		}
+	}
+	return ( \@row_keys, \@cols, \%data );
+}
 sub colored_table_helper {
 	my ($args) = @_;
 	my $current_sub = (split(/::/,(caller(0))[3]))[-1]; # https://stackoverflow.com/questions/2559792/how-can-i-get-the-name-of-the-current-subroutine-in-perl
@@ -1484,53 +1564,11 @@ sub colored_table_helper {
 		});
 	}
 	$plot->{mirror} = bool_option( $plot->{mirror}, 'mirror', $current_sub );
-	# The rows and the columns. "data" is documented as outer key = row and
-	# inner key = column, but both were taken from the outer keys, so a column
-	# that was only ever an inner key was dropped: of
-	# { H => { H => 432, Cl => 427 }, C => { H => 413, Cl => 339 } } the table
-	# drew columns C and H, lost every Cl value and left the C column empty.
-	# "col_labels" still selects the rows and the columns together, as
-	# documented, and "mirror", which reflects the table, makes it square.
-	my %inner;
-	foreach my $k1 ( keys %{ $plot->{data} } ) {
-		my $ref = ref $plot->{data}{$k1};
-		if ( $ref ne 'HASH' ) {
-			die "$current_sub takes a hash of hashes, but row \"$k1\" of \"data\" is " . ( $ref ? "a $ref reference" : 'a scalar' );
-		}
-		$inner{$_} = 1 foreach keys %{ $plot->{data}{$k1} };
-	}
-	my %every_key = ( %inner, map { $_ => 1 } keys %{ $plot->{data} } );
-	my ( @row_keys, @cols, @rows, %data );
-	if (defined $plot->{col_labels}) {
-		@cols = check_key_order({
-			keys   => $plot->{col_labels},
-			data   => \%every_key,
-			option => 'col_labels',
-			sub    => $current_sub
-		});
-		@row_keys = @cols;
-	} elsif ( $plot->{mirror} > 0 ) {
-		@row_keys = sort keys %every_key;
-		@cols     = @row_keys;
-	} else {
-		@row_keys = sort keys %{ $plot->{data} };
-		@cols     = sort keys %inner;
-	}
-	foreach my $k1 ( keys %{ $plot->{data} } ) {
-		foreach my $k2 ( keys %{ $plot->{data}{$k1} } ) {
-			$data{$k1}{$k2} = $plot->{data}{$k1}{$k2};
-		}
-	}
-	# A reflection fills only the cells the caller left empty. It used to
-	# overwrite, so where both $data{A}{B} and $data{B}{A} were given, which
-	# one the table showed depended on hash order.
-	if ( $plot->{mirror} > 0 ) {
-		foreach my $k1 ( keys %{ $plot->{data} } ) {
-			foreach my $k2 ( keys %{ $plot->{data}{$k1} } ) {
-				$data{$k2}{$k1} = $plot->{data}{$k1}{$k2} unless defined $data{$k2}{$k1};
-			}
-		}
-	}
+	my ( $row_keys, $cols, $cells ) = table_cells( $plot, $current_sub );
+	my @row_keys = @{$row_keys};
+	my @cols     = @{$cols};
+	my %data     = %{$cells};
+	my @rows;
 	if (defined $plot->{row_labels}) {
 		@rows = @{ $plot->{row_labels} };
 		# matplotlib refuses a count that differs, with an error naming neither
@@ -1746,8 +1784,7 @@ sub hexbin_helper {
 	# quoted here because the key is data: the pass-through path that title and
 	# label text otherwise take cannot tell an apostrophe from Python of the
 	# user's own, and leaves it bare. See py_str.
-	$plot->{xlabel} = $plot->{xlabel} // py_str($keys[0]);
-	$plot->{ylabel} = $plot->{ylabel} // py_str($keys[1]);
+	default_axis_labels( $plot, @keys );
 	$plot->{cmap}   = $plot->{cmap}   // 'gist_rainbow';
 	my $options =
 	", gridsize = ($plot->{xbins}, $plot->{ybins}), cmap = " . py_str($plot->{cmap})
@@ -2126,8 +2163,7 @@ sub hist2d_helper {
 	# quoted here because the key is data: the pass-through path that title and
 	# label text otherwise take cannot tell an apostrophe from Python of the
 	# user's own, and leaves it bare. See py_str.
-	$plot->{xlabel} = $plot->{xlabel} // py_str($keys[0]);
-	$plot->{ylabel} = $plot->{ylabel} // py_str($keys[1]);
+	default_axis_labels( $plot, @keys );
 	$plot->{cmap}   = $plot->{cmap}   // 'gist_rainbow';
 	my $options = ', cmap = ' . py_str($plot->{cmap}); # these args go to the plt.hist call
 	if ( $plot->{cb_logscale} ) {
@@ -2215,21 +2251,23 @@ sub hist2d_helper {
 	my $range =	", range = [($end{xmin}, $end{xmax}), ($end{ymin}, $end{ymax})]";
 	# logscale complications
 	say {$args->{fh}} 'import numpy as np';
-	if ($plot->{logscale}) {
-		my %linear_axes = ('x' => 1, 'y' => 1);
-		foreach my $axis ( logscale_axes( $plot->{logscale}, $current_sub ) ) { # x, y
-			say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
-			my $min = $end{ $axis . 'min' };
-			my $max = $end{ $axis . 'max' };
-			my $key = "${axis}bins";
-			say {$args->{fh}} "${axis}bins = np.logspace(np.log10($min), np.log10($max), $plot->{$key})";
-			delete $linear_axes{$axis}; # so that I don't make a linear space for it
-		}
-		foreach my $axis ( keys %linear_axes ) {
-			my $min = $end{ $axis . 'min' };
-			my $max = $end{ $axis . 'max' };
-			my $key = "${axis}bins";
-			say {$args->{fh}} "${axis}bins = np.linspace($min, $max, $plot->{$key})";
+	# Bin edges, one more than the bins: "xbins" and "ybins" count bins, as
+	# they do on a linear plot, where they go to hist2d as counts. They were
+	# written as the number of edges, so a log axis had one bin fewer than it
+	# asked for, and "xbins => 1" gave one edge, no bins at all, and died in
+	# np.max as "zero-size array". The test is on the axes, not on "logscale"
+	# itself, which as an empty array was true and took this branch for none.
+	if ( scalar keys %log_axis ) {
+		foreach my $axis ( 'x', 'y' ) {
+			my $min   = $end{ $axis . 'min' };
+			my $max   = $end{ $axis . 'max' };
+			my $edges = $plot->{"${axis}bins"} + 1;
+			if ( $log_axis{$axis} ) {
+				say {$args->{fh}} "ax$ax.set_$axis" . 'scale("log")';
+				say {$args->{fh}} "${axis}bins = np.logspace(np.log10($min), np.log10($max), $edges)";
+			} else {
+				say {$args->{fh}} "${axis}bins = np.linspace($min, $max, $edges)";
+			}
 		}
 		$options = ", bins = [xbins, ybins] $options";
 	} else {
@@ -2783,41 +2821,52 @@ sub plot_helper {
 		my $set_ref = ref $plot->{data}{$set};
 		if ( $set_ref ne 'ARRAY' ) {
 			p $plot->{data}{$set};
-			die "$set must have two arrays, x and y coordinates, but instead has a $set_ref";
+			die "$set must have two arrays, x and y coordinates, or one array of y values, but instead has a $set_ref";
 		}
-		my $n_arrays = scalar @{ $plot->{data}{$set} };
+		# A set of plain values, with no array among them, is y alone, and is
+		# drawn against 0 .. n-1. The pair is built here rather than written
+		# back, so the caller's data is left as it was given.
+		my $xy = $plot->{data}{$set};
+		my $n_refs = grep { ref } @{$xy};
+		if ( ( $n_refs == 0 ) && ( scalar @{$xy} > 0 ) ) {
+			$xy = [ [ 0 .. $#{$xy} ], $xy ];
+		} elsif ( $n_refs < scalar @{$xy} ) {
+			p $xy;
+			die "$current_sub: set \"$set\" mixes arrays with plain values: it must be [ \\\@x, \\\@y ] or one array of y values";
+		}
+		my $n_arrays = scalar @{ $xy };
 		if ( $n_arrays != 2 ) {
-			p $plot->{data}{$set};
+			p $xy;
 			die "$n_arrays were entered for $set, but there must be exactly 2";
 		}
-		my @n_elem = map { scalar @{ $plot->{data}{$set}[$_] }} (0,1);
+		my @n_elem = map { scalar @{ $xy->[$_] }} (0,1);
 		if ( $n_elem[0] != $n_elem[1] ) {
-			p $plot->{data}{$set};
+			p $xy;
 			p @n_elem;
 			die "$set has length = $n_elem[0] for x; length = $n_elem[1] for y: x & y must be of equal length";
 		}
 		foreach my $ax (0,1) {
-			my $n = scalar @{ $plot->{data}{$set}[$ax] };
-			my @undef_i = grep {not defined $plot->{data}{$set}[$ax][$_]} 0..$n-1;
+			my $n = scalar @{ $xy->[$ax] };
+			my @undef_i = grep {not defined $xy->[$ax][$_]} 0..$n-1;
 			if (scalar @undef_i > 0) {
 				p $plot;
 				p @undef_i;
-				my $max_i = scalar @{ $plot->{data}{$set}[$ax] };
+				my $max_i = scalar @{ $xy->[$ax] };
 				die "set $set axis $ax has undefined indices, of max index $max_i in $current_sub";
 			}
 			# The array form of "data" has always refused these; the hash form
 			# wrote them into the script, where 'a' became "y = [a,3]" and died
 			# as a NameError.
-			my @non_numeric = grep { not looks_like_number( $plot->{data}{$set}[$ax][$_] ) } 0 .. $n - 1;
+			my @non_numeric = grep { not looks_like_number( $xy->[$ax][$_] ) } 0 .. $n - 1;
 			if ( scalar @non_numeric > 0 ) {
-				my @values = @{ $plot->{data}{$set}[$ax] }[@non_numeric];
+				my @values = @{ $xy->[$ax] }[@non_numeric];
 				p @values;
 				die "set \"$set\" axis $ax has the above non-numeric values, which $current_sub cannot plot";
 			}
 		}
 		my $options = '';
-		say { $args->{fh} } 'x = [' . py_nums( @{ $plot->{data}{$set}[0] } ) . ']';
-		say { $args->{fh} } 'y = [' . py_nums( @{ $plot->{data}{$set}[1] } ) . ']';
+		say { $args->{fh} } 'x = [' . py_nums( @{ $xy->[0] } ) . ']';
+		say { $args->{fh} } 'y = [' . py_nums( @{ $xy->[1] } ) . ']';
 		if (   ( defined $plot->{set_options} )
 			&& ( ref $plot->{set_options} eq '' ) )
 		{
@@ -3058,8 +3107,7 @@ sub scatter_helper {
 			say { $args->{fh} } "ax$ax.scatter(x, y $options)";
 		}
 		# quoted here because the key is data; see py_str above
-		$plot->{xlabel} = $plot->{xlabel} // py_str($keys[0]);
-		$plot->{ylabel} = $plot->{ylabel} // py_str($keys[1]);
+		default_axis_labels( $plot, @keys );
 	} elsif ( $plot_type eq 'multiple' ) { # multiple sets
 		my @undefined_opts;
 		foreach my $set ( sort keys %{ $plot->{set_options} } ) {
@@ -3221,8 +3269,7 @@ sub scatter_helper {
 				say { $args->{fh} }	"ax$ax.scatter(x, y$options)";
 			}
 			# quoted here because the key is data; see py_str above
-			$plot->{xlabel} = $plot->{xlabel} // py_str($keys[0]);
-			$plot->{ylabel} = $plot->{ylabel} // py_str($keys[1]);
+			default_axis_labels( $plot, @keys );
 	  }
 	  if ( defined $colorbar_key ) {
 		  my $cb_opts = colorbar_args($plot);
@@ -3959,7 +4006,18 @@ sub frame_columns {
 	# $ragged is true when no row is read across the columns, so that the
 	# columns of a hash of arrays need not be the same length; Stats::LikeR's
 	# group_by gives one column per group, each as long as its group.
-	my ( $df, $shape, $columns, $where, $ragged ) = @_;
+	#
+	# $given maps a column to the option that named it ("x", "y", "by" or
+	# "color_key"), and $sub is the caller's name; both are optional, and
+	# serve only to say, when a column is missing, which option named it.
+	my ( $df, $shape, $columns, $where, $ragged, $given, $sub ) = @_;
+	$given //= {};
+	# how a missing column is introduced: 'scatter: "dG", given as "x",'
+	my $named = sub {
+		my ($column) = @_;
+		return ( defined $sub ? "$sub: " : '' ) . "\"$column\""
+		 . ( defined $given->{$column} ? ", given as \"$given->{$column}\"," : '' );
+	};
 	my %seen;
 	my @columns = grep { not $seen{$_}++ } @{$columns};
 	my ( %out, @row_names );
@@ -3970,7 +4028,7 @@ sub frame_columns {
 		# 20: enough to show a typical table whole, while a wide one from a
 		# spreadsheet does not bury the message under hundreds of names.
 		my $shown = scalar @have > 20 ? join( ', ', @have[ 0 .. 19 ] ) . ', ...' : join( ', ', @have );
-		die "\"df\"$where has no column \"$column\""
+		die $named->($column) . " is not a column in the dataframe \"df\"$where"
 		 . ( scalar @close ? '; perhaps you meant ' . join( ' or ', map { "\"$_\"" } @close ) : '' )
 		 . ". Its columns are: $shown";
 	};
@@ -3992,8 +4050,8 @@ sub frame_columns {
 		my %position;
 		foreach my $column (@columns) {
 			if ( ( $column !~ m/^-?\d+$/ ) || ( $column >= $width ) || ( $column < -$width ) ) {
-				die "\"df\"$where is an array of arrays, whose columns are 0-based positions from 0 to " . ( $width - 1 )
-				 . " (or negative, from the end), so \"$column\" is not one of them";
+				die $named->($column) . " is not a column in the dataframe \"df\"$where, which is an array of arrays, whose columns are 0-based positions from 0 to " . ( $width - 1 )
+				 . ' (or negative, from the end)';
 			}
 			$position{$column} = $column < 0 ? $width + $column : $column;
 			$out{$column} = [];
@@ -4049,12 +4107,22 @@ sub complete_rows {
 		not grep { not defined $cells->{$_}[$i] } @{$columns}
 	} 0 .. $n - 1;
 }
-sub warn_dropped {
+sub check_dropped {
 	# Say how many rows were left out for want of a value, as ggplot2's
 	# "Removed 3 rows containing missing values" does: a missing value cannot
 	# be drawn, and refusing every frame with one in it would refuse most real
 	# data, but rows leaving a plot without a word would be worse.
+	#
+	# Die if that was every row. Only plot without "by", and scatter, hexbin
+	# and hist2d, checked for themselves, and scatter's message left out the
+	# "by" column; the rest made an empty "data" and died as '"data" is an
+	# empty hash', about an option the caller had never given.
 	my ( $n_kept, $n, $columns, $where, $sub ) = @_;
+	if ( $n_kept == 0 ) {
+		my @names = map { "\"$_\"" } @{$columns};
+		die "$sub: no row of \"df\"$where has a value in "
+		 . ( scalar @names == 1 ? $names[0] : scalar @names == 2 ? "both $names[0] and $names[1]" : 'every one of ' . join( ', ', @names ) );
+	}
 	return if $n_kept == $n;
 	warn "$sub: left out " . ( $n - $n_kept ) . " of $n rows of \"df\"$where, which have no value in "
 	 . join( ' or ', map { "\"$_\"" } @{$columns} ) . "\n";
@@ -4165,7 +4233,12 @@ sub frame_to_data {
 	}
 	my $every_column = ( $roles->{each} ) && ( not defined $col{$many} );
 	@used = frame_column_names( $df, $shape ) if $every_column;
-	my ( $cells, $row_names ) = frame_columns( $df, $shape, \@used, $where, $roles->{each} && ( not defined $col{by} ) );
+	my %given;
+	foreach my $role ( 'x', 'y', 'by' ) {
+		$given{$_} = $role foreach @{ $col{$role} // [] };
+	}
+	$given{$color_key} = 'color_key' if defined $color_key;
+	my ( $cells, $row_names ) = frame_columns( $df, $shape, \@used, $where, $roles->{each} && ( not defined $col{by} ), \%given, $sub );
 	# the longest column, as the columns of "each" need not be the same length
 	my $n_rows = scalar( @{$row_names} ) || max( 0, map { scalar @{ $cells->{$_} } } @used );
 	die "\"df\"$where has no rows" if $n_rows == 0;
@@ -4208,12 +4281,12 @@ sub frame_to_data {
 				# An undefined cell is left out, which colored_table draws as undefined.
 				$row{$label} = { map { $_ => $cells->{$_}[$i] } grep { defined $cells->{$_}[$i] } @y };
 			}
-			warn_dropped( scalar keys %row, $n_rows, [$x], $where, $sub ) if defined $x;
+			check_dropped( scalar keys %row, $n_rows, [$x], $where, $sub ) if defined $x;
 			%data = %row;
 		} else {
 			my @value_cols = ( @y, ( defined $by ? $by : () ) );
 			my @kept = grep { defined $labels->[$_] } complete_rows( $cells, \@value_cols );
-			warn_dropped( scalar @kept, $n_rows, [ ( defined $x ? $x : () ), @value_cols ], $where, $sub );
+			check_dropped( scalar @kept, $n_rows, [ ( defined $x ? $x : () ), @value_cols ], $where, $sub );
 			my @labels = map { $labels->[$_] } @kept;
 			my $what   = $type eq 'pie' ? 'wedge' : 'bar';
 			if ( defined $by ) {
@@ -4279,19 +4352,17 @@ sub frame_to_data {
 		if ( defined $by ) {
 			my $column = $value_cols[0];
 			my @kept = complete_rows( $cells, [ $column, $by ] );
-			warn_dropped( scalar @kept, $n_rows, [ $column, $by ], $where, $sub );
+			check_dropped( scalar @kept, $n_rows, [ $column, $by ], $where, $sub );
 			push @{ $data{ $cells->{$by}[$_] } }, $cells->{$column}[$_] foreach @kept;
 			$plot->{key_order} = $plot->{key_order} // [ group_order( keys %data ) ];
 		} else {
 			# Column by column: a value missing from one column says nothing about the others.
 			foreach my $column (@value_cols) {
 				$data{$column} = [ grep { defined } @{ $cells->{$column} } ];
-				warn_dropped( scalar @{ $data{$column} }, scalar @{ $cells->{$column} }, [$column], $where, $sub );
+				check_dropped( scalar @{ $data{$column} }, scalar @{ $cells->{$column} }, [$column], $where, $sub );
 			}
 			$plot->{key_order} = $plot->{key_order} // [@value_cols];
 		}
-		my @empty = grep { scalar @{ $data{$_} } == 0 } sort keys %data;
-		die "$sub: " . join( ', ', map { "\"$_\"" } @empty ) . " of \"df\"$where has no values to draw" if scalar @empty;
 		my $values = scalar @value_cols == 1 ? $value_cols[0] : undef;
 		if ( $type eq 'hist' ) {
 			$label_axis->( ( $plot->{orientation} // '' ) eq 'horizontal' ? 'ylabel' : 'xlabel', $values );
@@ -4303,8 +4374,7 @@ sub frame_to_data {
 	} elsif ( $type =~ m/^(?:scatter|hist2d|hexbin)$/ ) {
 		my @axes = ( $x, $y[0], ( defined $color_key ? $color_key : () ) );
 		my @kept = complete_rows( $cells, [ @axes, ( defined $by ? $by : () ) ] );
-		warn_dropped( scalar @kept, $n_rows, [ @axes, ( defined $by ? $by : () ) ], $where, $sub );
-		die "$sub: no row of \"df\"$where has a value in every one of " . join( ', ', map { "\"$_\"" } @axes ) unless scalar @kept;
+		check_dropped( scalar @kept, $n_rows, [ @axes, ( defined $by ? $by : () ) ], $where, $sub );
 		if ( defined $by ) {
 			foreach my $i (@kept) {
 				push @{ $data{ $cells->{$by}[$i] }{$_} }, $cells->{$_}[$i] foreach @axes;
@@ -4334,7 +4404,7 @@ sub frame_to_data {
 		};
 		if ( defined $by ) {
 			my @kept = complete_rows( $cells, [ $x, $y[0], $by ] );
-			warn_dropped( scalar @kept, $n_rows, [ $x, $y[0], $by ], $where, $sub );
+			check_dropped( scalar @kept, $n_rows, [ $x, $y[0], $by ], $where, $sub );
 			my %rows_of;
 			push @{ $rows_of{ $cells->{$by}[$_] } }, $_ foreach @kept;
 			$data{$_} = $line->( $y[0], @{ $rows_of{$_} } ) foreach keys %rows_of;
@@ -4342,8 +4412,7 @@ sub frame_to_data {
 		} else {
 			foreach my $y_col (@y) {
 				my @kept = complete_rows( $cells, [ $x, $y_col ] );
-				warn_dropped( scalar @kept, $n_rows, [ $x, $y_col ], $where, $sub );
-				die "$sub: no row of \"df\"$where has a value in both \"$x\" and \"$y_col\"" unless scalar @kept;
+				check_dropped( scalar @kept, $n_rows, [ $x, $y_col ], $where, $sub );
 				$data{$y_col} = $line->( $y_col, @kept );
 			}
 			$plot->{key_order} = $plot->{key_order} // [@y];
@@ -4404,10 +4473,14 @@ sub shared_table_range {
 	foreach my $plot ( map { $args->{plots}[$_] } @tables ) {
 		$log = 1 if bool_option( $plot->{cb_logscale}, 'cb_logscale', $current_sub );
 		next unless ref $plot->{data} eq 'HASH';
-		foreach my $row ( grep { ref $_ eq 'HASH' } values %{ $plot->{data} } ) {
-			push @values, finite_values( values %{$row} );
+		# The cells the table draws, not every cell of "data": a cell that
+		# "col_labels" left out stretched the shared scale, and
+		# "default_undefined" was counted in whether or not any cell was
+		# undefined.
+		my ( $row_keys, $cols, $cells ) = table_cells( $plot, $current_sub );
+		foreach my $k1 ( @{$row_keys} ) {
+			push @values, finite_values( map { $cells->{$k1}{$_} // $plot->{default_undefined} } @{$cols} );
 		}
-		push @values, finite_values( $plot->{default_undefined} ) if defined $plot->{default_undefined};
 	}
 	@values = grep { $_ > 0 } @values if $log;    # a log scale starts above 0, as colored_table_helper's does
 	return if scalar @values == 0;                 # each table refuses an empty one by name
@@ -4452,6 +4525,46 @@ sub check_add {
 	my @not_hash = grep { ref $add->[$_] ne 'HASH' } 0 .. $#{$add};
 	if ( scalar @not_hash > 0 ) {
 		die "\"add\"$where holds one HASH reference per graph, but index " . join( ', ', @not_hash ) . ' is not one';
+	}
+}
+# The shape of "data" each plot_type reads. plot, scatter, imshow,
+# venn_proportional_area and wide are not here: each checks its own.
+my %data_shape = (
+	bar           => 'hash',      barh       => 'hash',
+	colored_table => 'hash',      pie        => 'hash',
+	hexbin        => 'hash of arrays', hist2d => 'hash of arrays',
+	boxplot       => 'sets',      hist       => 'sets',    # sets = an array of values, or a hash of them
+	violin        => 'sets',      violinplot => 'sets',
+);
+sub check_data_shape {
+	# Die naming the plot unless its "data" has the shape its plot_type reads.
+	#
+	# The helpers of these types dereferenced "data" without looking, so an
+	# array given to bar died as "Not a HASH reference" and a hash of numbers
+	# given to boxplot as 'Can't use string ("1") as an ARRAY ref', neither
+	# naming "data" or the plot. An "add" graph was not checked at all: with
+	# "data => {}" a violin wrote violinplot([]) and the script died in
+	# matplotlib as "IndexError: too many indices for array".
+	my ( $plot, $type, $where, $sub ) = @_;
+	my $shape = $data_shape{ $type // '' };
+	return unless defined $shape;
+	my $data = $plot->{data};
+	die "$sub: \"data\"$where is not defined" unless defined $data;
+	my $ref = ref $data;
+	if ( ( $ref eq 'ARRAY' ) && ( $shape eq 'sets' ) ) {
+		die "$sub: \"data\"$where is an empty array" if scalar @{$data} == 0;
+		return;
+	}
+	if ( $ref ne 'HASH' ) {
+		my $wanted = ( $shape eq 'sets' ) ? 'an array of values, or a hash of them,' : "a $shape";
+		die "$sub: \"data\"$where must be $wanted for $type, not " . ( $ref ? ( $ref eq 'ARRAY' ? 'an' : 'a' ) . " $ref reference" : "\"$data\"" );
+	}
+	die "$sub: \"data\"$where is an empty hash" if scalar keys %{$data} == 0;
+	return if $shape eq 'hash';
+	my @not_array = grep { ref $data->{$_} ne 'ARRAY' } sort keys %{$data};
+	if ( scalar @not_array > 0 ) {
+		die "$sub: each key of \"data\"$where is an array of values for $type, but "
+		 . join( ', ', map { "\"$_\"" } @not_array ) . ( scalar @not_array == 1 ? ' is' : ' are' ) . ' not';
 	}
 }
 # The pyplot functions that act on the whole figure rather than on the current
@@ -4521,6 +4634,10 @@ sub plt {
 	# and every "df" into the "data" of its plot_type, before anything checks
 	# "data" or the keywords
 	frames_to_data( $args, $current_sub );
+	# Read as a Python bool, as every other switch is: tested for Perl truth,
+	# "show => 'False'" wrote plt.show() and let the figure go without an
+	# "output_file".
+	$args->{show} = bool_option( $args->{show}, 'show', $current_sub ) if defined $args->{show};
 	# "output_file" is any name at all, so it is tested for being given rather
 	# than for Perl truth, which refused a file called "0" as missing.
 	if ( ( not ( ( defined $args->{output_file} ) && ( length $args->{output_file} ) ) ) && ( not $args->{show} ) ) {
@@ -4760,6 +4877,16 @@ sub plt {
 	if ( $single_plot == 0 ) {
 		check_add( $args->{plots}[$_]{add}, " at subplot $_" ) foreach 0 .. $#{ $args->{plots} };
 	}
+	# Before the figure is written, as the types are checked: every plot and
+	# every "add" graph, which takes its plot's type when it has none.
+	my @drawn = ( $single_plot == 1 ) ? ( [ $args, '' ] ) : map { [ $args->{plots}[$_], " at subplot $_" ] } 0 .. $#{ $args->{plots} };
+	foreach my $drawn (@drawn) {
+		my ( $plot, $at ) = @{$drawn};
+		check_data_shape( $plot, $plot->{plot_type}, $at, $current_sub ) if defined $plot->{data};    # a plot with no "data" is refused by name where it is drawn
+		foreach my $graph ( @{ $plot->{add} // [] } ) {
+			check_data_shape( $graph, $graph->{plot_type} // $plot->{plot_type}, " for an \"add\" graph$at", $current_sub );
+		}
+	}
 	if ( defined $args->{fh} ) {
 		my $ref = ref $args->{fh};
 		if ($ref ne 'File::Temp') {
@@ -4976,8 +5103,10 @@ sub plt {
 	# single plot this is what always happened, though by accident: plot_args
 	# quoted the caller's own hash in place, and this loop read the result.
 	# plot_args now works on a copy, so the step is written out here, where it
-	# now also reaches the "suptitle" of a figure of several subplots.
-	foreach my $text_method ( grep { ( defined $methods{$_} ) && ( defined $args->{$_} ) } @text_methods ) {
+	# now also reaches the "suptitle" of a figure of several subplots, and the
+	# figure's own "supxlabel" and "supylabel", written by the fig. loop below.
+	my %written_here = map { $_ => 1 } ( @plt_methods, @fig_methods );
+	foreach my $text_method ( grep { ( $written_here{$_} ) && ( defined $args->{$_} ) } @text_methods ) {
 		my $text = $args->{$text_method};
 		$args->{$text_method} = ( ref $text eq 'ARRAY' ) ? [ map { quote_text($_) } @{$text} ] : ( ref $text ) ? $text : quote_text($text);    # an array element by element, as in plot_args
 	}
@@ -5457,11 +5586,14 @@ A number in C<data> may be NaN or infinite.  Such a value is drawn as Matplotlib
 
 =head3 Quoting text: commas and apostrophes
 
-C<title>, C<suptitle>, C<xlabel>, C<ylabel>, C<set_title>, C<set_xlabel> and
-C<set_ylabel> are quoted for you, unless the text is already Python of your own.
+C<title>, C<suptitle>, C<supxlabel>, C<supylabel>, C<xlabel>, C<ylabel>,
+C<set_title>, C<set_xlabel> and C<set_ylabel> are quoted for you, unless the text
+is already Python of your own.
 Text is taken to be Python when it holds a comma or a quote I<and> opens the way
 Python does: with a string literal, which may carry a prefix such as C<r> or
-C<f>, or with a keyword argument.  That is what makes a raw string such as
+C<f>, or with a keyword argument.  The literal has to close, and either be the
+whole of the text or be followed by a comma, so C<"'Tis the season"> and
+C<'"A" vs "B"'> are prose.  That is what makes a raw string such as
 
  xlabel => 'r"$\it{anno}$ $\it{domini}$"',    # italics, via mathtext
 
@@ -5586,7 +5718,7 @@ C<logscale> for C<bar> is the one exception, and takes Perl truth.
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
 <tr><td><code>scale</code></td><td>scale/multiply the size of the output figure; this and the two below must be finite and above 0</td><td><code>scale => 2.4</code></td></tr>
 <tr><td><code>scalex</code></td><td>scale/multiply the x-axis only</td><td><code>scalex => 2.4</code></td></tr>
-<tr><td><code>scaley</code></td><td>scale/multiply the y-axis only</td><td><code>scalex => 1.4</code></td></tr>
+<tr><td><code>scaley</code></td><td>scale/multiply the y-axis only</td><td><code>scaley => 1.4</code></td></tr>
 </tbody>
 </table>
 
@@ -5980,7 +6112,7 @@ where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself
                    UK      => 5.4,
                    US      => 83.1,
                    USSR    => 25.5,
-                   Germany => 11.2 #Rapid decrease due to war's end <br />
+                   Germany => 11.2 #Rapid decrease due to war's end
                  },
              },
              stacked => 0,
@@ -6061,7 +6193,7 @@ where C<xlabel>, C<ylabel>, C<title>, etc. are axis methods in matplotlib itself
              title       => 'grouped bar: Casualties in WWII',
              ylabel  => 'Casualties',
              plot_type => 'bar'
-         }, <br />
+         },
          { # nuclear weapons barplot
              plot_type       => 'bar',
              data => {
@@ -6200,7 +6332,7 @@ The C<whiskers> switch belongs to L<#violin>, not to C<boxplot>.
 
 single plots are simple
 
- use Matplotlib::Simple 'barplot';
+ use Matplotlib::Simple 'boxplot';
  boxplot(
      output_file => 'output.images/single.boxplot.png',
      data              => {                                     # simple hash
@@ -6485,7 +6617,6 @@ which makes the following image:
      plots         => [
          {
              data          => \%bond_dissociation,
-             output_file => '/tmp/single.bonds.svg',
              plot_type     => 'colored_table',
              set_title     => 'No other options'
          },
@@ -6494,7 +6625,6 @@ which makes the following image:
              cblabel       => 'Average Dissociation Energy (kJ/mol)',
              col_labels    => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
              mirror        => 1,
-             output_file => '/tmp/single.bonds.svg',
              plot_type     => 'colored_table',
              row_labels    => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
              show_numbers=> 1,
@@ -6505,7 +6635,6 @@ which makes the following image:
              cblabel       => 'Average Dissociation Energy (kJ/mol)',
              col_labels    => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
              mirror        => 1,
-             output_file => '/tmp/single.bonds.svg',
              plot_type     => 'colored_table',
              row_labels    => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
              show_numbers=> 1,
@@ -7489,11 +7618,12 @@ which makes the image:
 =head2 plot
 
 A line plot of one or more series of C<(x, y)> points. Each series needs an
-x array and a y array of B<equal length>.
+x array and a y array of B<equal length>, or, in the hash form, may give the y
+values alone and have x made for it.
 
 =head3 Entering data
 
-C<data> accepts three shapes:
+C<data> accepts four shapes:
 
 B<1. Labeled series (hash).> Use this when you want a legend — each key
 becomes a line label. The value is a C<[ \@x, \@y ]> pair:
@@ -7537,6 +7667,39 @@ you need a legend entry, use the hash form (1).
  > form (3) C<< data-E<gt>[0] >> is the x array, so C<< data-E<gt>[0][0] >> is a number. A 2-element
  > C<data> whose first element starts with a number is therefore always read as a
  > single line.
+
+B<4. Labeled y values alone (hash).> When the x values are only the positions
+0, 1, 2, …, give each key a plain array of y values and leave x out:
+
+ plt(
+     output_file => 'output.images/plot.y.only.png',
+     data        => {    # y values only: x is 0, 1, 2, ... for each
+         '1cka' => [ 0.86, 0.85, 0.85, 0.85, 0.85 ],
+         '1ckb' => [ 0.81, 0.8,  0.79, 0.78, 0.77 ],
+         '1d4t' => [ 0.92, 0.92, 0.92, 0.92, 0.91 ],
+     },
+     plot_type  => 'plot',
+     title      => 'y values only',
+     xlabel     => 'index',
+     ylabel     => 'score',
+     set_xticks => '[0, 1, 2, 3, 4]',
+ );
+
+which makes
+
+
+=for html
+<p>
+<img width="651" height="491" alt="plot of y values only" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/plot.y.only.png" />
+<p>
+
+
+Each key's x is C<0 .. n-1> for its own C<n> values, so the series need not be the
+same length. A key's value is read as y alone when B<none> of its elements is
+an array, and as an C<[ \@x, \@y ]> pair when they all are; the two forms can be
+mixed from key to key in one C<data> hash, but a value that mixes arrays with
+plain numbers is refused. This form is for hash data only: in array data, two
+plain arrays are already the single unlabeled line of form 3, with x and y.
 
 =head3 Setting line options with C<set_options>
 

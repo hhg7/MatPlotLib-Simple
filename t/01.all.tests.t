@@ -1093,6 +1093,21 @@ plt({
 });
 plt({
 	fh => $fh,
+	execute     => 0,
+	output_file => outfile('plot.y.only.svg'),
+	data        => {    # y values only: x is 0, 1, 2, ... for each
+		'1cka' => [ 0.86, 0.85, 0.85, 0.85, 0.85 ],
+		'1ckb' => [ 0.81, 0.8,  0.79, 0.78, 0.77 ],
+		'1d4t' => [ 0.92, 0.92, 0.92, 0.92, 0.91 ],
+	},
+	plot_type => 'plot',
+	title     => 'y values only',
+	xlabel    => 'index',
+	ylabel    => 'score',
+	set_xticks => '[0, 1, 2, 3, 4]',
+});
+plt({
+	fh => $fh,
 	execute           => 0,
 	output_file => outfile('barplots.svg'),
 	plots             => [
@@ -2133,7 +2148,7 @@ plt({
 	output_file => outfile('hist2d.svg'),
 });
 # σὺ δὲ τῇ πίστει ἕστηκας. μὴ ὑψηλὰ φρόνει, ἀλλὰ φοβοῦ
-my @output_files = map { outfile($_) } ('add.single.svg', 'single.wide.svg', 'single.array.svg', 'wide.subplots.svg', 'single.pie.svg', 'pie.svg', 'single.boxplot.svg', 'boxplot.svg', 'single.violinplot.svg', 'violin.svg', 'single.barplot.svg', 'single.hexbin.svg', 'single.hist2d.svg', 'hexbin.svg', 'plots.svg', 'plot.single.svg', 'plot.single.arr.svg', 'barplots.svg', 'single.hist.svg', 'histogram.svg', 'single.scatter.svg', 'scatterplots.svg', 'imshow.single.svg', 'imshow.multiple.svg', 'single.tab.svg', 'single.bonds.svg', 'hlines.svg', 'dssp.single.svg', 'dssp.multiple.svg', 'hist2d.pads.svg', 'twinx.arr.svg', 'twinx.hash.svg', 'key.colors.bar.svg', 'bar.sub.svg', 'bar.sub.self.svg', 'barh.sub.svg', 'boxplot.sub.svg', 'hexbin.sub.svg', 'hist.sub.svg', 'hist2d.sub.svg', 'plot.sub.svg', 'newline_fail.svg', 'hist2d.logscale.svg', 'scatter.logscale.svg', 'hist.arr.svg', 'simple.arr.not.hash.svg', 'scatter.multiset.colorkey.svg', 'p.arg.svg', 'hist2d.svg');
+my @output_files = map { outfile($_) } ('add.single.svg', 'single.wide.svg', 'single.array.svg', 'wide.subplots.svg', 'single.pie.svg', 'pie.svg', 'single.boxplot.svg', 'boxplot.svg', 'single.violinplot.svg', 'violin.svg', 'single.barplot.svg', 'single.hexbin.svg', 'single.hist2d.svg', 'hexbin.svg', 'plots.svg', 'plot.single.svg', 'plot.single.arr.svg', 'plot.y.only.svg', 'barplots.svg', 'single.hist.svg', 'histogram.svg', 'single.scatter.svg', 'scatterplots.svg', 'imshow.single.svg', 'imshow.multiple.svg', 'single.tab.svg', 'single.bonds.svg', 'hlines.svg', 'dssp.single.svg', 'dssp.multiple.svg', 'hist2d.pads.svg', 'twinx.arr.svg', 'twinx.hash.svg', 'key.colors.bar.svg', 'bar.sub.svg', 'bar.sub.self.svg', 'barh.sub.svg', 'boxplot.sub.svg', 'hexbin.sub.svg', 'hist.sub.svg', 'hist2d.sub.svg', 'plot.sub.svg', 'newline_fail.svg', 'hist2d.logscale.svg', 'scatter.logscale.svg', 'hist.arr.svg', 'simple.arr.not.hash.svg', 'scatter.multiset.colorkey.svg', 'p.arg.svg', 'hist2d.svg');
 #my %file2SHA;
 #open my $tsv, '<', $sha_sum_filename;
 #while (<$tsv>) {

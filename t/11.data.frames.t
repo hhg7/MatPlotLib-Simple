@@ -265,8 +265,10 @@ foreach my $shape ( sort keys %frame ) {
 # ----------------------------------------------------------------------------
 # 6. What is refused, and how it is named.
 # ----------------------------------------------------------------------------
-converts_dying( 'bar', { df => \@aoh, x => 'name', y => 'hieght' }, qr/no column "hieght"; perhaps you meant "height"/, 'a misspelt column is named, with what was meant' );
-converts_dying( 'bar', { df => \%hoa, x => 'name', y => 'hieght' }, qr/no column "hieght"/, 'and in a hash of arrays' );
+converts_dying( 'bar', { df => \@aoh, x => 'name', y => 'hieght' }, qr/"hieght", given as "y", is not a column in the dataframe "df"; perhaps you meant "height"/, 'a misspelt column is named, with the option that named it and what was meant' );
+converts_dying( 'bar', { df => \%hoa, x => 'name', y => 'hieght' }, qr/"hieght", given as "y", is not a column in the dataframe "df"/, 'and in a hash of arrays' );
+converts_dying( 'scatter', { df => \@aoh, x => 'dG (kcal/mol)', y => 'age' }, qr/^\w+: "dG \(kcal\/mol\)", given as "x", is not a column in the dataframe "df"\. Its columns are: age, height, name, sex, weight/, 'an axis label given as "x" is refused by name, as the option that named it' );
+converts_dying( 'scatter', { df => \@aoh, x => 'height', y => 'age', color_key => 'colour' }, qr/"colour", given as "color_key", is not a column/, 'a missing "color_key" column says it came from "color_key"' );
 converts_dying( 'bar', { df => \@aoh, y => 'height' }, qr/needs "x".*only a hash of hashes has row names/, 'bar without "x" needs row names' );
 converts_dying( 'hist', { df => \@aoh, y => 'height' }, qr/takes its columns of "df" in "x" and "by", not in "y"/, 'a role the type does not read is refused' );
 converts_dying( 'scatter', { df => \@aoh, x => 'height', y => [ 'weight', 'age' ] }, qr/"y" can name only one column for plot_type "scatter"/, 'only the "many" role takes several' );
@@ -279,7 +281,7 @@ converts_dying( 'wide', { df => \@aoh, x => 'height', y => 'weight' }, qr/plot_t
 converts_dying( 'bar', { df => \@aoh, data => { A => 1 }, x => 'name', y => 'age' }, qr/"df" and "data" cannot both be given/, '"df" with "data" is refused' );
 converts_dying( 'bar', { df => { A => [1], B => { C => 1 } }, x => 'A', y => 'B' }, qr/all be ARRAY \(HoA.*or all HASH \(HoH/, 'a hash mixing arrays and hashes is refused' );
 converts_dying( 'bar', { df => [ 1, 2 ], x => 0, y => 1 }, qr/rows must be ARRAY \(AoA\) or HASH \(AoH\)/, 'an array of plain values is refused' );
-converts_dying( 'hist2d', { df => \@aoa, x => 5, y => 1 }, qr/0-based positions from 0 to 4/, 'an AoA column past the end is refused' );
+converts_dying( 'hist2d', { df => \@aoa, x => 5, y => 1 }, qr/"5", given as "x", is not a column in the dataframe "df", which is an array of arrays, whose columns are 0-based positions from 0 to 4/, 'an AoA column past the end is refused' );
 converts_dying( 'hist2d', { df => { a => [ 1, 2 ], b => [1] }, x => 'a', y => 'b' }, qr/same number of rows, but they have "a" 2, "b" 1/, 'a ragged hash of arrays is refused' );
 converts_dying( 'bar', { x => 'name', y => 'age' }, qr/"x", "y" name columns of "df", but no "df" was given/, '"x" and "y" without "df"' );
 

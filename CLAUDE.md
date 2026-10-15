@@ -228,6 +228,10 @@ problem, not an installer's.
   without Python.
 - `t/12.review.fixes.0.319.t` — one block per fix of 0.319, in the form of
   `t/10.review.fixes.0.317.t`.
+- `t/13.plot.y.only.t` — `plot` with hash sets given as y values alone, drawn
+  against 0 .. n-1, in the form of `t/12.review.fixes.0.319.t`.
+- `t/14.review.fixes.0.32.t` — one block per fix of 0.32, in the form of
+  `t/12.review.fixes.0.319.t`.
 - `t/utf8.mojibake.t` — labels arriving as raw utf8 bytes rather than wide
   characters.
 - `Matplotlib-Simple-0.3*/` and the matching `.tar.gz` — snapshots of past
@@ -241,7 +245,7 @@ problem, not an installer's.
 
     prove -Ilib t/
 
-The full suite is 1162 tests in about 160 seconds on a machine with python3 and
+The full suite is 1243 tests in about 80 seconds on a machine with python3 and
 matplotlib. `perl Makefile.PL && make test` also works.
 
 ## Releasing

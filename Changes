@@ -1,5 +1,39 @@
 Revision history for Matplotlib-Simple
 
+0.32 2026-10-12 CDT (Claude Opus 5.5 helped)
+
+ [New]
+
+ - `plot` with a hash of sets takes a set given as its y values alone, as in `data => { '1cka' => [ 0.86, 0.85, 0.85 ], '1ckb' => [ 0.81, 0.8, 0.79 ] }`, and draws it against 0, 1, 2, ... . Each set had to be an `[ \@x, \@y ]` pair, so the x values had to be built by hand, and a set of y values died with "3 were entered for 1cka, but there must be exactly 2" -- or, for a set of exactly two numbers, with "Can't use string ("0.86") as an ARRAY ref". Pairs and sets of y values can be mixed in one hash. A set that mixes arrays with plain numbers is refused, by name. Array data is unchanged: two plain arrays are still one line, of x and y.
+
+ [Clearer messages]
+
+ - A column of `df` that is not there is refused with a message that starts by naming it and the option that named it: `plt: "ΔG (kcal/mol)", given as "x", is not a column in the dataframe "df". Its columns are: exp, iptm`. The message was `"df" has no column "ΔG (kcal/mol)"`, which did not say which of `x`, `y`, `by` and `color_key` was at fault -- easy to misread when an axis label had been given as `x` in place of `xlabel`.
+
+ - `data` of the wrong shape is refused before anything is written, naming the plot and what it should have been: `plt: "data" at subplot 1 must be a hash for pie, not an ARRAY reference`, or `each key of "data" is an array of values for boxplot, but "A" is not`. `bar`, `barh`, `pie`, `colored_table`, `hexbin` and `hist2d` died on an array as "Not a HASH reference", and `boxplot`, `violin`, `hist`, `hexbin` and `hist2d` on a hash of numbers as 'Can't use string ("1") as an ARRAY ref', at a line of the module. An `add` graph's `data` was not checked at all: `data => {}` in an `add` graph of a violin plot wrote `violinplot([])`, and the script died in matplotlib as "IndexError: too many indices for array"; it is now refused as an empty hash, and an `add` graph with no `data` as not defined.
+
+ - A `df` with no row that has a value in every column it needs is refused, naming those columns: `plt: no row of "df" has a value in both "name" and "v"`. `bar`, `barh`, `pie`, and `plot` and `hist` with `by`, made an empty `data` and died as '"data" is an empty hash', about an option the caller had never given. `scatter`, `hexbin` and `hist2d` with `by` named every column but the `by` one, even when it was the `by` column that was empty.
+
+ [Figures that were drawn incorrectly]
+
+ - `show => 'False'` does not show the figure. `show` was tested for Perl truth, in which 'False' is true, so the script called `plt.show()`, and `output_file` was not required. It is read as every other switch is since 0.319: `'True'` or `'False'` in any case, or a number, and anything else is refused by name.
+
+ - `scatter`, `hexbin` and `hist2d` keep a `set_xlabel` or `set_ylabel` given by the caller. Each labelled its axes with the names of the two data keys unless given `xlabel` or `ylabel`, and wrote the key's name over a `set_xlabel`.
+
+ - `hist2d` with `logscale` draws as many bins as `xbins` and `ybins` ask for, as it does without one. They were taken as the number of bin edges, so each axis had one bin fewer, and `xbins => 1` died in numpy as "zero-size array to reduction operation maximum". `logscale => []` is a linear plot, given the bin counts, where it took the log-scale path with no log axis.
+
+ - `colored_table`s that share a colorbar share a scale drawn from the cells they draw. A cell that `col_labels` left out of a table stretched the scale of every table sharing it, and `default_undefined` was counted in whether or not any cell was undefined.
+
+ [Text that came out wrong]
+
+ - A title or label that opens with a quote is taken for Python only if the string literal closes and is either all of the text or followed by a comma. `title => "'Tis the season"` was written as `set_title('Tis the season)` and `xlabel => '"A" vs "B"'` as `set_xlabel("A" vs "B")`, both SyntaxErrors; each is now quoted. Python of the caller's own, such as `'r"$\it{anno}$"'` or `'"a, b", fontsize = 20'`, is left alone as before.
+
+ - `supxlabel` and `supylabel` are quoted as `suptitle` is. Figure methods are written as given, so `supxlabel => 'Time'` was written as `fig.supxlabel(Time)`, a NameError.
+
+ [Documentation]
+
+ - Four examples that could not run as written are corrected: the `colored_table` figure of three subplots gave each subplot an `output_file`, which `plt` refuses; the single `boxplot` imported `barplot`, which is not exported; the `bar` figure of several subplots had two HTML `<br />` tags inside its Perl; and the options table gave `scalex => 1.4` as the example for `scaley`.
+
 0.319 2026-10-05 CDT
 
  [Keywords are spelled with "_", not "."]

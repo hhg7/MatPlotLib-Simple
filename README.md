@@ -189,11 +189,14 @@ A number in `data` may be NaN or infinite.  Such a value is drawn as Matplotlib 
 
 ### Quoting text: commas and apostrophes
 
-`title`, `suptitle`, `xlabel`, `ylabel`, `set_title`, `set_xlabel` and
-`set_ylabel` are quoted for you, unless the text is already Python of your own.
+`title`, `suptitle`, `supxlabel`, `supylabel`, `xlabel`, `ylabel`,
+`set_title`, `set_xlabel` and `set_ylabel` are quoted for you, unless the text
+is already Python of your own.
 Text is taken to be Python when it holds a comma or a quote *and* opens the way
 Python does: with a string literal, which may carry a prefix such as `r` or
-`f`, or with a keyword argument.  That is what makes a raw string such as
+`f`, or with a keyword argument.  The literal has to close, and either be the
+whole of the text or be followed by a comma, so `"'Tis the season"` and
+`'"A" vs "B"'` are prose.  That is what makes a raw string such as
 
     xlabel => 'r"$\it{anno}$ $\it{domini}$"',    # italics, via mathtext
 
@@ -310,7 +313,7 @@ Anything else, such as `'yes'`, is refused by name, since it could mean either.
 | -------- | ------- | ------- |
 |`scale`  | scale/multiply the size of the output figure; this and the two below must be finite and above 0 | `scale => 2.4`|
 |`scalex` | scale/multiply the x-axis only | `scalex => 2.4` |
-|`scaley` | scale/multiply the y-axis only | `scalex => 1.4` |
+|`scaley` | scale/multiply the y-axis only | `scaley => 1.4` |
 
 # Examples/Plot Types
 
@@ -652,7 +655,7 @@ where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `
 				      UK      => 5.4,
 			    	  US      => 83.1,
 		    		  USSR    => 25.5,
-	    			  Germany => 11.2 #Rapid decrease due to war's end <br />
+	    			  Germany => 11.2 #Rapid decrease due to war's end
     				},
 		    	},
 	    		stacked	=> 0,
@@ -733,7 +736,7 @@ where `xlabel`, `ylabel`, `title`, etc. are axis methods in matplotlib itself. `
 			    title		=> 'grouped bar: Casualties in WWII',
 		    	ylabel	=> 'Casualties',
 	    		plot_type => 'bar'
-    		},	
+    		},
 		    { # nuclear weapons barplot
 	    		plot_type       => 'bar',
     			data => {
@@ -857,7 +860,7 @@ The `whiskers` switch belongs to [`violin`](#violin), not to `boxplot`.
 
 single plots are simple
 
-    use Matplotlib::Simple 'barplot';
+    use Matplotlib::Simple 'boxplot';
     boxplot(
     	output_file => 'output.images/single.boxplot.png',
     	data              => {                                     # simple hash
@@ -1122,7 +1125,6 @@ which makes the following image:
     	plots         => [
     		{
     			data          => \%bond_dissociation,
-    			output_file => '/tmp/single.bonds.svg',
     			plot_type     => 'colored_table',
     			set_title     => 'No other options'
     		},
@@ -1131,7 +1133,6 @@ which makes the following image:
     			cblabel       => 'Average Dissociation Energy (kJ/mol)',
     			col_labels    => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
     			mirror        => 1,
-    			output_file => '/tmp/single.bonds.svg',
     			plot_type     => 'colored_table',
     			row_labels    => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
     			show_numbers=> 1,
@@ -1142,7 +1143,6 @@ which makes the following image:
     			cblabel       => 'Average Dissociation Energy (kJ/mol)',
     			col_labels    => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
     			mirror        => 1,
-    			output_file => '/tmp/single.bonds.svg',
     			plot_type     => 'colored_table',
     			row_labels    => ['H', 'C', 'N', 'O', 'F', 'Si', 'S', 'Cl', 'Br', 'I'],
     			show_numbers=> 1,
@@ -2031,11 +2031,12 @@ which makes the image:
 ## plot
 
 A line plot of one or more series of `(x, y)` points. Each series needs an
-x array and a y array of **equal length**.
+x array and a y array of **equal length**, or, in the hash form, may give the y
+values alone and have x made for it.
 
 ### Entering data
 
-`data` accepts three shapes:
+`data` accepts four shapes:
 
 **1. Labeled series (hash).** Use this when you want a legend — each key
 becomes a line label. The value is a `[ \@x, \@y ]` pair:
@@ -2079,6 +2080,34 @@ you need a legend entry, use the hash form (1).
 > form (3) `data->[0]` is the x array, so `data->[0][0]` is a number. A 2-element
 > `data` whose first element starts with a number is therefore always read as a
 > single line.
+
+**4. Labeled y values alone (hash).** When the x values are only the positions
+0, 1, 2, …, give each key a plain array of y values and leave x out:
+
+    plt(
+    	output_file => 'output.images/plot.y.only.png',
+    	data        => {    # y values only: x is 0, 1, 2, ... for each
+    		'1cka' => [ 0.86, 0.85, 0.85, 0.85, 0.85 ],
+    		'1ckb' => [ 0.81, 0.8,  0.79, 0.78, 0.77 ],
+    		'1d4t' => [ 0.92, 0.92, 0.92, 0.92, 0.91 ],
+    	},
+    	plot_type  => 'plot',
+    	title      => 'y values only',
+    	xlabel     => 'index',
+    	ylabel     => 'score',
+    	set_xticks => '[0, 1, 2, 3, 4]',
+    );
+
+which makes
+
+<img width="651" height="491" alt="plot of y values only" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/plot.y.only.png" />
+
+Each key's x is `0 .. n-1` for its own `n` values, so the series need not be the
+same length. A key's value is read as y alone when **none** of its elements is
+an array, and as an `[ \@x, \@y ]` pair when they all are; the two forms can be
+mixed from key to key in one `data` hash, but a value that mixes arrays with
+plain numbers is refused. This form is for hash data only: in array data, two
+plain arrays are already the single unlabeled line of form 3, with x and y.
 
 ### Setting line options with `set_options`
 

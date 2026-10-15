@@ -846,6 +846,21 @@ plt({
 });
 plt({
 	fh => $fh,
+	execute     => 0,
+	output_file => 'output.images/plot.y.only.png',
+	data        => {    # y values only: x is 0, 1, 2, ... for each
+		'1cka' => [ 0.86, 0.85, 0.85, 0.85, 0.85 ],
+		'1ckb' => [ 0.81, 0.8,  0.79, 0.78, 0.77 ],
+		'1d4t' => [ 0.92, 0.92, 0.92, 0.92, 0.91 ],
+	},
+	plot_type => 'plot',
+	title     => 'y values only',
+	xlabel    => 'index',
+	ylabel    => 'score',
+	set_xticks => '[0, 1, 2, 3, 4]',
+});
+plt({
+	fh => $fh,
 	execute           => 0,
 	output_file => 'output.images/barplots.png',
 	plots             => [
