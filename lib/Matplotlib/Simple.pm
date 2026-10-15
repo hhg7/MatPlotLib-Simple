@@ -294,7 +294,8 @@ my %opt = (
 	 'key_order',    # the order of the sets of a hash of sets; default sorted
 	 'shared_colorbar', # array of 0-based indices for sharing a colorbar
 	 'show_legend',  # label each of several sets for the legend; default on, 0 or 'False' for off
-	 'set_options'    # color = 'red', marker = 'v', etc.
+	 'set_options',   # color = 'red', marker = 'v', etc.
+	 'tooltips',      # text shown on hovering over each point, in an SVG only: an array for one set, a hash of arrays for several
 	],
 	violin_helper => [
 	 'color',      # one color for every violin; "colors" is the hash of one per key
@@ -849,6 +850,14 @@ sub write_data {
 # legend, so that the legend holds the twin's lines as well. plt empties it
 # before it writes a figure, so a call that died part way leaves nothing behind.
 my %twin_axes;
+# The text of every scatter "tooltips" label in the figure, numbered by its
+# place here. scatter_helper draws a labelled point with the url
+# "#matplotlib-simple-tooltip-<n>", and once the SVG is written plt turns each
+# such link into a group whose <title> is the text, which a browser shows on
+# hovering. plt empties it, and sets $tooltips_drawn, before it writes a figure.
+my @tooltip_text;
+my $tooltips_drawn = 0;    # 1 = output_file is an SVG, which the tooltips are written into; 0 = they are checked and left out
+my $tooltip_url = '#matplotlib-simple-tooltip-';
 # The methods whose argument is usually bare text, which quote_text quotes.
 # "supxlabel" and "supylabel" are figure methods, which are otherwise written
 # as given: until 0.32 they were not here, so "supxlabel => 'Time'" wrote
@@ -2949,6 +2958,56 @@ sub check_scatter_lengths {
 	die "$current_sub: the axes$where must all have the same number of values, but "
 	 . join( ', ', map { "\"$_\" has " . scalar @{ $set->{$_} } } @arrays );
 }
+sub scatter_tooltips {
+	# Check one set's "tooltips" against its number of points, and return the
+	# url of each point, which ties a labelled point to its text -- or undef
+	# when there is nothing to draw.
+	#
+	# A url per point, rather than counting the markers in the SVG afterwards:
+	# matplotlib writes each point's url as a link around that point's marker,
+	# and leaves out the url of a point it does not draw -- NaN, or not above
+	# 0 on a log axis -- so each label stays with its own point. An undefined
+	# label is a point without a tooltip, and gets no url.
+	my ( $labels, $n_points, $options, $where, $current_sub ) = @_;
+	return undef unless defined $labels;    # no tooltips for this set
+	if ( ref $labels ne 'ARRAY' ) {
+		die "$current_sub: \"tooltips\"$where must be an array of one label per point, not "
+		 . ( ref $labels ? 'a ' . ( ref $labels ) . ' reference' : "\"$labels\"" );
+	}
+	if ( scalar @{$labels} != $n_points ) {
+		die "$current_sub: \"tooltips\"$where has " . scalar @{$labels} . " labels, but there are $n_points points: give one per point, and undef for a point that has none";
+	}
+	my @refs = grep { ref $labels->[$_] } 0 .. $#{$labels};
+	if ( scalar @refs > 0 ) {
+		die "$current_sub: \"tooltips\"$where holds text, but index " . join( ', ', @refs ) . ( scalar @refs == 1 ? ' is a reference' : ' are references' );
+	}
+	my @labelled = grep { defined $labels->[$_] } 0 .. $#{$labels};
+	return undef if scalar @labelled == 0;
+	if ( $options =~ m/\burls?\s*=/ ) {
+		die "$current_sub: \"tooltips\"$where are drawn through the points' urls, so they cannot be given with a \"url\" or \"urls\" in \"set_options\"";
+	}
+	my @urls = (undef) x $n_points;
+	foreach my $i (@labelled) {
+		$urls[$i] = $tooltip_url . scalar @tooltip_text;
+		push @tooltip_text, "$labels->[$i]";    # as text: a number is a dualvar to JSON::XS, see CLAUDE.md
+	}
+	# Checked and counted either way, so that plt can say they were left out;
+	# a url in a PNG or PDF is a link to nowhere.
+	return undef unless $tooltips_drawn;
+	return \@urls;
+}
+sub write_tooltip_urls {
+	# Write one set's urls from scatter_tooltips, and return the argument that
+	# hands them to ax.scatter; '' for a set with none.
+	my ( $urls, $fh ) = @_;
+	return '' unless defined $urls;
+	write_data({
+		data => $urls,
+		fh   => $fh,
+		name => 'tooltip_urls'
+	});
+	return ', urls = tooltip_urls';
+}
 sub scatter_helper {
 	my ($args) = @_;
 	my $current_sub = ( split( /::/, ( caller(0) )[3] ) )[-1]
@@ -3074,6 +3133,7 @@ sub scatter_helper {
 		{
 			$options = ", $plot->{set_options}";
 		}
+		$options .= write_tooltip_urls( scatter_tooltips( $plot->{tooltips}, scalar @{ $plot->{data}{ $keys[0] } }, $options, '', $current_sub ), $args->{fh} );
 		if ( defined $color_key ) {
 			if (not defined $plot->{data}{$color_key}) {
 				die "\"$color_key\" isn't defined for this scatter";
@@ -3121,6 +3181,18 @@ sub scatter_helper {
 			p @undefined_opts;
 			die 'no data was defined for the above options';
 		}
+		# As "set_options": one array of labels per set, keyed by the set's name.
+		if ( defined $plot->{tooltips} ) {
+			my $tt_ref = ref $plot->{tooltips};
+			if ( $tt_ref ne 'HASH' ) {
+				die "$current_sub: \"data\" is a hash of sets, so \"tooltips\" is a hash of one array of labels per set, e.g. { A => ['first', 'second'] }, not "
+				 . ( $tt_ref ? "a $tt_ref reference" : 'a string' );
+			}
+			my @no_set = grep { not exists $plot->{data}{$_} } sort keys %{ $plot->{tooltips} };
+			if ( scalar @no_set > 0 ) {
+				die "$current_sub: \"tooltips\" names " . join( ', ', map { "\"$_\"" } @no_set ) . ', which ' . ( scalar @no_set == 1 ? 'is not a set' : 'are not sets' ) . ' of "data"';
+			}
+		}
 		# A set may be a single point, its values numbers rather than arrays:
 		# catboost => { MAE => 0.41, R2 => 0.83 }. It is drawn as a scatter of
 		# one point, labelled with the set's name. The wrapping goes into a copy
@@ -3155,7 +3227,7 @@ sub scatter_helper {
 		# Keys and color key of every set are settled, and every value checked,
 		# before anything is written, because the color range is shared by all
 		# sets and so has to be known before the first set is drawn.
-		my ( %xy_keys, %color_key_of );
+		my ( %xy_keys, %color_key_of, %tooltip_urls_of );
 		foreach my $set ( sort keys %sets ) {
 			my ( @keys, $color_key );
 			if ( defined $plot->{'keys'} ) {
@@ -3202,6 +3274,7 @@ sub scatter_helper {
 			}
 			check_scatter_lengths( $sets{$set}, [ @keys, ( defined $color_key ? $color_key : () ) ], " of set \"$set\"", $current_sub );
 			$xy_keys{$set} = \@keys;
+			$tooltip_urls_of{$set} = scatter_tooltips( ( $plot->{tooltips} // {} )->{$set}, scalar @{ $sets{$set}{ $keys[0] } }, ( $plot->{set_options} // {} )->{$set} // '', " of set \"$set\"", $current_sub );
 		}
 		# One color scale for every set. Each ax.scatter normalises its own c to
 		# its own minimum and maximum, so without this the same color meant a
@@ -3253,6 +3326,7 @@ sub scatter_helper {
 			if ( ( $plot->{show_legend} ) && ( $options !~ m/\blabel\s*=/ ) ) {
 				$options .= ', label = ' . py_str($set);
 			}
+			$options .= write_tooltip_urls( $tooltip_urls_of{$set}, $args->{fh} );
 			if ( defined $color_key ) {
 				$colorbar_key = $color_key;
 				say { $args->{fh} } 'z = [' . py_nums( @{ $sets{$set}{$color_key} } ) . ']';
@@ -4618,6 +4692,7 @@ sub plt {
 	}
 	$args = copy_plot_hashes($args);
 	%twin_axes = ();    # see its declaration
+	@tooltip_text = ();    # and this one's
 	refuse_dotted_keywords( $args, $current_sub );
 	# Checked before anything multiplies them or compares them with a count of
 	# plots: "ncols => 'two'" died as "Argument \"two\" isn't numeric in
@@ -4692,6 +4767,9 @@ sub plt {
 		p $args;
 		die '"output_file" must be a SCALAR or string, but was given a ' . ref $args->{output_file};
 	}
+	# matplotlib picks the format by the extension, in any case, and ".svgz"
+	# is a gzipped SVG.
+	$tooltips_drawn = ( ( defined $args->{output_file} ) && ( $args->{output_file} =~ m/\.svgz?\z/i ) ) ? 1 : 0;
 	# A single plot is validated against the keywords of the type it asked
 	# for, so that a mistyped keyword is reported against "bar"'s keywords
 	# rather than the union of every type's -- which would suggest "notch"
@@ -5178,6 +5256,51 @@ sub plt {
 		say $fh 'import matplotlib, platform';
 		say $fh "plt.savefig(output_file, bbox_inches = 'tight', metadata={'Creator': $creator"
 		 . " + ', Python ' + platform.python_version() + ', matplotlib ' + matplotlib.__version__})";
+	}
+	if ( ( scalar @tooltip_text > 0 ) && ( not $tooltips_drawn ) ) {
+		warn '"tooltips" are drawn only into an SVG, so they are left out of '
+		 . ( defined $args->{output_file} ? "\"$args->{output_file}\"" : 'a figure that is only shown' )
+		 . ': give "output_file" a name ending in ".svg"';
+	}
+	if ( ( scalar @tooltip_text > 0 ) && $tooltips_drawn ) {
+		write_data({
+			data => \@tooltip_text,
+			fh   => $fh,
+			name => 'tooltip_text'
+		});
+		write_data({
+			data => $tooltip_url,
+			fh   => $fh,
+			name => 'tooltip_url'
+		});
+		# Each labelled point was drawn inside <a xlink:href="#...-<n>"
+		# target="_blank">, which becomes a bare <g> whose first child is a
+		# <title> holding text n. The namespaces are registered so that the
+		# file is written back with matplotlib's own prefixes rather than ns0,
+		# ns1, ...
+		print {$fh} <<'PYTHON';
+import xml.etree.ElementTree as ET, gzip
+svg_ns = 'http://www.w3.org/2000/svg'
+xlink_href = '{http://www.w3.org/1999/xlink}href'
+for prefix, uri in (('', svg_ns), ('xlink', 'http://www.w3.org/1999/xlink'),
+	('rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'),
+	('cc', 'http://creativecommons.org/ns#'), ('dc', 'http://purl.org/dc/elements/1.1/')):
+	ET.register_namespace(prefix, uri)
+svg_open = gzip.open if output_file.lower().endswith('.svgz') else open
+with svg_open(output_file, 'rb') as svg:
+	svg_tree = ET.parse(svg)
+for link in list(svg_tree.iter('{%s}a' % svg_ns)):
+	href = link.get(xlink_href, '')
+	if not href.startswith(tooltip_url):
+		continue
+	link.tag = '{%s}g' % svg_ns
+	link.attrib.clear()
+	title = ET.Element('{%s}title' % svg_ns)
+	title.text = tooltip_text[int(href[len(tooltip_url):])]
+	link.insert(0, title)
+with svg_open(output_file, 'wb') as svg:
+	svg_tree.write(svg, encoding = 'utf-8', xml_declaration = True)
+PYTHON
 	}
 	say $fh 'plt.show()' if $args->{show}; # after savefig, so the file is written even if the window is never closed
 	# As a Python bool, as the other switches are: compared with "==", "execute

@@ -1,5 +1,11 @@
 Revision history for Matplotlib-Simple
 
+0.321 not yet released (Claude Opus 5.5 helped)
+
+ [New]
+
+ - `scatter` takes `tooltips`, a label for each point that a web browser shows when the mouse is over it in an SVG: `tooltips => [ 'Sample 1', undef, 'Sample 3' ]` for one set, or a hash of such arrays keyed by set name for several. There must be exactly one entry per point, and `undef` is a point with no label. A point that matplotlib does not draw, NaN or not above 0 on a log axis, takes its label with it, and the rest keep theirs. Eye of GNOME and other image viewers show the same file without the labels. Any `output_file` that is not `.svg` or `.svgz` is drawn without them, with a warning.
+
 0.32 2026-10-12 CDT (Claude Opus 5.5 helped)
 
  [New]

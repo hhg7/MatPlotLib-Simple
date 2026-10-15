@@ -232,6 +232,8 @@ problem, not an installer's.
   against 0 .. n-1, in the form of `t/12.review.fixes.0.319.t`.
 - `t/14.review.fixes.0.32.t` — one block per fix of 0.32, in the form of
   `t/12.review.fixes.0.319.t`.
+- `t/15.tooltips.t` — `scatter`'s `tooltips`: the option contract without
+  Python, and, rendered, that each `<title>` lands on its own point.
 - `t/utf8.mojibake.t` — labels arriving as raw utf8 bytes rather than wide
   characters.
 - `Matplotlib-Simple-0.3*/` and the matching `.tar.gz` — snapshots of past
@@ -245,7 +247,7 @@ problem, not an installer's.
 
     prove -Ilib t/
 
-The full suite is 1243 tests in about 80 seconds on a machine with python3 and
+The full suite is 1313 tests in about 80 seconds on a machine with python3 and
 matplotlib. `perl Makefile.PL && make test` also works.
 
 ## Releasing

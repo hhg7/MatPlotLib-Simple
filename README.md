@@ -2560,6 +2560,35 @@ error.
 |`logscale`| an array of the axes to put on a log scale | `logscale => ['x', 'y']` |
 |`set_options`| arguments passed straight to Matplotlib's `ax.scatter`: `marker`, `color`, `alpha`, `s`, …  A **scalar** for the single-set form; a **hash keyed by set name** for the multi-set form; the other shape is refused.  Options for a set that has no data are an error.  A `label` here replaces the set's name in the legend | `set_options => 'marker = "v", alpha = 0.4'` |
 |`show_legend`| the multi-set form only: label each set with its name, for the legend; on by default | `show_legend => 0` |
+|`tooltips`| text shown when the mouse is over a point, in an SVG; see [Tooltips](#tooltips).  An **array** of one label per point for the single-set form, `undef` for a point without one; a **hash keyed by set name** of such arrays for the multi-set form | `tooltips => ['Sample 1', undef, 'Sample 3']` |
+
+### Tooltips
+
+`tooltips` puts a label on each point that appears when the mouse is over it.
+It is written into the SVG as each point's `<title>`, which a web browser
+(Firefox, Chrome, ...) shows on hovering.  Image viewers such as Eye of GNOME
+and Inkscape open the same file and show the plot as it is, without the
+labels.  `output_file` must end in `.svg` or `.svgz`; any other format has no
+tooltips, and is drawn without them, with a warning.
+
+    scatter(
+    	output_file => '/tmp/samples.svg',
+    	data        => { Height => [ 150, 162, 175 ], Weight => [ 50, 61, 80 ] },
+    	tooltips    => [ 'Sample 1', undef, 'Sample 3' ],    # the second point has none
+    );
+
+The array must hold exactly one entry per point, in the order of the data, so
+that each label lands on its own point; give `undef` for a point that should
+have no label.  An array of the wrong length is refused, with both counts.  For
+the multi-set form, give a hash of such arrays keyed by set name, as for
+`set_options`; a set that is left out has no labels, and a name that is not a
+set of `data` is refused.  A one-point set takes an array of one label.
+
+A point that matplotlib does not draw, such as one with a NaN value or one that
+is not above 0 on a log axis, takes its label with it, and every other point
+keeps its own.  The labels reach each point through matplotlib's per-point
+`urls`, so a set with `tooltips` cannot also have a `url` or `urls` in its
+`set_options`.
 
 x, y and the color key of a set must hold the same number of values; a set that
 does not is refused, naming its axes and their lengths.

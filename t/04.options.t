@@ -287,6 +287,7 @@ my %OPTIONS = (
 		{ opt => 'logscale',    val => ['y'], want => qr/set_yscale\("log"\)/ },
 		{ opt => 'set_options', val => 'marker = "v"', want => qr/marker = "v"/ },
 		{ opt => 'cbpad',       val => 0.1,   want => qr/pad = 0\.1/ },
+		{ opt => 'tooltips',    val => [ map { "p$_" } @cx ], want => qr/urls = tooltip_urls/ },
 		{ opt => 'cbdrawedges', val => 1,     want => qr/drawedges/ },
 	],
 	venn_proportional_area => [
@@ -351,6 +352,7 @@ my @NOT_ACCEPTED = (
 	[ 'boxplot',    'bins',        5,       'bins belongs to hist', 'hist' ],
 	[ 'pie',        'stacked',     1,       'stacked belongs to bar', 'bar, barh' ],
 	[ 'plot',       'notch',       'True',  'notch belongs to boxplot', 'boxplot' ],
+	[ 'plot',       'tooltips',    ['a'],   'tooltips belongs to scatter', 'scatter' ],
 );
 foreach my $case (@NOT_ACCEPTED) {
 	my ( $type, $opt, $val, $why, $belongs_to ) = @{$case};
