@@ -5,7 +5,8 @@
 #
 # A labelled point is drawn with a url, which matplotlib writes as a link
 # around that point's marker; once the SVG is saved the script turns each link
-# into a <g> whose <title> is the label. The render blocks check that each
+# into a <g> whose <title> is the label, and adds a script at the end of the
+# SVG that draws that label in a box on hovering. The render blocks check that each
 # title sits on its own point, by the marker's x coordinate, including where
 # matplotlib leaves a point out.
 #
@@ -312,7 +313,8 @@ SKIP: {
 	# back in order if, and only if, each is on its own point
 	my $svg = render( plot_type => 'scatter', data => { X => [ 1, 2, 3, 4 ], Y => [ 3, 1, 4, 2 ] }, tooltips => [ 'p1', undef, 'p3 <&> "ρ"', 'p4' ] );
 	is_deeply( [ labels_by_x($svg) ], [ 'p1', 'p3 <&> "ρ"', 'p4' ], 'one set: each title is on its own point, the undef point has none' );
-	unlike( $svg, qr/matplotlib-simple-tooltip|<a /, 'one set: no link is left in the SVG' );
+	# the url, not the bare name, which is also the class of each labelled <g>
+	unlike( $svg, qr/#matplotlib-simple-tooltip-|<a /, 'one set: no link is left in the SVG' );
 	like( $svg, qr/\A<\?xml version='1\.0' encoding='utf-8'\?>\n<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/, 'one set: the SVG is written back with its own namespace as the default' );
 	# matplotlib leaves out the NaN point and the one not above 0 on a log axis
 	$svg = render( plot_type => 'scatter', data => { X => [ 1, 2, 3, 4, 5 ], Y => [ 1, 'nan', 3, -1, 5 ] }, logscale => ['y'], tooltips => [ map { "p$_" } 1 .. 5 ] );
@@ -519,6 +521,31 @@ SKIP: {
 	my ( $out, $err, $status ) = capture { local $ENV{MPLBACKEND} = 'Agg'; system( @PY, $script ) };
 	is( $status, 0, 'a script written with execute => 0 runs later' ) or diag("  python: $err");
 	is_deeply( [ labels_by_x( -e $later ? slurp($later) : '' ) ], [ 1 .. 4 ], 'a script run later puts the titles in' );
+}
+
+# ----------------------------------------------------------------------------
+# 18. The label is drawn by a script in the SVG, not left to the browser: in
+#     0.321 the <title>s alone showed nothing in Firefox or Chromium. The
+#     script's behaviour in a browser is not tested here, since that needs
+#     one; these check that it is there, once, and finds the points.
+# ----------------------------------------------------------------------------
+{
+	my ($py) = gen( plot_type => 'scatter', data => {%one}, tooltips => [ 1 .. 4 ] );
+	like( $py, qr/^tooltip_script = r'''/m, 'the script that draws the label is written into the python' );
+	like( $py, qr/link\.set\('class', 'matplotlib-simple-tooltip'\)/, 'each labelled point is given the class the script looks for' );
+}
+SKIP: {
+	skip( 'no matplotlib >= 3.10', 5 ) unless $mpl_available;
+	my $svg = render( plot_type => 'scatter', data => {%one}, tooltips => [ 'a', undef, 'c', 'd' ] );
+	my @classed = $svg =~ m{<g class="matplotlib-simple-tooltip">\s*<title>}g;
+	is( scalar @classed, 3, 'each point with a label, and only those, is a <g> of the class, its <title> first' );
+	my @scripts = $svg =~ m{<script\b}g;
+	is( scalar @scripts, 1, 'the SVG has one script' );
+	like( $svg, qr{<script type="text/javascript">[^<]*g\.matplotlib-simple-tooltip[^<]*</script>\s*</svg>\s*\z}, 'the script is the last thing in the SVG, so that it runs after every point and draws on top' );
+	$svg = render( plot_type => 'scatter', output_file => out_file('svgz'), data => {%one}, tooltips => [ 1 .. 4 ] );
+	like( $svg, qr{<script type="text/javascript">}, 'an .svgz has the script too' );
+	$svg = render( plot_type => 'scatter', data => {%one} );
+	unlike( $svg, qr{<script\b}, 'a scatter with no tooltips has no script' );
 }
 
 done_testing();

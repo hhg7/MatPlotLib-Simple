@@ -1,5 +1,11 @@
 Revision history for Matplotlib-Simple
 
+0.322 2026-10-21 CDT (Claude Opus 5.5 helped)
+
+ [Changed]
+
+ - An SVG holds the `Creator` note in `<dc:title>` and none of the rest of matplotlib's boilerplate. The file no longer opens with `<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">`, which matplotlib writes whatever it is asked and no browser reads, and its `<metadata>` has no `<dc:date>`, `<dc:format>` or `<dc:type>`. The same holds for `.svgz`. PNG, PDF and the other formats are written as before.
+
 0.321 2026-10-15 CDT (Claude Opus 5.5 helped)
 
  [New]

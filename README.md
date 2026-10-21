@@ -2565,11 +2565,15 @@ error.
 ### Tooltips
 
 `tooltips` puts a label on each point that appears when the mouse is over it.
-It is written into the SVG as each point's `<title>`, which a web browser
-(Firefox, Chrome, ...) shows on hovering.  Image viewers such as Eye of GNOME
-and Inkscape open the same file and show the plot as it is, without the
-labels.  `output_file` must end in `.svg` or `.svgz`; any other format has no
-tooltips, and is drawn without them, with a warning.
+Opened in a web browser (Firefox, Chromium, Chrome, ...), the SVG draws the
+label itself, in a box beside the point, by a short script at the end of the
+file.  Each label is also the point's `<title>`, for whatever runs no script:
+the script removes the titles as it starts, so that a browser does not show a
+label twice.  Image viewers such as Eye of GNOME and Inkscape open the same
+file and show the plot as it is, without the labels, and so does a browser
+showing the SVG through an `<img>` tag, which runs no script.  `output_file`
+must end in `.svg` or `.svgz`; any other format has no tooltips, and is drawn
+without them, with a warning.
 
     scatter(
     	output_file => '/tmp/samples.svg',
@@ -3046,11 +3050,19 @@ with `perl -Ilib wide.example.pl` to regenerate them.
 
 all files that can have notes with them, give notes about how the file was written.  For example, SVG files have the following:
 
-    <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm version 0.318 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7</dc:title>
+    <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm version 0.322 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
 
 The Perl version is the one that wrote the script; the Python and matplotlib
-versions are the ones that ran it, read by the script itself, so they are right
-even when a script written with `execute => 0` is run later or elsewhere.
+versions, the user and the host are those of whoever ran it, read by the script
+itself, so they are right even when a script written with `execute => 0` is run
+later or elsewhere.  A user that cannot be found is written as `unknown user`,
+and a host as `unknown host`.
+
+In an SVG, this note is all the metadata there is: the date, format and type
+that matplotlib would add are left out, and so is the
+`<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" ...>` line, which no browser
+reads.  Other formats, such as PNG and PDF, keep matplotlib's own notes beside
+this one.
 
 ## Speed
 To improve speed, all data can be written into a single temp python3 file thus:

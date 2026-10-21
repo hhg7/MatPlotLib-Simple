@@ -233,7 +233,14 @@ problem, not an installer's.
 - `t/14.review.fixes.0.32.t` — one block per fix of 0.32, in the form of
   `t/12.review.fixes.0.319.t`.
 - `t/15.tooltips.t` — `scatter`'s `tooltips`: the option contract without
-  Python, and, rendered, that each `<title>` lands on its own point.
+  Python, and, rendered, that each `<title>` lands on its own point and that
+  the script which draws the label on hovering is in the SVG. Whether a
+  browser *shows* it is not tested: that was checked by hand in headless
+  Chromium and Firefox, moving the pointer over each point and taking a
+  screenshot, because a `<title>` alone showed nothing in either in 0.321.
+- `t/16.creator.t` — the `Creator` note in a saved figure (an SVG's
+  `dc:title`), which ends with the user and host that ran the script, and
+  that an SVG carries no DOCTYPE and no other `dc:` metadata.
 - `t/utf8.mojibake.t` — labels arriving as raw utf8 bytes rather than wide
   characters.
 - `Matplotlib-Simple-0.3*/` and the matching `.tar.gz` — snapshots of past
@@ -247,7 +254,7 @@ problem, not an installer's.
 
     prove -Ilib t/
 
-The full suite is 1363 tests in about 90 seconds on a machine with python3 and
+The full suite is 1396 tests in about 100 seconds on a machine with python3 and
 matplotlib. `perl Makefile.PL && make test` also works.
 
 ## Releasing
