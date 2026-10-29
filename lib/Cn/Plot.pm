@@ -1892,6 +1892,7 @@ sub check_engine {
 	 . '; and for the figure: ' . join( ', ', sort keys %figure_kw )
 	 . ". engine => 'matplotlib', the default, draws all of it";
 }
+my $n_scripts = 0;    # scripts this process has named, for script_handle
 sub script_handle {
 	# The file an engine writes its script into, given a UTF-8 layer: the
 	# caller's "fh", or a new temporary file with the engine's suffix.
@@ -1908,7 +1909,21 @@ sub script_handle {
 		# File::Spec->tmpdir(), not a literal "/tmp": on MSWin32 there is no
 		# /tmp, and File::Temp dies with "Parent directory (\tmp\) does not
 		# exist" (CPAN Testers FAIL for 0.312 on Strawberry perl 5.42.2).
-		$fh = File::Temp->new(DIR => File::Spec->tmpdir, SUFFIX => $suffix, UNLINK => 0);
+		#
+		# The process, the time and a count lead the name, ahead of the X's
+		# File::Temp fills from rand(). The scripts are kept, and a caller who
+		# seeds rand() with a fixed "srand 7" got the same names on every run,
+		# each run stepping past the scripts the runs before it had left, until
+		# File::Temp gave up: "Have exceeded the maximum number of attempts
+		# (1000) to open temp file". Reseeding here would have cured it at the
+		# price of the caller's own sequence, which a fixed seed is there to
+		# keep.
+		$fh = File::Temp->new(
+			DIR      => File::Spec->tmpdir,
+			TEMPLATE => sprintf( 'cn-plot-%d-%d-%d-XXXXXX', $$, time, $n_scripts++ ),
+			SUFFIX   => $suffix,
+			UNLINK   => 0
+		);
 	}
 	# Non-ASCII key names (e.g. Greek letters like ρ, τ) arrive as wide
 	# characters when the caller has "use utf8", so give the output filehandle
@@ -2487,12 +2502,14 @@ __END__
 
 =head1 NAME
 
-Matplotlib::Simple - Access Matplotlib from Perl; providing consistent user interface between different plot types
+Cn::Plot - Plots from Perl data structures, drawn by matplotlib, gnuplot or ggplot2, with one interface for every plot type
+
+Until version 0.4 this module was called C<Matplotlib::Simple>, and it drew with matplotlib alone.  Apart from C<use Cn::Plot> in place of C<use Matplotlib::Simple>, a program written for it runs unchanged and draws the same figures.  See L<#engines> for the rest.
 
 =head1 Synopsis
 
-Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in the system's temporary directory (C<< File::Spec-E<gt>tmpdir >>, which is C</tmp> on unix), to be edited at the user's discretion.
-Depends on Python 3 and matplotlib.  The script is run with C<python3>; on Windows, where a standard install has no C<python3>, it is run with the first of C<python>, C<py -3> and C<python3> that reports itself as Python 3 (as of version 0.315 -- before that, the module could not run its script on Windows at all).  To run a different interpreter -- a venv, or a newer Python on a cluster whose system C<python3> is too old -- set the environment variable C<MATPLOTLIB_SIMPLE_PYTHON> to its path, such as C<export MATPLOTLIB_SIMPLE_PYTHON=~/mpl/bin/python3> (as of version 0.317).  The generated scripts cannot run with a matplotlib older than 3.5, which does not accept the constrained layout they ask for; the test suite is written against 3.10 and newer, and skips its drawing checks with anything older.  Pass C<< execute =E<gt> 0 >> to write the script without running it.
+Take a data structure in Perl, and automatically write a script that draws it: a Python 3 script using matplotlib by default, or with C<< engine =E<gt> 'gnuplot' >> or C<< engine =E<gt> 'ggplot2' >> a gnuplot or R script.  The script is saved in the system's temporary directory (C<< File::Spec-E<gt>tmpdir >>, which is C</tmp> on unix), to be edited at the user's discretion.
+The default engine depends on Python 3 and matplotlib.  The script is run with C<python3>; on Windows, where a standard install has no C<python3>, it is run with the first of C<python>, C<py -3> and C<python3> that reports itself as Python 3 (as of version 0.315 -- before that, the module could not run its script on Windows at all).  To run a different interpreter -- a venv, or a newer Python on a cluster whose system C<python3> is too old -- set the environment variable C<CN_PLOT_PYTHON> to its path, such as C<export CN_PLOT_PYTHON=~/mpl/bin/python3>.  Its name until version 0.4, C<MATPLOTLIB_SIMPLE_PYTHON> (as of version 0.317), is still read when C<CN_PLOT_PYTHON> is not set.  The generated scripts cannot run with a matplotlib older than 3.5, which does not accept the constrained layout they ask for; the test suite is written against 3.10 and newer, and skips its drawing checks with anything older.  Pass C<< execute =E<gt> 0 >> to write the script without running it.
 
 My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib itself.
 
@@ -2500,7 +2517,7 @@ My aim is to simplify the most common tasks as much as possible.  In my opinion,
 
 Simplest use case:
 
- use Matplotlib::Simple;
+ use Cn::Plot;
  bar(
     output_file       => '/tmp/gospel.word.counts.png',
     data              => {
@@ -2513,7 +2530,7 @@ Simplest use case:
 
 A more complete (and slightly faster execution):
 
- use Matplotlib::Simple;
+ use Cn::Plot;
  plt(
     output_file       => '/tmp/gospel.word.counts.png',
     plot_type         => 'bar',
@@ -2536,7 +2553,7 @@ A more complete (and slightly faster execution):
 
 Having a C<plots> argument as an array lets the module know to create subplots:
 
- use Matplotlib::Simple 'plt';
+ use Cn::Plot 'plt';
  plt(
      output_file     => 'svg/pies.png',
      plots             => [
@@ -2787,6 +2804,182 @@ C<add> graph, says which one it was:
  
  "pye" isn't a defined plot_type for an "add" graph at subplot 1, perhaps
  you meant one of these defined plot types: (pie)
+
+=head1 Engines
+
+Every figure is drawn by an I<engine>, which is matplotlib unless C<engine> names
+another.  The rest of the call stays as it is:
+
+ use Cn::Plot;
+ bar(
+    output_file => 'gospel.svg',
+    data        => { Matthew => 18345, Mark => 11304, Luke => 19482, John => 15635 },
+    title       => 'Gospel word counts',
+    engine      => 'gnuplot',    # or 'ggplot2', or 'matplotlib', the default
+ );
+
+=for html
+<table>
+<tbody>
+<tr><td><code>engine</code></td><td>writes</td><td>runs it with</td><td>needs</td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td><td>-------</td></tr>
+<tr><td><code>matplotlib</code></td><td>a Python 3 script, <code>.py</code></td><td><code>python3</code>, or <code>CN_PLOT_PYTHON</code></td><td>matplotlib 3.5 or newer, and <code>matplotlib_venn</code> for <code>venn_proportional_area</code></td></tr>
+<tr><td><code>gnuplot</code></td><td>a gnuplot script, <code>.gp</code></td><td><code>gnuplot</code>, or <code>CN_PLOT_GNUPLOT</code></td><td>gnuplot 5.2 or newer</td></tr>
+<tr><td><code>ggplot2</code></td><td>an R script, <code>.R</code></td><td><code>Rscript</code>, or <code>CN_PLOT_RSCRIPT</code></td><td>R with the package ggplot2 3.5.0 or newer, and nothing else</td></tr>
+</tbody>
+</table>
+
+C<CN_PLOT_GNUPLOT> and C<CN_PLOT_RSCRIPT> work as C<CN_PLOT_PYTHON> does: when set
+and not empty, each is the path of the program to run, taken whole, spaces and
+all.  C<engine> belongs to the whole figure: it goes at the top of the call,
+beside C<plots> or C<p>, and is refused inside a subplot.  C<< execute =E<gt> 0 >>, C<fh>
+and the L<#speed> trick of writing several figures into one script work
+with every engine.
+
+gnuplot and ggplot2 write C<.svg>, C<.png> and C<.pdf>, and refuse any other
+C<output_file> by name.  A PNG is 100 dots to the inch, as matplotlib's is, and
+every figure is matplotlib's 6.4 by 4.8 inches, times C<scale>, C<scalex> and
+C<scaley>.  The note saying where a figure came from (see L<#notes-in-files>) is in the gnuplot and R scripts as a comment, and not
+in the file they write.
+
+=head2 What each engine draws
+
+matplotlib draws every plot type and every keyword in this documentation.
+gnuplot and ggplot2 draw these types:
+
+=for html
+<table>
+<tbody>
+<tr><td><code>plot_type</code></td><td>gnuplot</td><td>ggplot2</td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td></tr>
+<tr><td><code>bar</code>, <code>barh</code></td><td>yes, without <code>edgecolor</code></td><td>yes</td></tr>
+<tr><td><code>boxplot</code></td><td>yes, without <code>notch</code></td><td>yes</td></tr>
+<tr><td><code>colored_table</code>, <code>hist</code>, <code>hist2d</code>, <code>imshow</code>, <code>pie</code>, <code>plot</code>, <code>scatter</code>, <code>violin</code>, <code>wide</code></td><td>yes</td><td>yes</td></tr>
+<tr><td><code>hexbin</code></td><td>no</td><td>no: <code>geom_hex</code> needs the R package hexbin, which ggplot2 does not depend on</td></tr>
+<tr><td><code>venn_proportional_area</code></td><td>no</td><td>no</td></tr>
+</tbody>
+</table>
+
+and these keywords of every plot: C<title>, C<xlabel>, C<ylabel>, C<set_title>,
+C<set_xlabel>, C<set_ylabel>, C<set_xlim>, C<set_ylim>, C<ylim>, C<xscale>, C<yscale>,
+C<set_xscale> and C<set_yscale>; and of the figure: C<suptitle>, C<scale>,
+C<scalex>, C<scaley>, C<output_file>, C<execute> and C<fh>, besides C<plots>, C<p>,
+C<ncols> and C<nrows>.  Each type takes its own keywords as documented below,
+except for these, which only matplotlib draws:
+
+=over
+
+=item * Python of your own: C<set_options>, C<twinx_args> and C<legend>, and any of
+matplotlib's C<ax>, C<fig> and C<plt> methods not named above;
+
+=item * C<tooltips>, C<twinx>, C<sharex>, C<sharey>, C<shared_colorbar>, C<linewidth>,
+C<cbpad>, C<cbdrawedges>, C<cblocation>, C<cborientation> and C<show>.
+
+=back
+
+Anything an engine does not draw is refused by name, with what it does draw,
+rather than left out of the figure:
+
+ bar( engine => 'gnuplot', output_file => 'counts.svg',
+      data => { Matthew => 18345, Mark => 11304 }, edgecolor => 'black' );
+ 
+ plt: the gnuplot engine does not draw "edgecolor" for plot_type "bar". It
+ draws the plot types bar, barh, boxplot, colored_table, hist, hist2d,
+ imshow, pie, plot, scatter, violin, violinplot, wide, with these keywords
+ of their own: bar (color, key_order, label, log, logscale, stacked, width,
+ xerr, yerr); [...] engine => 'matplotlib', the default, draws all of it
+
+Each engine also refuses, by name, the few combinations it cannot draw: an
+error bar across a bar rather than along it, error bars on grouped bars, a
+C<bins> given as a rule such as C<'auto'>, an C<add> graph on a C<pie> or a
+C<colored_table> (or, in gnuplot, an C<imshow>), whose axes are their own, and
+two graphs on one plot that would each need a color scale of their own, such as
+a C<scatter> colored by C<color_key> over a C<hist2d>.
+
+=head2 How the keywords are read
+
+The keywords are matplotlib's, and so are the conventions of their values,
+which gnuplot and ggplot2 read as matplotlib would:
+
+=over
+
+=item * B<Text.> A title or label that would be Python to matplotlib (see L<#quoting-text-commas-and-apostrophes>) is read as Python:
+C<< title =E<gt> '"Two groups, mean and s.d."' >> is the words inside the quotes, and
+C<r'C:\new'> keeps its backslash.  Text followed by matplotlib's own
+arguments, such as C<'"Counts", fontsize = 20'>, is refused, and so is an
+f-string.  Everything else is the words as given, quotes, backslashes, C<@>,
+C<&>, C<^>, C<_>, C<{> and non-ASCII characters included.  Mathtext such as
+C<$\alpha$> is shown as written.
+
+=item * B<Colors.> matplotlib's names -- the base colors such as C<'k'>, the CSS4
+names, the C<'tab:'> colors and C<'C0'> to C<'C9'> -- and C<'#rrggbb'>, a gray
+level from C<'0'> to C<'1'>, or C<(r, g, b)> from 0 to 1, each drawn as the color
+matplotlib gives it.  gnuplot and R have color names of their own, which
+differ from matplotlib's and from each other, so these are not used.  The
+C<'xkcd:'> names are refused.
+
+=item * B<Colormaps.> C<cmap> is one of C<viridis>, C<plasma>, C<inferno>, C<magma>,
+C<cividis>, C<turbo>, C<gist_rainbow>, C<rainbow>, C<jet>, C<coolwarm>, C<bwr>,
+C<seismic>, C<RdBu>, C<RdYlBu>, C<RdYlGn>, C<Spectral>, C<PiYG>, C<PRGn>, C<BrBG>,
+C<Blues>, C<Greens>, C<Greys>, C<Oranges>, C<Purples>, C<Reds>, C<YlOrRd>, C<YlGnBu>,
+C<hot>, C<cool>, C<spring>, C<summer>, C<autumn>, C<winter>, C<gray>, C<bone> or
+C<copper>, or any of them reversed with C<_r>, sampled from matplotlib.
+
+=item * B<Axis ranges.> C<set_xlim>, C<set_ylim> and C<ylim> are two numbers, the bottom
+and the top, as C<'0, 10'>, C<'(0, 10)'> or C<[ 0, 10 ]>, with C<None> for an end
+left where the engine puts it.  Keyword forms such as C<'right = 180'> are
+refused.  C<xscale> and the rest are C<'log'> or C<'linear'>.
+
+=back
+
+=head2 C<style>: matplotlib's look, or the engine's own
+
+By default gnuplot and ggplot2 draw what matplotlib draws: its colors and
+colormaps, its figure size, and its statistics -- a hist's bins, a boxplot's
+quartiles and whiskers, a violin's density -- worked out in Perl as numpy and
+scipy work them out, and only drawn by the engine.  Changing C<engine> changes
+how the figure is rendered, and not what it shows.
+
+C<< style =E<gt> 'native' >> lets the engine choose all of that for itself:
+
+ plt( ..., engine => 'ggplot2', style => 'native' );
+
+=for html
+<table>
+<tbody>
+<tr><td></td><td><code>style => 'matplotlib'</code> (the default)</td><td><code>style => 'native'</code></td></tr>
+<tr><td>--------</td><td>-------</td><td>-------</td></tr>
+<tr><td>colors not given</td><td>matplotlib's <code>C0</code>, <code>C1</code>, ...</td><td>gnuplot's linetype colors; ggplot2's hue scale</td></tr>
+<tr><td>colormap not given</td><td>matplotlib's default for the type</td><td>gnuplot's default palette; ggplot2's blue gradient</td></tr>
+<tr><td><code>boxplot</code></td><td>numpy's quartiles, whiskers to 1.5 IQR</td><td>gnuplot's <code>with boxplot</code>; ggplot2's <code>stat_boxplot</code></td></tr>
+<tr><td><code>violin</code></td><td>scipy's Gaussian density, Scott's bandwidth</td><td>gnuplot's <code>smooth kdensity</code>; ggplot2's <code>geom_violin</code></td></tr>
+<tr><td><code>hist</code></td><td>numpy's bins</td><td>gnuplot's <code>bins</code> filter; ggplot2's <code>stat_bin</code></td></tr>
+<tr><td><code>hist2d</code></td><td>numpy's 2-D bins</td><td>computed in Perl for gnuplot; ggplot2's <code>geom_bin_2d</code></td></tr>
+<tr><td>frame, ticks, legend</td><td>matplotlib's</td><td>the engine's own theme</td></tr>
+</tbody>
+</table>
+
+What you give is drawn either way: the data, the key order, a C<color> or a
+C<cmap>, the labels, ranges, log scales and the size.  With no C<bins>, a hist
+has 10 under either style, matplotlib's default: gnuplot's own count is the
+number of points it samples a curve at, 100, and ggplot2's 30 comes with a
+warning that it should be chosen.  C<pie> and C<wide> are worked out in Perl
+under both styles, since neither engine has a statistic of its own for them.
+Under matplotlib, C<< style =E<gt> 'native' >> draws what the default does.
+
+A few things only the matplotlib style draws, and C<native> refuses by name,
+saying so:
+
+ plt: gnuplot's boxplot style draws its boxes upright only, so style =>
+ 'native' cannot draw orientation => 'horizontal'; style => 'matplotlib'
+ can
+
+namely a horizontal C<boxplot> or C<hist> in gnuplot, a horizontal C<violin> with
+C<whiskers> in gnuplot, a hist whose C<bins> are edges of different widths in
+gnuplot, and, in ggplot2, a C<bar>, C<boxplot> or C<violin> overlaid with a type
+whose positions are numbers, since native ggplot2 puts their keys on a category
+axis.  C<style> too belongs to the whole figure, and is refused inside a
+subplot.
 
 =head1 Color Bars (colorbars)
 
@@ -3145,7 +3338,7 @@ an example of multiple plots, showing many options:
 
 =head3 single, simple plot
 
- use Matplotlib::Simple 'plt';
+ use Cn::Plot 'plt';
  plt(
      output_file             => 'output.images/single.barplot.png',
      data    => { # simple hash
@@ -3438,7 +3631,7 @@ The C<whiskers> switch belongs to L<#violin>, not to C<boxplot>.
 
 single plots are simple
 
- use Matplotlib::Simple 'boxplot';
+ use Cn::Plot 'boxplot';
  boxplot(
      output_file => 'output.images/single.boxplot.png',
      data              => {                                     # simple hash
@@ -4028,7 +4221,7 @@ as of version 0.26, single arrays can be given to C<hist> instead of a hash, sim
 
 for slightly more complex data sets, hashes are taken:
 
- use Matplotlib::Simple 'hist';
+ use Cn::Plot 'hist';
  
  my @e = generate_normal_dist( 100, 15, 3 * 200 );
  my @b = generate_normal_dist( 85,  15, 3 * 200 );
@@ -5837,7 +6030,7 @@ with C<perl -Ilib wide.example.pl> to regenerate them.
 
 all files that can have notes with them, give notes about how the file was written.  For example, SVG files have the following:
 
- <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm version 0.322 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
+ <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Cn/Plot.pm version 0.4 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
 
 The Perl version is the one that wrote the script; the Python and matplotlib
 versions, the user and the host are those of whoever ran it, read by the script

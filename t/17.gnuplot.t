@@ -441,8 +441,22 @@ foreach my $name ( 'bar, one bar per key', 'boxplot, a hash', 'hist, a hash', 'v
 	ok( ( defined $size ) && ( $size < 11 ), 'and "Mark" beside "Matthew" in a font below the 11 of the rest of the labels' ) or diag( '  font: ' . ( $size // 'none' ) );
 	($gp) = gen( %{ $grid{plots}[1] } );
 	unlike( $gp, qr/^set [xy]tics \d/m, 'a figure of one plot keeps gnuplot\'s tics' );
+	# A label running into the next is no part of gnuplot's own look, so
+	# style => 'native' is thinned as well.
 	($gp) = gen( %grid, style => 'native' );
-	unlike( $gp, qr/^set (?:[xy]|cb)tics (?:\d|font)/m, 'and so does style => "native"' );
+	like( $gp, qr/^set ytics 20$/m, 'native: the count axis every 20 too' );
+	like( $gp, qr/^set xtics font ",\d+\.\d"$/m, 'native: and "Mark" beside "Matthew" smaller' );
+	# gnuplot bins a native hist itself, so its counts are worked out in Perl
+	# by gnuplot's rule for the tics alone: in the same grid, 300 values in 10
+	# bins reach 80 or so, and were labelled every 10.
+	srand 11;    # values the same from run to run, for the count below
+	my @a = map { sqrt( -2 * log( 1 - rand ) ) * cos( 6.283185307 * rand ) } 1 .. 300;
+	srand();     # and File::Temp's names no longer so; see the srand() above block 1
+	($gp) = gen( %grid, plots => [ $grid{plots}[0], { plot_type => 'hist', data => { A => \@a } }, @{ $grid{plots} }[ 2, 3 ] ], style => 'native' );
+	my ($step) = $gp =~ m/^set ytics (\d+)$/m;
+	ok( ( defined $step ) && ( $step >= 20 ), 'native: a hist\'s counts are labelled every 20 or more, not every 10' ) or diag( '  step: ' . ( $step // 'none' ) );
+	is( Cn::Plot::Gnuplot::native_bin_peak( [ 0, 1, 1, 2, 2, 2 ], 3 ), 3, 'native_bin_peak: three centers, 0, 1 and 2, the fullest holding 3' );
+	is( Cn::Plot::Gnuplot::native_bin_peak( [ 0.4, 0.6, 1.4, 1.6 ], [ 0, 1, 2 ] ), 2, 'native_bin_peak: edges, two values in each bin' );
 }
 
 # ----------------------------------------------------------------------------

@@ -277,7 +277,7 @@ sub palette {
 	push @set, 'set cblabel ' . gp_str( $args->{label} ) if $args->{colorbar} && defined $args->{label};
 	# A colorbar as tall as a small subplot holds fewer labels than gnuplot
 	# gives it, which ran into each other in a 2 by 2 grid.
-	if ( $args->{colorbar} && ( not $args->{log} ) && ( defined $panel_h ) && ( not $native ) && ( defined $args->{lo} ) && ( defined $args->{hi} ) ) {
+	if ( $args->{colorbar} && ( not $args->{log} ) && ( defined $panel_h ) && ( defined $args->{lo} ) && ( defined $args->{hi} ) ) {
 		my $step = tick_step( $args->{lo}, $args->{hi}, tick_bins( plot_length('y'), 2 ) );
 		push @set, 'set cbtics ' . gp_num($step) if defined $step;
 	}
@@ -924,12 +924,38 @@ sub draw_hist_native {
 		my $bins = ( ref $plot->{bins} eq 'HASH' ) ? $plot->{bins}{$set} : $plot->{bins};
 		my $given = ( ref $plot->{color} eq 'HASH' ) ? $plot->{color}{$set} : $plot->{color};
 		die "\"color\" for set \"$set\" is an array, but $current_sub draws each set in one color" if ref $given;
+		push @extent, [ undef, 0 ], [ undef, native_bin_peak( $sets->{$set}, $bins ) ];
 		my $color = defined $given ? hex_of( $given, "\"color\" of \"$set\"" ) : next_color( $axes, 'patches' );
 		my $fill = defined $alpha ? sprintf( 'fs transparent solid %s ', gp_num($alpha) ) : '';
 		push @{ $g{plot} }, "$block using 1 " . native_bins( $bins, $set ) . " with boxes ${fill}lc rgb " . gp_str($color) . ' ' . key_title( $legend ? $set : undef );
 		$g{legend} = 1 if $legend;
 	}
 	return \%g;
+}
+sub native_bin_peak {
+	# The count in the fullest of the bins native_bins asks gnuplot for, for
+	# thin_tics, which spaces the tics of a small subplot over the range of the
+	# data: gnuplot bins these itself, so the counts were nowhere in Perl, and
+	# a native hist in a 2 by 2 grid kept gnuplot's tic every 10 from 0 to 80.
+	# The rule is gnuplot's ("help bins"): N centers from the least value to
+	# the greatest, or from "binrange" by "binwidth", each value counted at the
+	# nearest. Only the tics read this; gnuplot still draws the bars.
+	my ( $values, $bins ) = @_;
+	my @v = grep { ( defined ) && looks_like_number($_) && is_finite($_) } @{$values};
+	return 0 if scalar @v == 0;
+	my ( $first, $width );
+	if ( ref $bins eq 'ARRAY' ) {
+		$width = ( $bins->[-1] - $bins->[0] ) / $#{$bins};
+		$first = $bins->[0] + $width / 2;
+	} else {
+		my $n = $bins // 10;    # native_bins' default
+		$first = min(@v);
+		$width = ( $n > 1 ) ? ( max(@v) - $first ) / ( $n - 1 ) : 0;
+	}
+	return scalar @v if $width <= 0;    # every value at one center
+	my %count;
+	$count{ POSIX::floor( ( $_ - $first ) / $width + 0.5 ) }++ foreach @v;
+	return max( values %count );
 }
 sub native_bins {
 	# The "bins" option of a plot clause for a hist's "bins": 10 for none, as
@@ -1515,9 +1541,11 @@ sub thin_tics {
 	# had a count axis labelled every 10 from 0 to 80, the labels touching. A
 	# number axis gets a step; an axis of category labels too long for the
 	# room between them gets a smaller font, as small as 6 points. None for a
-	# figure of one plot, a log axis, or under style => 'native'.
+	# figure of one plot or a log axis. Under style => 'native' too, since a
+	# label running into the next is no part of gnuplot's look: in a native
+	# 2 by 2 grid the counts up a hist and "Mark" and "Matthew" overlapped.
 	my ( $graphs, $plot, $margin ) = @_;
-	return () if $native || ( not defined $panel_w );
+	return () unless defined $panel_w;
 	my @set = map { @{ $_->[1]{set} } } @{$graphs};
 	my @out;
 	foreach my $axis ( 'x', 'y' ) {

@@ -380,9 +380,20 @@ sub pinned_script {
 	like( script_of( %hi, bins => 4, orientation => 'horizontal' ), qr/aes\(y = v\), bins = 4, position = "identity", orientation = "y"/, 'hist: a count of bins, and the horizontal orientation' );
 	unlike( script_of(%hi), qr/alpha|fill/, 'hist: one set alone is ggplot2\'s own grey, opaque' );
 	like( script_of( plot_type => 'hist', data => { A => [ 1, 2 ], B => [ 3, 4 ] }, bins => { A => 2, B => 3 }, style => 'native' ), qr/bins = 2,.*bins = 3,/s, 'hist: bins by set are a layer per set' );
-	my $r = script_of( plot_type => 'bar', data => { A => 1, B => 2 }, yerr => [ 0.1, 0.2 ], width => 0.5, edgecolor => 'k', log => 1, style => 'native' );
+	my $r = script_of( plot_type => 'bar', data => { A => 1, B => 2 }, yerr => [ 0.1, 0.2 ], width => 0.5, edgecolor => 'k', style => 'native' );
 	like( $r, qr/width = 0\.5, colour = c\("#000000", "#000000"\).*geom_errorbar\(.*width = 0\.25/s, 'bar: width, edgecolor and yerr' );
+	# geom_col stands a bar on 0 of the transformed scale, 1 on a log axis, so
+	# a bar of 1 had no height: on a log axis the bars are rectangles from a
+	# tenth of the least value, each reaching its own value
+	$r = script_of( plot_type => 'bar', data => { a => 1, b => 10, c => 1000 }, width => 0.5, edgecolor => 'k', log => 1, style => 'native' );
 	like( $r, qr/scale_y_continuous\(transform = "log10"\)/, 'bar: log' );
+	like( $r, qr/geom_blank\(data = data\.frame\(k = factor\(c\("a", "b", "c"\)/, 'bar, log: the keys still make a discrete axis, in order' );
+	like( $r, qr/geom_rect\(data = data\.frame\(xmin = c\(0\.75, 1\.75, 2\.75\), xmax = c\(1\.25, 2\.25, 3\.25\), ymin = c\(0\.1, 0\.1, 0\.1\), ymax = c\(1, 10, 1000\),/, 'bar, log: rectangles of "width", from a tenth of the least value up to each value' );
+	like( $r, qr/fill = c\("grey35", "grey35", "grey35"\), colour = c\("#000000"/, 'bar, log: in geom_col\'s own grey, with the edgecolor' );
+	unlike( $r, qr/geom_col/, 'bar, log: and no geom_col' );
+	$r = script_of( plot_type => 'bar', data => { X => { a => 1, b => 10 }, Y => { a => 100, b => 5 } }, stacked => 1, log => 1, style => 'native' );
+	like( $r, qr/ymin = c\(0\.1, 0\.1, 1, 100\), ymax = c\(1, 100, 11, 105\)/, 'bar, log, stacked: each series stands on the one below it, the first on a tenth of the least value' );
+	like( $r, qr/aes\(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = s\)/, 'bar, log, stacked: the series in the fill scale' );
 	$r = script_of( plot_type => 'bar', data => { A => [ 1, 2 ], B => [ 3, 4 ] }, style => 'native' );
 	like( $r, qr/position = "dodge".*scale_fill_hue\(.*guide = "none"\)/s, 'bar: series with no name are dodged, and told apart by color without a legend' );
 	like( script_of( plot_type => 'bar', data => { A => { x => 1 }, B => { x => 2 } }, stacked => 1, style => 'native' ), qr/position = "stack"/, 'bar: stacked' );

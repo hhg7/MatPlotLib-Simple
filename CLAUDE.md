@@ -1,8 +1,14 @@
-# Matplotlib::Simple
+# Cn::Plot
 
-A Perl module that turns a Perl data structure into a Python 3 script using
-matplotlib, writes that script to a temporary file, and (unless `execute => 0`)
-runs it. The Perl side is a code generator; the real output is Python.
+A Perl module that turns a Perl data structure into a script that draws it --
+Python 3 with matplotlib by default, or with `engine => 'gnuplot'` or
+`engine => 'ggplot2'` a gnuplot or R script -- writes that script to a
+temporary file, and (unless `execute => 0`) runs it. The Perl side is a code
+generator; the real output is the script.
+
+Until 0.4 it was `Matplotlib::Simple`, which drew with matplotlib alone. The
+rename and the split into a front end and engines are described under
+[Engines](#engines); the snapshots of past releases keep the old name.
 
 The global `~/.claude/CLAUDE.md` comment doctrine applies here in full. Perl
 source is indented with tabs.
@@ -30,17 +36,28 @@ or `File::Temp`'s `tempdir`. This applies to test output files as much as to
 the generated script: `output_file => '/tmp/foo.svg'` in a test is the same
 bug wearing a different hat.
 
-**Never interpolate a filesystem path into the generated Python.** A Windows
-path is `C:\cpan\build\...`, and inside a Python string literal `\b` is a
-backspace and `\c` is an invalid escape — a SyntaxWarning in Python 3.12 and a
-SyntaxError from 3.15. An apostrophe anywhere in the path closes the literal
-early on any platform. Two ways to get this right, both already in the module:
+**Never interpolate a filesystem path, or any text, into a generated script.**
+A Windows path is `C:\cpan\build\...`, and inside a Python string literal `\b`
+is a backspace and `\c` is an invalid escape — a SyntaxWarning in Python 3.12
+and a SyntaxError from 3.15. An apostrophe anywhere in the path closes the
+literal early on any platform. Each engine has its escaper, and every label,
+key and output path goes through it:
 
-- `py_str($str)` renders a Perl string as an escaped Python literal. Use it for
+- matplotlib: `py_str($str)` (in `lib/Cn/Plot.pm`, since `frame_to_data` uses
+  it too) renders a Perl string as an escaped Python literal; use it for
   anything short that must land in the script as text — labels, metadata.
-- `write_data({ data => ..., fh => ..., name => ... })` serialises to JSON,
+  `write_data({ data => ..., fh => ..., name => ... })` serialises to JSON,
   base64-encodes it, and emits a `json.loads(base64.b64decode(...))` line. Use
   it for data, and for the output filename, which already goes through it.
+- gnuplot: `gp_str`. Data goes into datablocks of numbers only; text reaches
+  the script through `gp_str` in tics and label commands, under `noenhanced`
+  so that `@ & ^ _ {` read as written.
+- ggplot2: `r_str`, which writes every non-ASCII character as `\u{...}` so that
+  the script is pure ASCII and Rscript reads it the same in any native
+  encoding, as it must on Windows. `svg()`, `png()` and `cairo_pdf()` read a
+  `%` in the file name as a format, so the output path has its `%`s doubled.
+  The data are R literals: the engine depends on ggplot2 and base R alone,
+  not jsonlite or base64enc.
 
 **Assume `/` and `\` are both path separators, and that a path may contain
 spaces.** `%TEMP%` on the smoker is `C:\Users\smoker\AppData\Local\Temp`.
@@ -48,14 +65,18 @@ Perl accepts `/` on Windows and so does Python, so building a path with `/` is
 fine; *parsing* one by splitting on `/` is not.
 
 **Keep the platform gates in the test suite honest.** A test that needs
-python3, matplotlib, or matplotlib_venn must `skip_all` or skip its block when
-the dependency is absent — a Windows smoker usually has none of the three, and
-a missing dependency must produce a SKIP, never a FAIL. Everything that does
+python3, matplotlib, matplotlib_venn, gnuplot or R with ggplot2 must
+`skip_all` or skip its block when the dependency is absent — a Windows smoker
+usually has none of them, and a missing dependency must produce a SKIP, never
+a FAIL. `t/17` gates its renders on gnuplot 5.2 (`reset session` and the
+`bins` filter, read from gnuplot's NEWS; only 6.0 has run them), and `t/18` on
+ggplot2 3.5.0 (the `transform` argument of the position scales and
+`geom_boxplot(staplewidth=)`), which the R script also checks for itself. Everything that does
 not need Python (`execute => 0`, the option contract, the string escaping)
 must still run there, because that is the part Windows actually breaks.
 
 **Ask the module which Python to run; never name `python3` in a test.** Every
-gate uses `my @PY = Matplotlib::Simple::python_command()`, which is what `plt`
+gate uses `my @PY = Cn::Plot::Matplotlib::python_command()`, which is what `plt`
 itself runs, so a Windows smoker that *does* have Python tests the module with
 it rather than skipping. Run it in the list form, `system(@PY, ...)`, and keep
 double quotes out of the arguments: Perl on Win32 builds the command line for
@@ -71,19 +92,23 @@ is the first of `python`, `py -3` and `python3` whose `--version` says
 Python 3; `--version` is checked rather than trusting that the name resolves,
 because Windows 10 and 11 install a Microsoft Store stub as `python.exe` that
 prints "Python was not found" and exits 9009. The answer is cached in the
-package variable `$Matplotlib::Simple::python_command` (undef = not yet looked
-for, `[]` = none found), which `t/08.python.interpreter.t` sets to drive the
-search with stand-in interpreters under `local $^O = 'MSWin32'`. Until 0.315
-the module ran `python3` unconditionally, so on Windows it could not run its
-script wherever Python *was* installed; that never showed up in a report
+package variable `$Cn::Plot::Matplotlib::python_command` (undef = not yet
+looked for, `[]` = none found), which `t/08.python.interpreter.t` sets to drive
+the search with stand-in interpreters under `local $^O = 'MSWin32'`. Until
+0.315 the module ran `python3` unconditionally, so on Windows it could not run
+its script wherever Python *was* installed; that never showed up in a report
 because the smokers have no Python.
 
-Since 0.317, `$ENV{MATPLOTLIB_SIMPLE_PYTHON}`, when set and not empty, comes
-before all of that: it is the interpreter, as one path, neither searched for
-nor checked, and never split on spaces. It exists for machines whose `python3`
-is too old, such as an HPC cluster whose system Python is 3.6.8 with matplotlib 3.0,
-where a venv or `module load` provides a newer one. The tests that drive the
-search `local`ise it away so that a caller's setting cannot decide them.
+`$ENV{CN_PLOT_PYTHON}`, when set and not empty, comes before all of that, and
+after it `$ENV{MATPLOTLIB_SIMPLE_PYTHON}`, its name from 0.317 until the rename
+in 0.4: it is the interpreter, as one path, neither searched for nor checked,
+and never split on spaces. It exists for machines whose `python3` is too old,
+such as an HPC cluster whose system Python is 3.6.8 with matplotlib 3.0, where
+a venv or `module load` provides a newer one. The tests that drive the search
+`local`ise both away so that a caller's setting cannot decide them. gnuplot
+and R are found the same way, through `program_from_env`:
+`$ENV{CN_PLOT_GNUPLOT}` or `gnuplot`, `$ENV{CN_PLOT_RSCRIPT}` or `Rscript`,
+with no search on Windows.
 
 ### A matplotlib gate is a version gate
 
@@ -121,8 +146,8 @@ Block 29 of `t/12.review.fixes.0.319.t` tries each installed backend in turn.
 
 ## The module does not use `autodie`
 
-`lib/Matplotlib/Simple.pm` opened with `use autodie ':all'` until 0.313, when
-it was removed at the maintainer's request. The behaviour was required not to
+The module (then `lib/Matplotlib/Simple.pm`) opened with `use autodie ':all'`
+until 0.313, when it was removed at the maintainer's request. The behaviour was required not to
 change with it, and that is the standing rule: **every builtin `autodie` was
 checking has to check itself**, so that nothing which used to die now quietly
 returns false and carries on.
@@ -136,7 +161,9 @@ them, and both now check their own result:
   `Can't binmode($fh, ':encoding(UTF-8)'): <$!>`.
 - `system(@python, $fh->filename)`, whose return value is sorted into the
   same three cases autodie distinguished — failed to start, died to a signal,
-  non-zero exit.
+  non-zero exit. Since 0.4 that is `run_script` in `lib/Cn/Plot.pm`, which
+  every engine runs its interpreter through, and the `binmode` is in
+  `script_handle` there; the two traps below are about that code.
 
 If you add a call from that list, check it in the same edit. `die` on failure;
 do not add `autodie` back.
@@ -184,8 +211,8 @@ prerequisite: `lib/` has not used it since 0.313. It is still declared at all
 because it is core only from perl 5.010001, and this distribution supports
 5.010.
 
-That is the general rule for `dist.ini`: **`[Prereqs]` is what
-`lib/Matplotlib/Simple.pm` loads, and nothing else.** Anything only `t/` needs
+That is the general rule for `dist.ini`: **`[Prereqs]` is what the modules
+under `lib/` load, and nothing else.** Anything only `t/` needs
 — `autodie`, `Test::More`, `Test::Exception` — goes under
 `[Prereqs / TestRequires]`, so that installing the module does not drag in the
 suite's dependencies. The check is cheap: hide the test-only modules from
@@ -193,7 +220,7 @@ suite's dependencies. The check is cheap: hide the test-only modules from
 
     perl -e 'BEGIN { unshift @INC, sub {
         die "hidden\n" if $_[1] =~ m{^(autodie|Test/More|Test/Exception)\.pm$} } }
-        use lib "lib"; use Matplotlib::Simple;
+        use lib "lib"; use Cn::Plot;
         bar(output_file => "/tmp/x.svg", data => { A => 1, B => 2 })'
 
 The scripts in the repository root and in `t/` that are not `.t` files
@@ -201,9 +228,59 @@ The scripts in the repository root and in `t/` that are not `.t` files
 declare nothing: they do not ship, so their dependencies are the author's
 problem, not an installer's.
 
+## Engines
+
+`plt` is a front end. `lib/Cn/Plot.pm` takes the caller's arguments, folds `p`
+and `df` into plots, runs every check that does not depend on what draws the
+figure, and then hands it to the module `%engine_module` names for `engine`
+(matplotlib unless it says otherwise), whose `render($args, $context)` writes
+the script, runs it, and returns its path. The interface is in the comment
+above `%engine_module`.
+
+The keywords are matplotlib's names throughout, because they were
+Matplotlib::Simple's, and a program written for it must run unchanged. That
+decides the rest:
+
+- **An engine declares what it draws, and the front end refuses the rest by
+  name** (`check_engine`): `%types` (each type and the keywords of `%opt` it
+  reads for it), `@plot_keywords` and `@figure_keywords`. Nothing is ever
+  silently left out of a figure. Declare a keyword only once the engine
+  draws it; a combination the engine cannot draw is refused from its
+  `render`, by name. `Cn::Plot::Matplotlib` sets `$draws_everything` instead.
+- **Values are read as matplotlib reads them**, by the front end's readers:
+  `plain_text` (text that would be Python to matplotlib is read as Python),
+  `color_hex` (matplotlib's color names, from `Colors.pm`, never the engine's
+  own, which differ), `colormap_colors`, `axis_limits` and `axis_scale`. An
+  engine never writes a caller's value without one of them.
+- **`style`** is `'matplotlib'` (the default: the engine draws what matplotlib
+  draws, its statistics computed in Perl as numpy and scipy compute them) or
+  `'native'` (the engine's own palette, statistics and theme). What the caller
+  gave -- data, key order, a `color` or `cmap`, labels, ranges, log scales,
+  size -- is drawn the same under both. Under matplotlib the two styles must
+  write the same script, byte for byte; `t/19` checks it. A change to an
+  engine's matplotlib style is checked by rendering the same figure with
+  matplotlib and comparing the PNGs by eye: the test suite checks that a
+  figure is drawn and what its script says, not what it looks like.
+- `engine` and `style` belong to the whole figure, and are refused in a
+  subplot or an `add` graph (`refuse_subplot_choices`).
+
+The helpers of `Cn::Plot::Matplotlib` reach the front end's checks and keyword
+lists through aliases made in its `BEGIN` block, so a list changed in
+`lib/Cn/Plot.pm` is the list the helpers check against. `lib/Cn/Plot.pm`
+requires the matplotlib engine at its end, after its own subs are compiled;
+the other engines are loaded when a figure first asks for one.
+
 ## Layout
 
-- `lib/Matplotlib/Simple.pm` — the entire module, including its POD.
+- `lib/Cn/Plot.pm` — the front end and the POD: `plt` and its wrappers, every
+  check of the arguments, `p` and `df`, and the subs the engines share.
+- `lib/Cn/Plot/Matplotlib.pm` — the matplotlib engine, the default: every
+  `*_helper`, `plot_args`, `write_data`, `python_command` and `render`.
+- `lib/Cn/Plot/Gnuplot.pm`, `lib/Cn/Plot/Ggplot2.pm` — the other two engines.
+- `lib/Cn/Plot/Colors.pm` — matplotlib's named colors and 36 colormaps, for the
+  engines that are not matplotlib. Generated by `make.colors.pl` in the root
+  from the python3 on PATH; re-run it with `perl make.colors.pl`, never edit
+  the module by hand.
 - `t/01.all.tests.t` — end-to-end; needs python3 and matplotlib, `skip_all`
   without them.
 - `t/02.interface.t` — the `p` calling interface, automatic subplot geometry,
@@ -241,10 +318,20 @@ problem, not an installer's.
 - `t/16.creator.t` — the `Creator` note in a saved figure (an SVG's
   `dc:title`), which ends with the user and host that ran the script, and
   that an SVG carries no DOCTYPE and no other `dc:` metadata.
+- `t/17.gnuplot.t`, `t/18.ggplot2.t` — each engine: its option contract,
+  escaping and every data shape with `execute => 0`, so they run on Windows;
+  then, gated on the engine, every type rendered in both styles. `t/18` also
+  runs R's parser over every script it writes, and pins the checksums of a
+  dozen matplotlib-style scripts (`CN_PLOT_PRINT_PINS=1` prints the current
+  ones).
+- `t/19.engines.t` — the front end's part: `engine` and `style`,
+  `check_engine`'s refusals, the readers of text, colors, colormaps and axis
+  ranges, and that every module carries Cn::Plot's `$VERSION`. Needs nothing
+  but Perl.
 - `t/utf8.mojibake.t` — labels arriving as raw utf8 bytes rather than wide
   characters.
-- `Matplotlib-Simple-0.3*/` and the matching `.tar.gz` — snapshots of past
-  releases, committed for reference. **Do not edit them and do not include them
+- `Matplotlib-Simple-0.3*/`, from 0.4 `Cn-Plot-*/`, and the matching
+  `.tar.gz` — snapshots of past releases, committed for reference. **Do not edit them and do not include them
   in a repo-wide search-and-replace**; `MANIFEST.SKIP` keeps them out of the
   next tarball.
 - `*.pl` in the root — the author's scratch and example scripts, also excluded
@@ -254,18 +341,21 @@ problem, not an installer's.
 
     prove -Ilib t/
 
-The full suite is 1396 tests in about 100 seconds on a machine with python3 and
-matplotlib. `perl Makefile.PL && make test` also works.
+The full suite is 2107 tests in about 125 seconds on a machine with python3,
+matplotlib, gnuplot and R with ggplot2. `perl Makefile.PL && make test` also
+works.
 
 ## Releasing
 
-`$VERSION` in `lib/Matplotlib/Simple.pm` is the source of truth — `dist.ini`
-uses `[VersionFromModule]`. Bump it there, add a `Changes` entry under that
+`$VERSION` in `lib/Cn/Plot.pm` is the source of truth — `dist.ini` uses
+`[VersionFromModule]`. Bump it there **and in the four modules under
+`lib/Cn/Plot/`** — PAUSE indexes each package by its own version, and
+`t/19.engines.t` fails until they agree — add a `Changes` entry under that
 version, then:
 
     sh dzil.sh    # md2pod.pl, Makefile.PL, dzil release, dzil build
 
-`md2pod.pl` regenerates the POD at the end of `lib/Matplotlib/Simple.pm` from
+`md2pod.pl` regenerates the POD at the end of `lib/Cn/Plot.pm` from
 `README.md`, and the example block of `t/01.all.tests.t` from `mpl.examples.pl`;
 edit those two, not what is generated from them. There is no `README.pod`:
 it was only ever a scratch copy, which the tarball never shipped, and was

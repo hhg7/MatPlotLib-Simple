@@ -185,4 +185,42 @@ sub script_of {
 	like( error_of( sub { Cn::Plot::colormap_colors( 'vridis', 'gnuplot', 'plt' ) } ), qr/^plt: "cmap" "vridis" is not a colormap the gnuplot engine has; it has .*viridis/, 'an unknown colormap is refused, listing the ones there are' );
 }
 
+# ----------------------------------------------------------------------------
+# 8. Every module of the distribution carries Cn::Plot's version.
+# ----------------------------------------------------------------------------
+# dist.ini takes the version from lib/Cn/Plot.pm, and PAUSE indexes each
+# package by its own $VERSION, so one left behind at a release is indexed as
+# older than the distribution that ships it.
+{
+	require Cn::Plot::Colors;
+	require Cn::Plot::Gnuplot;
+	require Cn::Plot::Ggplot2;
+	no strict 'refs';
+	foreach my $module ( 'Cn::Plot::Colors', 'Cn::Plot::Ggplot2', 'Cn::Plot::Gnuplot', 'Cn::Plot::Matplotlib' ) {
+		is( ${"${module}::VERSION"}, $Cn::Plot::VERSION, "$module is version $Cn::Plot::VERSION, as Cn::Plot is" );
+	}
+}
+
+# ----------------------------------------------------------------------------
+# 9. A script's name does not repeat under a caller's fixed seed.
+# ----------------------------------------------------------------------------
+# File::Temp names a file from rand(), and the scripts are kept, so a program
+# that began with "srand 7" asked for the same names on every run, and once
+# enough runs had left their scripts behind File::Temp died: "Have exceeded
+# the maximum number of attempts (1000) to open temp file".
+{
+	my @names;
+	foreach my $engine ( 'matplotlib', 'gnuplot' ) {
+		srand 7;
+		my $file;
+		capture { $file = bar( output_file => outfile('seed.svg'), data => { A => 1 }, execute => 0, engine => $engine ) };
+		push @names, ( File::Spec->splitpath($file) )[2];
+	}
+	srand();    # this file's later calls to rand() owe nothing to the 7
+	like( $names[0], qr/^cn-plot-$$-\d+-\d+-\w{6}\.py\z/, 'a script is named by the process, the time and a count, ahead of the random part' );
+	( my $first = $names[0] ) =~ s/-\w{6}\.py\z//;
+	( my $second = $names[1] ) =~ s/-\w{6}\.gp\z//;
+	isnt( $first, $second, 'and two scripts made under the same seed differ ahead of it' );
+}
+
 done_testing();

@@ -1,4 +1,30 @@
-Revision history for Matplotlib-Simple
+Revision history for Cn-Plot, which was Matplotlib-Simple until 0.4
+
+0.4 2026-10-29 CDT (Claude Opus 5.5 helped)
+
+ [Changed]
+
+ - The module is now called `Cn::Plot`, and the distribution `Cn-Plot`. A program written for `Matplotlib::Simple` runs unchanged once it says `use Cn::Plot`, and draws the same figures: every plot type, keyword and message is as it was in 0.322.
+
+ - The environment variable naming the Python to run is `CN_PLOT_PYTHON`. `MATPLOTLIB_SIMPLE_PYTHON` is still read when `CN_PLOT_PYTHON` is not set.
+
+ - In an SVG with `tooltips`, each labelled point is a `<g class="cn-plot-tooltip">`, which was `matplotlib-simple-tooltip`. A stylesheet that styled the old class must be changed to match.
+
+ [New]
+
+ - `engine => 'gnuplot'` and `engine => 'ggplot2'` draw a figure with gnuplot 5.2 or newer, or with R and its package ggplot2 3.5.0 or newer, in place of matplotlib. Both draw `bar`, `barh`, `boxplot`, `colored_table`, `hist`, `hist2d`, `imshow`, `pie`, `plot`, `scatter`, `violin` and `wide`, alone, overlaid with `add`, or in a grid with `plots` or `p`, as `.svg`, `.png` or `.pdf`. The program to run is `gnuplot` or `Rscript`, or the path in `CN_PLOT_GNUPLOT` or `CN_PLOT_RSCRIPT`. `execute => 0` writes the script without running it, as before.
+
+ - Whatever an engine does not draw is refused by name, with the types and keywords it does draw, rather than left out of the figure: `hexbin` and `venn_proportional_area`, Python of the caller's own such as `set_options` and `legend`, `tooltips`, `twinx`, `sharex` and `sharey`, `shared_colorbar`, `show`, and in gnuplot `edgecolor` on bars and `notch`. matplotlib, the default, draws everything it did.
+
+ - gnuplot and ggplot2 read every keyword as matplotlib would. A color is one of matplotlib's names, drawn as matplotlib draws it, since gnuplot's and R's names differ from it and from each other; a `cmap` is one of 36 of matplotlib's colormaps, or one of them reversed with `_r`; a title holding Python of the caller's own, such as `'"Counts, by book"'`, is the words inside the quotes; and `set_xlim => '0, 10'` is the range. Text followed by matplotlib's own arguments, such as `fontsize = 20`, is refused.
+
+ - `style => 'native'` lets gnuplot or ggplot2 draw a figure in its own way: its own palette and default colormap, its own boxplot quartiles, histogram bins and violin densities, and its own theme. By default, `style => 'matplotlib'`, each draws what matplotlib draws -- the same colors, the same bins, quartiles and densities, computed as numpy and scipy compute them -- so that changing `engine` changes the renderer and not the figure. Under either style the data, key order, given colors and colormaps, labels, ranges, log scales and size are the caller's. Under matplotlib both styles draw the same figure.
+
+ - `style` was accepted before as one of pyplot's functions, and wrote `plt.style(...)` into the script, which died there as "TypeError: 'module' object is not callable", since `plt.style` is a module. It now means only the above, and any other value than `'matplotlib'` or `'native'` is refused.
+
+ [Fixed]
+
+ - A program that seeds `rand` with a fixed value, such as `srand 7`, no longer dies after enough runs with "Error in tempfile() using template /tmp/XXXXXXXXXX.py: Have exceeded the maximum number of attempts (1000) to open temp file". The scripts are kept in the temporary directory, and their names came from `rand` alone, so every run asked for the same ones and had to step past all those the runs before it had left. A script is now named `cn-plot-<process>-<time>-<count>-XXXXXX.py` (or `.gp`, or `.R`), and the caller's random numbers are as they were.
 
 0.322 2026-10-21 CDT (Claude Opus 5.5 helped)
 

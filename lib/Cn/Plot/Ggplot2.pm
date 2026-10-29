@@ -479,8 +479,20 @@ sub draw_bar_native {
 	my $extra = ( defined $plot->{width} ? ', width = ' . r_num( $plot->{width} ) : '' ) . ( $horizontal ? ', orientation = "y"' : '' );
 	my $n = scalar @{$keys};
 	my $edges = defined $plot->{edgecolor};
+	# On a log value axis geom_col stands its bars on 0 of the transformed
+	# scale, which is 1, so a bar of 1 had no height at all, and one below 1
+	# hung down from it. There the bars are rectangles from a tenth of the
+	# least value -- the decade below it, where the gnuplot engine's native
+	# bars start -- laid out as geom_col would lay them (log_bar_layer).
+	my $log = $s->{axis}{ $horizontal ? 'x' : 'y' }{log};
 	if ( $a->{form} eq 'simple' ) {
 		my @colors = simple_bar_colors( $plot, $keys, $where, $sub );
+		if ($log) {
+			# "grey35" is geom_col's own fill, which a rectangle does not have
+			log_bar_layer( $a, [ map { [ $_, 0, $values->{ $keys->[$_] }[0] ] } 0 .. $n - 1 ], 1, [ @colors ? @colors : ('grey35') ], [ map { $a->{edge_of}->($_) } 0 .. $n - 1 ] );
+			draw_bar_errors( $plot, $s, $keys, $horizontal, $where, $sub );
+			return;
+		}
 		$extra .= ', fill = ' . r_strs(@colors) if @colors;
 		$extra .= ', colour = c(' . join( ', ', map { $a->{edge_of}->($_) } 0 .. $n - 1 ) . ')' if $edges;
 		push @{ $s->{layers} }, 'ggplot2::geom_col(data = ' . r_frame( k => r_factor( @{$keys} ), v => r_nums( map { $values->{$_}[0] } @{$keys} ) ) . ", ggplot2::aes($aes)$extra, na.rm = TRUE)";
@@ -511,9 +523,57 @@ sub draw_bar_native {
 			push @edge, $a->{edge_of}->($j);
 		}
 	}
+	if ($log) {
+		my @rows = map { my $i = $_; map { [ $_, $i, $values->{ $keys->[$_] }[$i] // 0 ] } 0 .. $n - 1 } 0 .. $#names;
+		log_bar_layer( $a, \@rows, scalar @names, undef, \@edge, \@names );
+		return;
+	}
 	$extra .= ', colour = c(' . join( ', ', @edge ) . ')' if $edges;
 	push @{ $s->{layers} }, 'ggplot2::geom_col(data = ' . r_frame( k => 'factor(' . r_strs(@k) . ', levels = ' . r_strs( @{$keys} ) . ')', s => 'factor(' . r_strs(@series) . ', levels = ' . r_strs(@names) . ')', v => r_nums(@v) )
 	 . ", ggplot2::aes($aes, fill = s), position = " . ( $a->{stacked} ? '"stack"' : '"dodge"' ) . "$extra, na.rm = TRUE)";
+}
+sub log_bar_layer {
+	# Native bars on a log value axis, as rectangles laid out the way geom_col
+	# lays out its bars -- 0.9 of a category wide, or "width", dodged side by
+	# side or stacked -- but standing on a tenth of the least value rather than
+	# on 1 (see draw_bar_native). The categories are still a discrete axis,
+	# which a geom_blank of the keys sets out in their order.
+	#
+	# rows:   [ key index, series index, value ], one per bar
+	# n:      the number of series, which share each category when dodged
+	# fills:  one fill per bar, or undef to map the series to the fill scale
+	# edges:  one R color per bar, NA for none
+	# names:  the series' names, for the fill scale, when fills is undef
+	my ( $a, $rows, $n, $fills, $edges, $names ) = @_;
+	my ( $s, $keys, $horizontal ) = @{$a}{qw(s keys horizontal)};
+	my $width = $a->{plot}{width} // 0.9;    # geom_col's own width
+	my @drawn = grep { looks_like_number( $rows->[$_][2] ) && is_finite( $rows->[$_][2] ) && ( $rows->[$_][2] > 0 ) } 0 .. $#{$rows};    # what a log axis can show
+	my $least = min( map { $rows->[$_][2] } @drawn );
+	return unless defined $least;
+	my $base = $least / 10;
+	my ( %top, @rect );
+	foreach my $r (@drawn) {
+		my ( $j, $i, $v ) = @{ $rows->[$r] };
+		my ( $lo, $hi ) = ( $j + 1 - $width / 2, $j + 1 + $width / 2 );    # ggplot2 places category j at j + 1
+		( $lo, $hi ) = ( $lo + $i * $width / $n, $lo + ( $i + 1 ) * $width / $n ) unless $a->{stacked} || ( $n == 1 );
+		# a bar reaches its value, and in a stack the running sum of the values,
+		# as on a linear axis; only the first stands on $base
+		my $bottom = $a->{stacked} ? ( $top{$j} // $base ) : $base;
+		my $top    = $a->{stacked} ? ( $top{$j} // 0 ) + $v : $v;
+		$top{$j} = $top if $a->{stacked};
+		push @rect, [ $lo, $hi, $bottom, $top, $r ];
+	}
+	my @column = map_rects( \@rect, [ 0 .. $#rect ], $horizontal );    # a list, not a hash: the script is the same from run to run
+	my $fill = '';
+	if ( defined $fills ) {
+		$fill = ', fill = ' . r_strs( map { $fills->[ $_->[4] % scalar @{$fills} ] } @rect );
+	} else {
+		push @column, s => 'factor(' . r_strs( map { $names->[ $rows->[ $_->[4] ][1] ] } @rect ) . ', levels = ' . r_strs( @{$names} ) . ')';
+	}
+	my $colour = ( defined $a->{plot}{edgecolor} ) ? ', colour = c(' . join( ', ', map { $edges->[ $_->[4] ] } @rect ) . ')' : '';
+	push @{ $s->{layers} }, 'ggplot2::geom_blank(data = ' . r_frame( k => r_factor( @{$keys} ) ) . ', ggplot2::aes(' . ( $horizontal ? 'y' : 'x' ) . ' = k))';
+	push @{ $s->{layers} }, 'ggplot2::geom_rect(data = ' . r_frame(@column)
+	 . ', ggplot2::aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax' . ( defined $fills ? '' : ', fill = s' ) . ")$fill$colour)";
 }
 sub map_rects {
 	# The columns of a rectangle data.frame for the rectangles at @$idx, with

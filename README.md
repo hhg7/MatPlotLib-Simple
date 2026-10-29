@@ -287,6 +287,157 @@ no per-type list to check them against.  A type given for a subplot, or for an
     "pye" isn't a defined plot_type for an "add" graph at subplot 1, perhaps
     you meant one of these defined plot types: (pie)
 
+# Engines
+
+Every figure is drawn by an *engine*, which is matplotlib unless `engine` names
+another.  The rest of the call stays as it is:
+
+    use Cn::Plot;
+    bar(
+       output_file => 'gospel.svg',
+       data        => { Matthew => 18345, Mark => 11304, Luke => 19482, John => 15635 },
+       title       => 'Gospel word counts',
+       engine      => 'gnuplot',    # or 'ggplot2', or 'matplotlib', the default
+    );
+
+| `engine` | writes | runs it with | needs |
+| -------- | ------- | ------- | ------- |
+|`matplotlib`|a Python 3 script, `.py`|`python3`, or `CN_PLOT_PYTHON`|matplotlib 3.5 or newer, and `matplotlib_venn` for `venn_proportional_area`|
+|`gnuplot`|a gnuplot script, `.gp`|`gnuplot`, or `CN_PLOT_GNUPLOT`|gnuplot 5.2 or newer|
+|`ggplot2`|an R script, `.R`|`Rscript`, or `CN_PLOT_RSCRIPT`|R with the package ggplot2 3.5.0 or newer, and nothing else|
+
+`CN_PLOT_GNUPLOT` and `CN_PLOT_RSCRIPT` work as `CN_PLOT_PYTHON` does: when set
+and not empty, each is the path of the program to run, taken whole, spaces and
+all.  `engine` belongs to the whole figure: it goes at the top of the call,
+beside `plots` or `p`, and is refused inside a subplot.  `execute => 0`, `fh`
+and the [Speed](#speed) trick of writing several figures into one script work
+with every engine.
+
+gnuplot and ggplot2 write `.svg`, `.png` and `.pdf`, and refuse any other
+`output_file` by name.  A PNG is 100 dots to the inch, as matplotlib's is, and
+every figure is matplotlib's 6.4 by 4.8 inches, times `scale`, `scalex` and
+`scaley`.  The note saying where a figure came from (see [Notes in
+Files](#notes-in-files)) is in the gnuplot and R scripts as a comment, and not
+in the file they write.
+
+## What each engine draws
+
+matplotlib draws every plot type and every keyword in this documentation.
+gnuplot and ggplot2 draw these types:
+
+| `plot_type` | gnuplot | ggplot2 |
+| -------- | ------- | ------- |
+|`bar`, `barh`|yes, without `edgecolor`|yes|
+|`boxplot`|yes, without `notch`|yes|
+|`colored_table`, `hist`, `hist2d`, `imshow`, `pie`, `plot`, `scatter`, `violin`, `wide`|yes|yes|
+|`hexbin`|no|no: `geom_hex` needs the R package hexbin, which ggplot2 does not depend on|
+|`venn_proportional_area`|no|no|
+
+and these keywords of every plot: `title`, `xlabel`, `ylabel`, `set_title`,
+`set_xlabel`, `set_ylabel`, `set_xlim`, `set_ylim`, `ylim`, `xscale`, `yscale`,
+`set_xscale` and `set_yscale`; and of the figure: `suptitle`, `scale`,
+`scalex`, `scaley`, `output_file`, `execute` and `fh`, besides `plots`, `p`,
+`ncols` and `nrows`.  Each type takes its own keywords as documented below,
+except for these, which only matplotlib draws:
+
+- Python of your own: `set_options`, `twinx_args` and `legend`, and any of
+  matplotlib's `ax`, `fig` and `plt` methods not named above;
+- `tooltips`, `twinx`, `sharex`, `sharey`, `shared_colorbar`, `linewidth`,
+  `cbpad`, `cbdrawedges`, `cblocation`, `cborientation` and `show`.
+
+Anything an engine does not draw is refused by name, with what it does draw,
+rather than left out of the figure:
+
+    bar( engine => 'gnuplot', output_file => 'counts.svg',
+         data => { Matthew => 18345, Mark => 11304 }, edgecolor => 'black' );
+
+    plt: the gnuplot engine does not draw "edgecolor" for plot_type "bar". It
+    draws the plot types bar, barh, boxplot, colored_table, hist, hist2d,
+    imshow, pie, plot, scatter, violin, violinplot, wide, with these keywords
+    of their own: bar (color, key_order, label, log, logscale, stacked, width,
+    xerr, yerr); [...] engine => 'matplotlib', the default, draws all of it
+
+Each engine also refuses, by name, the few combinations it cannot draw: an
+error bar across a bar rather than along it, error bars on grouped bars, a
+`bins` given as a rule such as `'auto'`, an `add` graph on a `pie` or a
+`colored_table` (or, in gnuplot, an `imshow`), whose axes are their own, and
+two graphs on one plot that would each need a color scale of their own, such as
+a `scatter` colored by `color_key` over a `hist2d`.
+
+## How the keywords are read
+
+The keywords are matplotlib's, and so are the conventions of their values,
+which gnuplot and ggplot2 read as matplotlib would:
+
+- **Text.** A title or label that would be Python to matplotlib (see [Quoting
+  text](#quoting-text-commas-and-apostrophes)) is read as Python:
+  `title => '"Two groups, mean and s.d."'` is the words inside the quotes, and
+  `r'C:\new'` keeps its backslash.  Text followed by matplotlib's own
+  arguments, such as `'"Counts", fontsize = 20'`, is refused, and so is an
+  f-string.  Everything else is the words as given, quotes, backslashes, `@`,
+  `&`, `^`, `_`, `{` and non-ASCII characters included.  Mathtext such as
+  `$\alpha$` is shown as written.
+- **Colors.** matplotlib's names -- the base colors such as `'k'`, the CSS4
+  names, the `'tab:'` colors and `'C0'` to `'C9'` -- and `'#rrggbb'`, a gray
+  level from `'0'` to `'1'`, or `(r, g, b)` from 0 to 1, each drawn as the color
+  matplotlib gives it.  gnuplot and R have color names of their own, which
+  differ from matplotlib's and from each other, so these are not used.  The
+  `'xkcd:'` names are refused.
+- **Colormaps.** `cmap` is one of `viridis`, `plasma`, `inferno`, `magma`,
+  `cividis`, `turbo`, `gist_rainbow`, `rainbow`, `jet`, `coolwarm`, `bwr`,
+  `seismic`, `RdBu`, `RdYlBu`, `RdYlGn`, `Spectral`, `PiYG`, `PRGn`, `BrBG`,
+  `Blues`, `Greens`, `Greys`, `Oranges`, `Purples`, `Reds`, `YlOrRd`, `YlGnBu`,
+  `hot`, `cool`, `spring`, `summer`, `autumn`, `winter`, `gray`, `bone` or
+  `copper`, or any of them reversed with `_r`, sampled from matplotlib.
+- **Axis ranges.** `set_xlim`, `set_ylim` and `ylim` are two numbers, the bottom
+  and the top, as `'0, 10'`, `'(0, 10)'` or `[ 0, 10 ]`, with `None` for an end
+  left where the engine puts it.  Keyword forms such as `'right = 180'` are
+  refused.  `xscale` and the rest are `'log'` or `'linear'`.
+
+## `style`: matplotlib's look, or the engine's own
+
+By default gnuplot and ggplot2 draw what matplotlib draws: its colors and
+colormaps, its figure size, and its statistics -- a hist's bins, a boxplot's
+quartiles and whiskers, a violin's density -- worked out in Perl as numpy and
+scipy work them out, and only drawn by the engine.  Changing `engine` changes
+how the figure is rendered, and not what it shows.
+
+`style => 'native'` lets the engine choose all of that for itself:
+
+    plt( ..., engine => 'ggplot2', style => 'native' );
+
+| | `style => 'matplotlib'` (the default) | `style => 'native'` |
+| -------- | ------- | ------- |
+|colors not given|matplotlib's `C0`, `C1`, ...|gnuplot's linetype colors; ggplot2's hue scale|
+|colormap not given|matplotlib's default for the type|gnuplot's default palette; ggplot2's blue gradient|
+|`boxplot`|numpy's quartiles, whiskers to 1.5 IQR|gnuplot's `with boxplot`; ggplot2's `stat_boxplot`|
+|`violin`|scipy's Gaussian density, Scott's bandwidth|gnuplot's `smooth kdensity`; ggplot2's `geom_violin`|
+|`hist`|numpy's bins|gnuplot's `bins` filter; ggplot2's `stat_bin`|
+|`hist2d`|numpy's 2-D bins|computed in Perl for gnuplot; ggplot2's `geom_bin_2d`|
+|frame, ticks, legend|matplotlib's|the engine's own theme|
+
+What you give is drawn either way: the data, the key order, a `color` or a
+`cmap`, the labels, ranges, log scales and the size.  With no `bins`, a hist
+has 10 under either style, matplotlib's default: gnuplot's own count is the
+number of points it samples a curve at, 100, and ggplot2's 30 comes with a
+warning that it should be chosen.  `pie` and `wide` are worked out in Perl
+under both styles, since neither engine has a statistic of its own for them.
+Under matplotlib, `style => 'native'` draws what the default does.
+
+A few things only the matplotlib style draws, and `native` refuses by name,
+saying so:
+
+    plt: gnuplot's boxplot style draws its boxes upright only, so style =>
+    'native' cannot draw orientation => 'horizontal'; style => 'matplotlib'
+    can
+
+namely a horizontal `boxplot` or `hist` in gnuplot, a horizontal `violin` with
+`whiskers` in gnuplot, a hist whose `bins` are edges of different widths in
+gnuplot, and, in ggplot2, a `bar`, `boxplot` or `violin` overlaid with a type
+whose positions are numbers, since native ggplot2 puts their keys on a category
+axis.  `style` too belongs to the whole figure, and is refused inside a
+subplot.
+
 # Color Bars (colorbars)
 
 Colarbar args attempt to match matplotlib closely
