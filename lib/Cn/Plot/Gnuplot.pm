@@ -29,6 +29,7 @@ use Scalar::Util 'looks_like_number';
 use List::Util qw(max min sum);
 use POSIX ();
 use Encode ();
+use Sys::Hostname ();
 BEGIN { require Cn::Plot }
 BEGIN {
 	no strict 'refs';
@@ -36,7 +37,7 @@ BEGIN {
 	 cb_limits check_key_order check_numbers check_scatter_lengths check_scatter_values
 	 check_wide_runs color_hex colormap_colors creator_note decoded_text finite_values
 	 is_finite is_nan logscale_axes plain_text program_from_env run_script script_handle
-	 table_cells);
+	 svg_creator_metadata table_cells);
 }
 # What this engine draws: plot type => the keywords of %Cn::Plot::opt it reads
 # for that type. hexbin and venn_proportional_area are not here: gnuplot has
@@ -1675,6 +1676,47 @@ sub write_axes {
 	}
 	say {$fh} 'plot ' . join( ", \\\n\t", @clauses );
 }
+# The SVGs each script draws, which are given their creator note once it has
+# run: script's path => [ [ output_file, creator_note ], ... ]. A shared "fh"
+# gathers every figure written into it, and is run by the last.
+my %svg_notes;
+sub creator_user {
+	# Who is running gnuplot, found as Python's getpass.getuser() finds the user
+	# for the matplotlib engine's note (Python 3.14, Lib/getpass.py): the first
+	# of these variables that is set, then the password database.
+	foreach my $name ( 'LOGNAME', 'USER', 'LNAME', 'USERNAME' ) {
+		return decoded_text( $ENV{$name} ) if ( defined $ENV{$name} ) && ( $ENV{$name} ne '' );
+	}
+	my $user = eval { ( getpwuid $< )[0] };    # getpwuid dies as unimplemented on MSWin32
+	return ( ( defined $user ) && ( $user ne '' ) ) ? decoded_text($user) : 'unknown user';
+}
+sub creator_svg {
+	# Give an SVG gnuplot has drawn the note matplotlib gives its own, in
+	# <dc:title>. gnuplot has no way to write metadata, nor to read the user or
+	# the host, so this is done here once it has run, and not by a script
+	# written with "execute => 0" and run later. gnuplot's own <title>Gnuplot</title>,
+	# which a browser shows as the figure's name, and its <desc>, whose version
+	# this note now carries, are taken out: the note is all the metadata an
+	# SVG from matplotlib has.
+	my ( $file, $note, $version ) = @_;
+	my $host = eval { Sys::Hostname::hostname() };    # dies when it cannot find the name
+	$host = ( ( defined $host ) && ( $host ne '' ) ) ? decoded_text($host) : 'unknown host';
+	$note = decoded_text($note) . ", gnuplot $version, by " . creator_user() . " on $host";
+	$note =~ s/&/&amp;/g;    # first, or the escapes below would be escaped again
+	$note =~ s/</&lt;/g;
+	$note =~ s/>/&gt;/g;
+	open my $in, '<:raw', $file or die "$current_sub: can't read \"$file\", which gnuplot was to write: $!";
+	my $svg = do { local $/; <$in> };
+	close $in or die "$current_sub: can't close \"$file\": $!";
+	$svg =~ s{<title>Gnuplot</title>\n}{};
+	$svg =~ s{<desc>Produced by GNUPLOT[^<]*</desc>\n}{};
+	my ( $before, $after ) = svg_creator_metadata();
+	$svg =~ s{(<svg\b[^>]*>)}{$1 . Encode::encode( 'UTF-8', $before . $note . $after )}e
+	 or die "$current_sub: \"$file\" has no <svg> tag for the creator note to follow";
+	open my $out, '>:raw', $file or die "$current_sub: can't write \"$file\": $!";
+	print {$out} $svg;
+	close $out or die "$current_sub: can't close \"$file\": $!";
+}
 sub render {
 	# plt's figure as a gnuplot script, which is run unless "execute" is false.
 	# Returns the script's path. Takes what Cn::Plot::Matplotlib::render does.
@@ -1724,8 +1766,16 @@ sub render {
 	print {$out} Encode::decode( 'UTF-8', $script );
 	say {$out} 'unset multiplot' if $multiplot;
 	say {$out} 'unset output';
+	# To STDERR, where "print" writes, for creator_svg to read once the script
+	# has run. GPVAL_VERSION is a number, such as 6.0, and the patch level text.
+	say {$out} 'print sprintf("Cn::Plot gnuplot %.1f.%s", GPVAL_VERSION, GPVAL_PATCHLEVEL)';
+	push @{ $svg_notes{ $out->filename } }, [ $file, creator_note($current_sub) ] if $ext eq 'svg';
 	if ( $args->{execute} ) {
-		run_script( [ program_from_env('CN_PLOT_GNUPLOT') // 'gnuplot', $out->filename ] );
+		my $stderr = run_script( [ program_from_env('CN_PLOT_GNUPLOT') // 'gnuplot', $out->filename ] );
+		my ($version) = $stderr =~ m/^Cn::Plot gnuplot (\S+)$/m;
+		foreach my $svg ( @{ delete $svg_notes{ $out->filename } // [] } ) {
+			creator_svg( @{$svg}, $version // 'of unknown version' );
+		}
 	}
 	say 'will write ' . "\e[36;103m$file\e[0m";
 	return $out->filename;

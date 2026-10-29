@@ -44,7 +44,7 @@ BEGIN {
 	 cb_limits check_key_order check_numbers check_scatter_lengths check_scatter_values
 	 check_wide_runs color_hex colormap_colors creator_note decoded_text finite_values
 	 is_finite is_nan logscale_axes nonfinite_name plain_text program_from_env
-	 run_script script_handle table_cells);
+	 run_script script_handle svg_creator_metadata table_cells);
 }
 # The plot types drawn, each with the keywords of Cn::Plot's %opt that are
 # read for it. hexbin is not here because geom_hex needs the hexbin package,
@@ -1750,6 +1750,37 @@ sub device_of {
 	return "grDevices::cairo_pdf($path, width = $w, height = $h)" if $ext eq 'pdf';    # cairo, as svg() is, so that text outside Latin-1 is drawn
 	die "$sub: the $engine engine writes .svg, .png and .pdf files, so it cannot write \"$file\"";
 }
+sub creator_code {
+	# R that gives the SVG just drawn the note matplotlib gives its own, in
+	# <dc:title>, which no R device writes. The script reads the R and ggplot2
+	# versions, the user and the host as it runs, as the matplotlib engine's
+	# does, so that a script written with "execute => 0" and run later names
+	# whoever ran it. The file is spliced as raw bytes, so no encoding R might
+	# take it to be in can change it.
+	my ( $file, $sub ) = @_;
+	my ( $before, $after ) = svg_creator_metadata();
+	my $note = r_str( creator_note($sub) );
+	return <<"R";
+	local({
+		# Sys.info() is NULL where R cannot ask, and its user is "unknown"
+		# when R cannot find one; as matplotlib's script, the note says so.
+		field <- function(name, otherwise) {
+			value <- Sys.info()[name]
+			if (is.null(value) || is.na(value) || !nzchar(value) || value == "unknown") otherwise else unname(value)
+		}
+		note <- paste0($note, ", R ", getRversion(), ", ggplot2 ", utils::packageVersion("ggplot2"),
+			", by ", field("user", "unknown user"), " on ", field("nodename", "unknown host"))
+		note <- gsub("&", "&amp;", note, fixed = TRUE) # first, or the escapes below would be escaped again
+		note <- gsub("<", "&lt;", note, fixed = TRUE)
+		note <- gsub(">", "&gt;", note, fixed = TRUE)
+		svg <- ${\ r_str($file) }
+		bytes <- readBin(svg, "raw", file.size(svg))
+		at <- grepRaw(">", bytes, offset = grepRaw("<svg", bytes, fixed = TRUE), fixed = TRUE)
+		block <- charToRaw(enc2utf8(paste0(${\ r_str($before) }, note, ${\ r_str($after) })))
+		writeBin(c(bytes[seq_len(at)], block, bytes[-seq_len(at)]), svg)
+	})
+R
+}
 sub render {
 	# plt's figure as an R script, which is run unless "execute" is false.
 	# Returns the script's path. Its arguments are those of
@@ -1801,6 +1832,7 @@ sub render {
 		say {$fh} "\tprint(p$i, vp = grid::viewport(layout.pos.row = $row, layout.pos.col = $col))";
 	}
 	say {$fh} "\tinvisible(grDevices::dev.off())";
+	print {$fh} creator_code( $args->{output_file}, $sub ) if lc( ( $args->{output_file} =~ m/\.([^.\/\\]+)\z/ )[0] // '' ) eq 'svg';
 	say {$fh} '})';
 	if ( $args->{execute} ) {
 		$fh->flush;

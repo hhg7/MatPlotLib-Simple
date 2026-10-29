@@ -288,7 +288,7 @@ foreach my $name ( sort keys %figure ) {
 	my @figures = split /^(?=# .* called using)/m, $gp;
 	is( scalar @figures, 2, 'two figures in one script' );
 	like( $figures[1] // '', qr/\A# [^\n]*\nreset session\n/, 'the second starts with "reset session"' );
-	like( $figures[0], qr/^unset output\s*\z/m, 'the first ends with "unset output", closing its file' );
+	like( $figures[0], qr/^unset output\nprint sprintf\("Cn::Plot gnuplot [^\n]*\n\z/m, 'the first ends with "unset output", closing its file, and then names the gnuplot that drew it' );
 	unlike( $figures[1] // '', qr/FIRST|logscale y|\[0:99\]/, 'none of the first figure\'s settings is written into the second' );
 	SKIP: {
 		skip( 'no gnuplot >= 5.2', 3 ) unless $gp_available;

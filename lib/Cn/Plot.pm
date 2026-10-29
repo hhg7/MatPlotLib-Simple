@@ -1997,6 +1997,9 @@ sub run_script {
 	# only a *failing* run ever showed them. Already newline-terminated by
 	# the interpreter, hence print and not say.
 	print $stdout if length $stdout;
+	# What it wrote to STDERR, which a successful run does not show: the
+	# gnuplot engine reads gnuplot's version from it for the creator note.
+	return $stderr;
 }
 sub program_from_env {
 	# The first of these environment variables that is set and not empty,
@@ -2015,6 +2018,20 @@ sub creator_note {
 	my ($current_sub) = @_;
 	return getcwd() . "/$RealScript called using \"$current_sub\" in "
 	 . ( $INC{'Cn/Plot.pm'} // __FILE__ ) . " version $VERSION with Perl " . sprintf( '%vd', $^V );
+}
+sub svg_creator_metadata {
+	# The <metadata> an SVG from matplotlib carries its Creator note in, as
+	# two strings: what comes before the note, which must be XML-escaped
+	# already, and what comes after. Laid out as matplotlib 3.11.2 writes it
+	# (backend_svg._write_metadata), so that a figure from any engine keeps its
+	# note in the one place, <dc:creator><cc:Agent><dc:title>. Each starts
+	# on a new line, to follow the <svg ...> tag it goes after.
+	return (
+		"\n <metadata>\n"
+		 . '  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">' . "\n"
+		 . "   <cc:Work>\n    <dc:creator>\n     <cc:Agent>\n      <dc:title>",
+		"</dc:title>\n     </cc:Agent>\n    </dc:creator>\n   </cc:Work>\n  </rdf:RDF>\n </metadata>"
+	);
 }
 # What the engines other than matplotlib read the keywords as. The keywords
 # are matplotlib's, and so are the conventions of their values: text may be
@@ -2839,8 +2856,10 @@ with every engine.
 gnuplot and ggplot2 write C<.svg>, C<.png> and C<.pdf>, and refuse any other
 C<output_file> by name.  A PNG is 100 dots to the inch, as matplotlib's is, and
 every figure is matplotlib's 6.4 by 4.8 inches, times C<scale>, C<scalex> and
-C<scaley>.  The note saying where a figure came from (see L<#notes-in-files>) is in the gnuplot and R scripts as a comment, and not
-in the file they write.
+C<scaley>.  An SVG from either carries the note saying where it came from, in
+the same place as matplotlib's (see L<#notes-in-files>); a PNG
+or PDF from either does not, and the note is in the gnuplot or R script as a
+comment.
 
 =head2 What each engine draws
 
@@ -6030,7 +6049,7 @@ with C<perl -Ilib wide.example.pl> to regenerate them.
 
 all files that can have notes with them, give notes about how the file was written.  For example, SVG files have the following:
 
- <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Cn/Plot.pm version 0.4 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
+ <dc:title>/mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Cn/Plot.pm version 0.4 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
 
 The Perl version is the one that wrote the script; the Python and matplotlib
 versions, the user and the host are those of whoever ran it, read by the script
@@ -6043,6 +6062,35 @@ that matplotlib would add are left out, and so is the
 C<< E<lt>!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" ...E<gt> >> line, which no browser
 reads.  Other formats, such as PNG and PDF, keep matplotlib's own notes beside
 this one.
+
+An SVG from the L<#engines> has the same note in the same place,
+C<< E<lt>dc:creatorE<gt>E<lt>cc:AgentE<gt>E<lt>dc:titleE<gt> >>, ending with that engine's versions in place
+of Python's and matplotlib's:
+
+ ... version 0.4 with Perl 5.44.0, gnuplot 6.0.0, by dcondon on login1
+ ... version 0.4 with Perl 5.44.0, R 4.6.1, ggplot2 4.0.3, by dcondon on login1
+
+and nothing else of the engine's own: gnuplot's C<< E<lt>titleE<gt>GnuplotE<lt>/titleE<gt> >>, which
+a browser shows as the figure's name, and its C<< E<lt>descE<gt>Produced by GNUPLOT ...E<lt>/descE<gt> >>
+are taken out.  Neither gnuplot nor R's graphics devices can write metadata, so
+the note is added to the file once it is drawn, and the two differ in who adds
+it:
+
+=over
+
+=item * The R script adds it itself, reading the R and ggplot2 versions, the user and
+the host as it runs, as matplotlib's script does, so a script written with
+C<< execute =E<gt> 0 >> and run later stamps its figure too.
+
+=item * gnuplot cannot read the user or the host, nor rewrite a file, so Perl adds the
+note when it runs gnuplot, with the user and host of that Perl process and the
+version gnuplot reports.  A gnuplot script written with C<< execute =E<gt> 0 >> and run
+by gnuplot alone leaves its SVG without the note; the script still carries it
+as a comment on its first line.
+
+=back
+
+A PNG or PDF from gnuplot or ggplot2 has no note.
 
 =head2 Speed
 

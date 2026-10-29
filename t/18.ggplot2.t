@@ -83,7 +83,7 @@ my %every_type = (
 foreach my $type ( sort keys %every_type ) {
 	my $r = script_of( plot_type => $type, %{ $every_type{$type} } );
 	like( $r, qr/^if \(!requireNamespace\("ggplot2", quietly = TRUE\) \|\| utils::packageVersion\("ggplot2"\) < "3\.5\.0"\) \{\n\tmessage\(.*\n\tquit\(status = 1\)\n\}\nlocal\(\{\n/m, "$type: ggplot2 is checked for, and the figure drawn inside local()" );
-	like( $r, qr/\tgrDevices::svg\(.*\n(?:.*\n)*\tinvisible\(grDevices::dev\.off\(\)\)\n\}\)\n\z/, "$type: the device is opened and closed by the figure" );
+	like( $r, qr/\tgrDevices::svg\(.*\n(?:.*\n)*\tinvisible\(grDevices::dev\.off\(\)\)\n\tlocal\(\{\n(?:\t\t.*\n)*\t\}\)\n\}\)\n\z/, "$type: the device is opened and closed by the figure, and the SVG then given its creator note" );
 }
 
 # ----------------------------------------------------------------------------
@@ -263,7 +263,8 @@ like( refusal( plot_type => 'plot', data => { A => [ \@x, \@y ] }, set_xlim => '
 # The native constructs are absent from every matplotlib-style script, and
 # naming the style writes what leaving it out writes. The digests are of
 # scripts the engine wrote before "style" was added in 0.4 (SHA-256, line 1 --
-# the note naming where and by whom it was written -- left out). They pin the
+# the note naming where and by whom it was written -- left out, and the
+# local() that copies that note into the SVG, which came later). They pin the
 # figures "native" must not disturb; overlay, logbar and wide are not among
 # them, as their matplotlib style was fixed in the same change (block 13). To
 # see the digests the engine writes now, run
@@ -296,11 +297,11 @@ my %pinned = (
 );
 sub pinned_script {
 	# The script of a pinned figure, as the digests were taken: written to
-	# "x.svg", with its first line left out.
+	# "x.svg", with its first line and the creator note's local() left out.
 	my ( $args, @style ) = @_;
 	my ( undef, undef, $file ) = capture { plt( %{$args}, engine => 'ggplot2', execute => 0, output_file => 'x.svg', @style ) };
 	push @scripts, $file;
-	return slurp($file) =~ s/\A[^\n]*\n//r;
+	return slurp($file) =~ s/\A[^\n]*\n//r =~ s/^\tlocal\(\{\n(?:\t\t.*\n|\n)*?\t\}\)\n//mr;
 }
 {
 	foreach my $name ( sort keys %pinned ) {

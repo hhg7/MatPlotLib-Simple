@@ -14,12 +14,20 @@
 # including a Windows smoker with no python. The rest need python3 and
 # matplotlib >= 3.10, and skip without them.
 #
+# The gnuplot and ggplot2 engines put the same note in the same place in an
+# SVG, naming their own versions where matplotlib's names Python's and its
+# own. Neither gnuplot nor an R device writes metadata: Perl stamps gnuplot's
+# SVG once gnuplot has run it (block 5, which needs nothing but Perl, and 6),
+# and the R script stamps its own (7). Those blocks gate on gnuplot 5.2 and
+# ggplot2 3.5.0, as t/17.gnuplot.t and t/18.ggplot2.t do.
+#
 require 5.010;
 use strict;
 use warnings FATAL => 'all';
 use File::Temp 'tempdir';
 use File::Spec;
 use Capture::Tiny 'capture';
+use Sys::Hostname ();
 use Cn::Plot;
 # The interpreter the module itself runs; see t/07.review.fixes.t.
 my @PY = Cn::Plot::Matplotlib::python_command();
@@ -138,6 +146,94 @@ SKIP: {
 	my ( undef, $pdf_err ) = capture { plt( {%bar, output_file => $pdf} ) };
 	unlike( $pdf_err, qr/Unknown infodict keyword/, '.pdf: matplotlib does not warn about the metadata' );
 	ok( -s $pdf, '.pdf: and it is written' );
+}
+
+# ----------------------------------------------------------------------------
+# 5. gnuplot: the note Perl adds to an SVG, without gnuplot.
+# ----------------------------------------------------------------------------
+{
+	require Cn::Plot::Gnuplot;
+	my $file = out_file();
+	open my $o, '>:raw', $file or die "can't write $file: $!";
+	# The head of an SVG from gnuplot 6.0's svg terminal.
+	print {$o} qq{<?xml version="1.0" encoding="utf-8"  standalone="no"?>\n<svg \n viewBox="0 0 640 480"\n xmlns="http://www.w3.org/2000/svg"\n>\n\n<title>Gnuplot</title>\n<desc>Produced by GNUPLOT 6.0 patchlevel 0 </desc>\n\n<g id="gnuplot_canvas">\n\t<title>gnuplot_plot_1</title>\n</g>\n</svg>\n};
+	close $o or die "can't close $file: $!";
+	{
+		local $ENV{LOGNAME} = "r\xcf\x81&<o>";    # an environment holds bytes: this is UTF-8 for "r\x{3c1}&<o>"
+		Cn::Plot::Gnuplot::creator_svg( $file, "/R&D/\x{3c1}.pl called using \"plt\"", '6.0.0' );
+	}
+	my $svg = slurp($file);
+	my $host = eval { Sys::Hostname::hostname() } // 'unknown host';
+	is( creator($svg), "/R&amp;D/\x{3c1}.pl called using \"plt\", gnuplot 6.0.0, by r\x{3c1}&amp;&lt;o&gt; on $host", 'the note, as UTF-8 and escaped for XML, ends with the gnuplot version, the user and the host' );
+	like( $svg, qr{<svg [^>]*>\n <metadata>\n  <rdf:RDF }, 'in <metadata>, right after the <svg> tag, as matplotlib puts it' );
+	unlike( $svg, qr{<title>Gnuplot</title>|<desc>}, "gnuplot's own title and description are gone" );
+	like( $svg, qr{<title>gnuplot_plot_1</title>}, 'the titles of the plots are not' );
+	my ( undef, undef, $gp ) = capture { plt( {%bar, engine => 'gnuplot', output_file => out_file(), execute => 0} ) };
+	like( slurp($gp), qr/^print sprintf\("Cn::Plot gnuplot %\.1f\.%s", GPVAL_VERSION, GPVAL_PATCHLEVEL\)$/m, 'the script names the gnuplot that ran it' );
+}
+
+# ----------------------------------------------------------------------------
+# 6. gnuplot, rendered: each SVG it draws carries the note.
+# ----------------------------------------------------------------------------
+my $GP = Cn::Plot::program_from_env('CN_PLOT_GNUPLOT') // 'gnuplot';
+my ( $gp_out, undef, $gp_status ) = capture {
+	no warnings 'exec';    # a missing gnuplot is a skip, not a failure
+	system( $GP, '--version' );
+};
+my $gp_available = ( ( $gp_status == 0 ) && ( $gp_out =~ m/^gnuplot\s+(\d+)\.(\d+)/ ) && ( $1 > 5 || ( $1 == 5 && $2 >= 2 ) ) ) ? 1 : 0;
+SKIP: {
+	skip( 'no gnuplot >= 5.2', 4 ) unless $gp_available;
+	my ($version) = $gp_out =~ m/^gnuplot\s+(\d+\.\d+) patchlevel (\S+)/;
+	my $file = out_file();
+	capture { plt( {%bar, engine => 'gnuplot', output_file => $file} ) };
+	like( creator( slurp($file) ), qr/ called using "plt" in .* with Perl [\d.]+, gnuplot \Q$version.\E\S+, by \Q${\ Cn::Plot::Gnuplot::creator_user() }\E on .+\z/, 'the SVG names gnuplot, its version and who ran it' );
+	# Two figures in one script, run by the second.
+	my $fh = File::Temp->new( DIR => $TMP, SUFFIX => '.gp', UNLINK => 1 );
+	my @files = ( out_file(), out_file() );
+	capture {
+		plt( {%bar, engine => 'gnuplot', fh => $fh, output_file => $files[0], execute => 0} );
+		plt( {%bar, engine => 'gnuplot', fh => $fh, output_file => $files[1]} );
+	};
+	like( creator( slurp($_) ), qr/, gnuplot /, 'a shared script: figure ' . ( $_ eq $files[0] ? 1 : 2 ) . ' carries the note' ) foreach @files;
+	# gnuplot cannot write the note, so a script run without Perl leaves none.
+	$file = out_file();
+	my ( undef, undef, $gp ) = capture { plt( {%bar, engine => 'gnuplot', output_file => $file, execute => 0} ) };
+	capture { system( $GP, $gp ) };
+	is( creator( slurp($file) ), '', 'a script written with execute => 0 and run by gnuplot alone gives none' );
+}
+
+# ----------------------------------------------------------------------------
+# 7. ggplot2: the R script stamps its own SVG.
+# ----------------------------------------------------------------------------
+{
+	my ( undef, undef, $r ) = capture { plt( {%bar, engine => 'ggplot2', output_file => out_file(), execute => 0} ) };
+	like( slurp($r), qr/^\t\tnote <- paste0\(.*, ", R ", getRversion\(\), ", ggplot2 ", utils::packageVersion\("ggplot2"\),$/m, 'ggplot2: the script reads the R and ggplot2 versions as it runs' );
+	( undef, undef, $r ) = capture { plt( {%bar, engine => 'ggplot2', output_file => out_file('png'), execute => 0} ) };
+	unlike( slurp($r), qr/Sys\.info/, 'ggplot2: and only for an SVG' );
+}
+my @R = ( Cn::Plot::program_from_env('CN_PLOT_RSCRIPT') // 'Rscript' );
+my ( $r_out, undef, $r_status ) = capture {
+	no warnings 'exec';
+	# single quotes only: see CLAUDE.md on list-form system on Win32
+	system( @R, '-e', q{cat(if (requireNamespace('ggplot2', quietly = TRUE) && utils::packageVersion('ggplot2') >= '3.5.0') 'yes' else 'no', Sys.info()[['user']], Sys.info()[['nodename']], sep = '\n')} );
+};
+my ( $gg_ok, $r_user, $r_host ) = ( $r_status == 0 ) ? split( /\r?\n/, $r_out ) : ('no');
+SKIP: {
+	skip( 'no ggplot2 >= 3.5.0', 4 ) unless ( $gg_ok // '' ) eq 'yes';
+	my $file = out_file();
+	capture { plt( {%bar, engine => 'ggplot2', output_file => $file} ) };
+	like( creator( slurp($file) ), qr/ called using "plt" in .* with Perl [\d.]+, R [\d.]+, ggplot2 [\d.]+, by \Q$r_user\E on \Q$r_host\E\z/, 'the SVG names R, ggplot2, their versions and who ran it' );
+	my $fh = File::Temp->new( DIR => $TMP, SUFFIX => '.R', UNLINK => 1 );
+	my @files = ( out_file(), out_file() );
+	capture {
+		plt( {%bar, engine => 'ggplot2', fh => $fh, output_file => $files[0], execute => 0} );
+		plt( {%bar, engine => 'ggplot2', fh => $fh, output_file => $files[1]} );
+	};
+	like( creator( slurp($_) ), qr/, ggplot2 /, 'a shared script: figure ' . ( $_ eq $files[0] ? 1 : 2 ) . ' carries the note' ) foreach @files;
+	$file = out_file();
+	my ( undef, undef, $r ) = capture { plt( {%bar, engine => 'ggplot2', output_file => $file, execute => 0} ) };
+	capture { system( @R, $r ) };
+	like( creator( slurp($file) ), qr/, ggplot2 [\d.]+, by /, 'a script written with execute => 0 and run later gives it too' );
 }
 
 done_testing();

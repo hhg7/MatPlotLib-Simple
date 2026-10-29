@@ -317,7 +317,12 @@ the other engines are loaded when a figure first asks for one.
   screenshot, because a `<title>` alone showed nothing in either in 0.321.
 - `t/16.creator.t` — the `Creator` note in a saved figure (an SVG's
   `dc:title`), which ends with the user and host that ran the script, and
-  that an SVG carries no DOCTYPE and no other `dc:` metadata.
+  that an SVG carries no DOCTYPE and no other `dc:` metadata. Also the same
+  note in an SVG from gnuplot, which Perl adds once gnuplot has run
+  (`creator_svg`), and from ggplot2, whose R script adds it itself
+  (`creator_code`); both lay it out with `svg_creator_metadata` in
+  `lib/Cn/Plot.pm`, as matplotlib does. `t/18` leaves the R script's part out
+  of its pinned digests.
 - `t/17.gnuplot.t`, `t/18.ggplot2.t` — each engine: its option contract,
   escaping and every data shape with `execute => 0`, so they run on Windows;
   then, gated on the engine, every type rendered in both styles. `t/18` also
@@ -341,7 +346,7 @@ the other engines are loaded when a figure first asks for one.
 
     prove -Ilib t/
 
-The full suite is 2107 tests in about 125 seconds on a machine with python3,
+The full suite is 2122 tests in about 125 seconds on a machine with python3,
 matplotlib, gnuplot and R with ggplot2. `perl Makefile.PL && make test` also
 works.
 

@@ -18,6 +18,7 @@
 
 # Development notes and local config
 ^dzil\.sh$
+^compile\.sh$
 ^planned\.txt$
 ^methods\.txt$
 ^sha\.sums\.tsv$

@@ -316,9 +316,10 @@ with every engine.
 gnuplot and ggplot2 write `.svg`, `.png` and `.pdf`, and refuse any other
 `output_file` by name.  A PNG is 100 dots to the inch, as matplotlib's is, and
 every figure is matplotlib's 6.4 by 4.8 inches, times `scale`, `scalex` and
-`scaley`.  The note saying where a figure came from (see [Notes in
-Files](#notes-in-files)) is in the gnuplot and R scripts as a comment, and not
-in the file they write.
+`scaley`.  An SVG from either carries the note saying where it came from, in
+the same place as matplotlib's (see [Notes in Files](#notes-in-files)); a PNG
+or PDF from either does not, and the note is in the gnuplot or R script as a
+comment.
 
 ## What each engine draws
 
@@ -3203,7 +3204,7 @@ with `perl -Ilib wide.example.pl` to regenerate them.
 
 all files that can have notes with them, give notes about how the file was written.  For example, SVG files have the following:
 
-    <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Cn/Plot.pm version 0.4 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
+    <dc:title>/mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Cn/Plot.pm version 0.4 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
 
 The Perl version is the one that wrote the script; the Python and matplotlib
 versions, the user and the host are those of whoever ran it, read by the script
@@ -3216,6 +3217,30 @@ that matplotlib would add are left out, and so is the
 `<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" ...>` line, which no browser
 reads.  Other formats, such as PNG and PDF, keep matplotlib's own notes beside
 this one.
+
+An SVG from the [other engines](#engines) has the same note in the same place,
+`<dc:creator><cc:Agent><dc:title>`, ending with that engine's versions in place
+of Python's and matplotlib's:
+
+    ... version 0.4 with Perl 5.44.0, gnuplot 6.0.0, by dcondon on login1
+    ... version 0.4 with Perl 5.44.0, R 4.6.1, ggplot2 4.0.3, by dcondon on login1
+
+and nothing else of the engine's own: gnuplot's `<title>Gnuplot</title>`, which
+a browser shows as the figure's name, and its `<desc>Produced by GNUPLOT ...</desc>`
+are taken out.  Neither gnuplot nor R's graphics devices can write metadata, so
+the note is added to the file once it is drawn, and the two differ in who adds
+it:
+
+- The R script adds it itself, reading the R and ggplot2 versions, the user and
+  the host as it runs, as matplotlib's script does, so a script written with
+  `execute => 0` and run later stamps its figure too.
+- gnuplot cannot read the user or the host, nor rewrite a file, so Perl adds the
+  note when it runs gnuplot, with the user and host of that Perl process and the
+  version gnuplot reports.  A gnuplot script written with `execute => 0` and run
+  by gnuplot alone leaves its SVG without the note; the script still carries it
+  as a comment on its first line.
+
+A PNG or PDF from gnuplot or ggplot2 has no note.
 
 ## Speed
 To improve speed, all data can be written into a single temp python3 file thus:
