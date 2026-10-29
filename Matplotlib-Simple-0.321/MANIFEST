@@ -25,6 +25,7 @@ t/12.review.fixes.0.319.t
 t/13.plot.y.only.t
 t/14.review.fixes.0.32.t
 t/15.tooltips.t
+t/16.creator.t
 t/output.images/add.single.svg
 t/output.images/bar.sub.self.svg
 t/output.images/bar.sub.svg

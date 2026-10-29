@@ -7,15 +7,15 @@ use 5.010;
 use ExtUtils::MakeMaker 6.58;
 
 my %WriteMakefileArgs = (
-  "ABSTRACT" => "Access Matplotlib from Perl; providing consistent user interface between different plot types",
+  "ABSTRACT" => "Plots from Perl data structures, drawn by matplotlib, gnuplot or ggplot2, with one interface for every plot type",
   "AUTHOR" => "David E. Condon <dec986\@gmail.com>",
   "CONFIGURE_REQUIRES" => {
     "ExtUtils::MakeMaker" => "6.58"
   },
-  "DISTNAME" => "Matplotlib-Simple",
+  "DISTNAME" => "Cn-Plot",
   "LICENSE" => "perl",
   "MIN_PERL_VERSION" => "5.010",
-  "NAME" => "Matplotlib::Simple",
+  "NAME" => "Cn::Plot",
   "PREREQ_PM" => {
     "Capture::Tiny" => 0,
     "Data::Printer" => 0,
@@ -31,7 +31,7 @@ my %WriteMakefileArgs = (
     "Test::More" => 0,
     "autodie" => 0
   },
-  "VERSION" => "0.321",
+  "VERSION" => "0.4",
   "test" => {
     "TESTS" => "t/*.t"
   }

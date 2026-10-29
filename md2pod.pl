@@ -297,7 +297,7 @@ while ($over_depth > 0) { # close out any block that the wrapping above opened
 }
 @pod = @fixed_pod;
 
-my $lib = file2string('lib/Matplotlib/Simple.pm');
+my $lib = file2string('lib/Cn/Plot.pm');
 my @lib = split /\n/, $lib;
 my $line = first_index {$_ eq '# from md2pod.pl πατερ ημων ο εν τοις ουρανοις, ἁγιασθήτω τὸ ὄνομά σου'} @lib;
 if ($line == -1) {
@@ -305,7 +305,7 @@ if ($line == -1) {
 }
 splice @lib, 1-(scalar @lib - $line);
 push @lib, @pod; # add properly formatted POD text
-open my $fh, '>', 'lib/Matplotlib/Simple.pm';
+open my $fh, '>', 'lib/Cn/Plot.pm';
 say $fh join ("\n", @lib);
 close $fh;
 
@@ -358,7 +358,7 @@ open my $t, '>', 't/01.all.tests.t';
 say $t join ("\n", @test);
 close $t;
 
-pod_file_ok( 'lib/Matplotlib/Simple.pm' );
+pod_file_ok( 'lib/Cn/Plot.pm' );
 
 changes_file_ok('Changes'); # hand-maintained; no longer generated from README.md
 done_testing();

@@ -22,9 +22,9 @@ use File::Spec;
 use Capture::Tiny 'capture';
 use JSON::MaybeXS;
 use MIME::Base64;
-use Matplotlib::Simple;
+use Cn::Plot;
 # The interpreter the module itself runs; see t/07.review.fixes.t.
-my @PY = Matplotlib::Simple::python_command();
+my @PY = Cn::Plot::Matplotlib::python_command();
 my $PY = join ' ', @PY;
 use Test::More;
 

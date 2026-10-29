@@ -22,9 +22,9 @@ use warnings FATAL => 'all';
 use File::Temp 'tempdir';
 use File::Spec;
 use Capture::Tiny 'capture';
-use Matplotlib::Simple;
+use Cn::Plot;
 # The interpreter the module itself runs; see t/07.review.fixes.t.
-my @PY = Matplotlib::Simple::python_command();
+my @PY = Cn::Plot::Matplotlib::python_command();
 my $PY = join ' ', @PY;
 use Test::More;
 
@@ -66,7 +66,7 @@ sub convert {
 	my ( $type, %plot ) = @_;
 	my @warned;
 	local $SIG{__WARN__} = sub { push @warned, $_[0] };
-	Matplotlib::Simple::frame_to_data( \%plot, $type, '', 'plt' );
+	Cn::Plot::frame_to_data( \%plot, $type, '', 'plt' );
 	return ( \%plot, \@warned );
 }
 
@@ -302,7 +302,7 @@ converts_dying( 'bar', { x => 'name', y => 'age' }, qr/"x", "y" name columns of 
 
 	local $SIG{__WARN__} = sub { };
 	my ( $out, $err, $file ) = capture {
-		Matplotlib::Simple::bar( output_file => out_file(), execute => 0, df => \%hoa, x => 'name', y => 'age' );
+		Cn::Plot::bar( output_file => out_file(), execute => 0, df => \%hoa, x => 'name', y => 'age' );
 	};
 	like( slurp($file), qr/ax0\.bar\(/, 'bar(): the wrapper takes "df"' );
 

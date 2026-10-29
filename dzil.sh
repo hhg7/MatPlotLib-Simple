@@ -1,4 +1,4 @@
-# Release Matplotlib-Simple.  Bump $VERSION in lib/Matplotlib/Simple.pm and
+# Release Cn-Plot.  Bump $VERSION in lib/Cn/Plot.pm and
 # write the Changes entry under it first (see CLAUDE.md), then:
 #
 #	sh dzil.sh
@@ -7,7 +7,7 @@
 # twice to leave the repository in a finished state.  The root Makefile.PL is
 # not written by hand and is not gathered into the tarball -- dist.ini has
 # [Git::GatherDir] exclude it and [MakeMaker] generate its own -- so the only
-# place a current one appears is inside Matplotlib-Simple-$VERSION/, which
+# place a current one appears is inside Cn-Plot-$VERSION/, which
 # "dzil build" writes at the *end* of this script.  Running "perl Makefile.PL"
 # before that configured the working copy from the previous release's file, and
 # bringing the root copy up to date meant releasing, copying the generated file
@@ -28,7 +28,7 @@ perl md2pod.pl
 # Builds, runs the test suite (TestRelease), asks for confirmation, uploads.
 dzil release
 
-# Again, without uploading: this is what leaves Matplotlib-Simple-$VERSION/ and
+# Again, without uploading: this is what leaves Cn-Plot-$VERSION/ and
 # its tarball in the working directory, which are committed as the snapshot of
 # the release.  It overwrites an existing directory of the same name, so a
 # re-run of this script is harmless.
@@ -36,18 +36,18 @@ dzil build
 
 # dist.ini takes the distribution version from the module ([VersionFromModule]),
 # so read it from the same place rather than from anything dzil leaves behind.
-version=$(perl -ne 'if (/^our \$VERSION\s*=\s*["\x27]?([0-9._]+)["\x27]?\s*;/) { print $1; exit }' lib/Matplotlib/Simple.pm)
+version=$(perl -ne 'if (/^our \$VERSION\s*=\s*["\x27]?([0-9._]+)["\x27]?\s*;/) { print $1; exit }' lib/Cn/Plot.pm)
 if [ -z "$version" ]; then
-	echo "dzil.sh: no \$VERSION found in lib/Matplotlib/Simple.pm" >&2
+	echo "dzil.sh: no \$VERSION found in lib/Cn/Plot.pm" >&2
 	exit 1
 fi
-if [ ! -f "Matplotlib-Simple-$version/Makefile.PL" ]; then
-	echo "dzil.sh: dzil build wrote no Matplotlib-Simple-$version/Makefile.PL" >&2
+if [ ! -f "Cn-Plot-$version/Makefile.PL" ]; then
+	echo "dzil.sh: dzil build wrote no Cn-Plot-$version/Makefile.PL" >&2
 	exit 1
 fi
 
 # The root Makefile.PL is what someone cloning from GitHub runs, so it is the
 # one just shipped rather than one from an earlier release.  Commit it with the
 # rest of the release.
-cp "Matplotlib-Simple-$version/Makefile.PL" Makefile.PL
+cp "Cn-Plot-$version/Makefile.PL" Makefile.PL
 perl Makefile.PL

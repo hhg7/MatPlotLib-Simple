@@ -1,18 +1,20 @@
 # NAME
 
-Matplotlib::Simple - Access Matplotlib from Perl; providing consistent user interface between different plot types
+Cn::Plot - Plots from Perl data structures, drawn by matplotlib, gnuplot or ggplot2, with one interface for every plot type
+
+Until version 0.4 this module was called `Matplotlib::Simple`, and it drew with matplotlib alone.  Apart from `use Cn::Plot` in place of `use Matplotlib::Simple`, a program written for it runs unchanged and draws the same figures.  See [Engines](#engines) for the rest.
 
 # Synopsis
 
-Take a data structure in Perl, and automatically write a Python3 script using matplotlib to generate an image.  The Python3 script is saved in the system's temporary directory (`File::Spec->tmpdir`, which is `/tmp` on unix), to be edited at the user's discretion.
-Depends on Python 3 and matplotlib.  The script is run with `python3`; on Windows, where a standard install has no `python3`, it is run with the first of `python`, `py -3` and `python3` that reports itself as Python 3 (as of version 0.315 -- before that, the module could not run its script on Windows at all).  To run a different interpreter -- a venv, or a newer Python on a cluster whose system `python3` is too old -- set the environment variable `MATPLOTLIB_SIMPLE_PYTHON` to its path, such as `export MATPLOTLIB_SIMPLE_PYTHON=~/mpl/bin/python3` (as of version 0.317).  The generated scripts cannot run with a matplotlib older than 3.5, which does not accept the constrained layout they ask for; the test suite is written against 3.10 and newer, and skips its drawing checks with anything older.  Pass `execute => 0` to write the script without running it.
+Take a data structure in Perl, and automatically write a script that draws it: a Python 3 script using matplotlib by default, or with `engine => 'gnuplot'` or `engine => 'ggplot2'` a gnuplot or R script.  The script is saved in the system's temporary directory (`File::Spec->tmpdir`, which is `/tmp` on unix), to be edited at the user's discretion.
+The default engine depends on Python 3 and matplotlib.  The script is run with `python3`; on Windows, where a standard install has no `python3`, it is run with the first of `python`, `py -3` and `python3` that reports itself as Python 3 (as of version 0.315 -- before that, the module could not run its script on Windows at all).  To run a different interpreter -- a venv, or a newer Python on a cluster whose system `python3` is too old -- set the environment variable `CN_PLOT_PYTHON` to its path, such as `export CN_PLOT_PYTHON=~/mpl/bin/python3`.  Its name until version 0.4, `MATPLOTLIB_SIMPLE_PYTHON` (as of version 0.317), is still read when `CN_PLOT_PYTHON` is not set.  The generated scripts cannot run with a matplotlib older than 3.5, which does not accept the constrained layout they ask for; the test suite is written against 3.10 and newer, and skips its drawing checks with anything older.  Pass `execute => 0` to write the script without running it.
 
 My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib itself.
 
 # Single Plots
 Simplest use case:
 
-    use Matplotlib::Simple;
+    use Cn::Plot;
     bar(
 	   output_file       => '/tmp/gospel.word.counts.png',
 	   data              => {
@@ -25,7 +27,7 @@ Simplest use case:
 
 A more complete (and slightly faster execution):
 
-    use Matplotlib::Simple;
+    use Cn::Plot;
     plt(
 	   output_file       => '/tmp/gospel.word.counts.png',
 	   plot_type         => 'bar',
@@ -43,7 +45,7 @@ A more complete (and slightly faster execution):
 
 Having a `plots` argument as an array lets the module know to create subplots:
 
-    use Matplotlib::Simple 'plt';
+    use Cn::Plot 'plt';
     plt(
     	output_file     => 'svg/pies.png',
     	plots             => [
@@ -587,7 +589,7 @@ an example of multiple plots, showing many options:
 
 ### single, simple plot
 
-    use Matplotlib::Simple 'plt';
+    use Cn::Plot 'plt';
     plt(
 	    output_file             => 'output.images/single.barplot.png',
 	    data	=> { # simple hash
@@ -860,7 +862,7 @@ The `whiskers` switch belongs to [`violin`](#violin), not to `boxplot`.
 
 single plots are simple
 
-    use Matplotlib::Simple 'boxplot';
+    use Cn::Plot 'boxplot';
     boxplot(
     	output_file => 'output.images/single.boxplot.png',
     	data              => {                                     # simple hash
@@ -1404,7 +1406,7 @@ as of version 0.26, single arrays can be given to `hist` instead of a hash, simp
 
 for slightly more complex data sets, hashes are taken:
 
-    use Matplotlib::Simple 'hist';
+    use Cn::Plot 'hist';
 	
     my @e = generate_normal_dist( 100, 15, 3 * 200 );
     my @b = generate_normal_dist( 85,  15, 3 * 200 );
@@ -3050,7 +3052,7 @@ with `perl -Ilib wide.example.pl` to regenerate them.
 
 all files that can have notes with them, give notes about how the file was written.  For example, SVG files have the following:
 
-    <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm version 0.322 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
+    <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Cn/Plot.pm version 0.4 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
 
 The Perl version is the one that wrote the script; the Python and matplotlib
 versions, the user and the host are those of whoever ran it, read by the script

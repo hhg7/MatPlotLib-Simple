@@ -5250,12 +5250,42 @@ sub plt {
 		# anywhere in the path would close the literal early.
 		my $creator = py_str( getcwd() . "/$RealScript called using \"$current_sub\" in "
 		 . __FILE__ . " version $VERSION with Perl " . sprintf( '%vd', $^V ) );
-		# The Python and matplotlib versions are read by the script as it
-		# runs, not by Perl as it writes: with "execute => 0" the script may
-		# be run later, or elsewhere, by an interpreter Perl never sees.
-		say $fh 'import matplotlib, platform';
+		# The Python and matplotlib versions, the user and the host are read by
+		# the script as it runs, not by Perl as it writes: with "execute => 0"
+		# the script may be run later, or elsewhere, by an interpreter Perl
+		# never sees, and it is whoever runs it that writes the file.
+		say $fh 'import matplotlib, platform, getpass';
+		# getpass.getuser() raises when no LOGNAME, USER, LNAME or USERNAME is
+		# set and there is no password database to fall back on -- OSError
+		# from Python 3.13, KeyError or ImportError before -- so an unknown
+		# user must not stop the figure from being saved.
+		say $fh 'try:';
+		say $fh "\tcreator_user = getpass.getuser()";
+		say $fh 'except Exception:';
+		say $fh "\tcreator_user = 'unknown user'";
+		say $fh "creator_host = platform.node() or 'unknown host' # node() is '' when the name cannot be found";
+		# An SVG keeps only the Creator. matplotlib also writes the time it was
+		# saved, its own "image/svg+xml" and a link to the Dublin Core "StillImage"
+		# type, each of which a None leaves out (backend_svg._write_metadata,
+		# matplotlib 3.11.2). Only for an SVG: the PDF backend warns about
+		# "Format" and "Type" as keys it does not know.
 		say $fh "plt.savefig(output_file, bbox_inches = 'tight', metadata={'Creator': $creator"
-		 . " + ', Python ' + platform.python_version() + ', matplotlib ' + matplotlib.__version__})";
+		 . " + ', Python ' + platform.python_version() + ', matplotlib ' + matplotlib.__version__"
+		 . " + ', by ' + creator_user + ' on ' + creator_host"
+		 . ( $tooltips_drawn ? ", 'Date': None, 'Format': None, 'Type': None" : '' ) . '})';
+		# $tooltips_drawn is 1 exactly when output_file is an SVG. matplotlib
+		# writes <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" ...> from a fixed
+		# string, svgProlog in backend_svg.py, that no option turns off, so it is
+		# cut from the file once written. SVG 2 has no DOCTYPE, and no browser
+		# reads it. It holds no ">" of its own: there is no internal subset.
+		print {$fh} <<'PYTHON' if $tooltips_drawn;
+import gzip, re
+svg_open = gzip.open if output_file.lower().endswith('.svgz') else open
+with svg_open(output_file, 'rb') as svg:
+	svg_bytes = svg.read()
+with svg_open(output_file, 'wb') as svg:
+	svg.write(re.sub(rb'<!DOCTYPE[^>]*>\s*', b'', svg_bytes, count = 1))
+PYTHON
 	}
 	if ( ( scalar @tooltip_text > 0 ) && ( not $tooltips_drawn ) ) {
 		warn '"tooltips" are drawn only into an SVG, so they are left out of '
@@ -5278,15 +5308,91 @@ sub plt {
 		# <title> holding text n. The namespaces are registered so that the
 		# file is written back with matplotlib's own prefixes rather than ns0,
 		# ns1, ...
+		#
+		# A <title> alone was not enough: whether a browser shows it on
+		# hovering is up to the browser and the desktop, and in 0.321 neither
+		# Firefox nor Chromium showed one on the author's machine. So the <g>
+		# is also given the class matplotlib-simple-tooltip, and a script at
+		# the end of the SVG draws the label itself, in a box beside the point
+		# under the mouse. The script takes each <title> out as it starts, so
+		# that a browser that does show titles does not show the label twice;
+		# a viewer that runs no script -- Inkscape, Eye of GNOME, an <img> on
+		# a web page -- keeps the <title>s in the file.
 		print {$fh} <<'PYTHON';
-import xml.etree.ElementTree as ET, gzip
+# Placement, in the SVG's own units, which are points: the box sits 4 from the
+# marker and 3 outside its text, above and to the right of the point, and is
+# moved left of or below it wherever it would leave the figure.
+tooltip_script = r'''(function () {
+	var ns = 'http://www.w3.org/2000/svg';
+	var me = document.currentScript;
+	var svg = (me && me.ownerSVGElement) || document.documentElement;
+	var points = svg.querySelectorAll('g.matplotlib-simple-tooltip');
+	var gap = 4, pad = 3;
+	var tip = document.createElementNS(ns, 'g');
+	tip.setAttribute('pointer-events', 'none');
+	tip.setAttribute('display', 'none');
+	var box = document.createElementNS(ns, 'rect');
+	box.setAttribute('rx', '2');
+	box.setAttribute('style', 'fill: #ffffe1; stroke: #555555; stroke-width: 0.5');
+	var text = document.createElementNS(ns, 'text');
+	text.setAttribute('style', 'font-family: sans-serif; font-size: 10px; fill: #000000');
+	tip.appendChild(box);
+	tip.appendChild(text);
+	svg.appendChild(tip);
+	function show(point, label) {
+		while (text.firstChild) text.removeChild(text.firstChild);
+		label.split('\n').forEach(function (line, i) {
+			var span = document.createElementNS(ns, 'tspan');
+			span.setAttribute('x', '0');
+			span.setAttribute('dy', i ? '1.2em' : '0');
+			span.textContent = line;
+			text.appendChild(span);
+		});
+		tip.removeAttribute('display');
+		var ctm = svg.getScreenCTM();
+		if (!ctm) return;
+		var t = text.getBBox(), w = t.width + 2 * pad, h = t.height + 2 * pad;
+		var bx = t.x - pad, by = t.y - pad;
+		var r = point.getBoundingClientRect(), inv = ctm.inverse(), p = svg.createSVGPoint();
+		p.x = r.left; p.y = r.top;
+		var lo = p.matrixTransform(inv);
+		p.x = r.right; p.y = r.bottom;
+		var hi = p.matrixTransform(inv);
+		var vb = svg.viewBox.baseVal;
+		var left = vb ? vb.x : 0, top = vb ? vb.y : 0;
+		var right = vb ? vb.x + vb.width : Infinity, bottom = vb ? vb.y + vb.height : Infinity;
+		var x = hi.x + gap, y = lo.y - gap - h;
+		if (x + w > right) x = lo.x - gap - w;
+		if (x < left) x = left;
+		if (y < top) y = hi.y + gap;
+		if (y + h > bottom) y = Math.max(top, bottom - h);
+		box.setAttribute('x', bx);
+		box.setAttribute('y', by);
+		box.setAttribute('width', w);
+		box.setAttribute('height', h);
+		tip.setAttribute('transform', 'translate(' + (x - bx) + ' ' + (y - by) + ')');
+	}
+	function hide() {
+		tip.setAttribute('display', 'none');
+	}
+	Array.prototype.forEach.call(points, function (point) {
+		var title = point.querySelector('title');
+		if (!title) return;
+		var label = title.textContent;
+		point.removeChild(title);
+		if (label === '') return;
+		point.addEventListener('mouseenter', function () { show(point, label); });
+		point.addEventListener('mouseleave', hide);
+	});
+})();'''
+import xml.etree.ElementTree as ET
 svg_ns = 'http://www.w3.org/2000/svg'
 xlink_href = '{http://www.w3.org/1999/xlink}href'
 for prefix, uri in (('', svg_ns), ('xlink', 'http://www.w3.org/1999/xlink'),
 	('rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'),
 	('cc', 'http://creativecommons.org/ns#'), ('dc', 'http://purl.org/dc/elements/1.1/')):
 	ET.register_namespace(prefix, uri)
-svg_open = gzip.open if output_file.lower().endswith('.svgz') else open
+# svg_open was set where the DOCTYPE was cut, after savefig
 with svg_open(output_file, 'rb') as svg:
 	svg_tree = ET.parse(svg)
 for link in list(svg_tree.iter('{%s}a' % svg_ns)):
@@ -5295,9 +5401,13 @@ for link in list(svg_tree.iter('{%s}a' % svg_ns)):
 		continue
 	link.tag = '{%s}g' % svg_ns
 	link.attrib.clear()
+	link.set('class', 'matplotlib-simple-tooltip')
 	title = ET.Element('{%s}title' % svg_ns)
 	title.text = tooltip_text[int(href[len(tooltip_url):])]
 	link.insert(0, title)
+# last, so that every point is in the document when it runs, and the box it
+# draws is on top of everything else
+ET.SubElement(svg_tree.getroot(), '{%s}script' % svg_ns, {'type': 'text/javascript'}).text = tooltip_script
 with svg_open(output_file, 'wb') as svg:
 	svg_tree.write(svg, encoding = 'utf-8', xml_declaration = True)
 PYTHON
@@ -8309,11 +8419,15 @@ error.
 =head3 Tooltips
 
 C<tooltips> puts a label on each point that appears when the mouse is over it.
-It is written into the SVG as each point's C<< E<lt>titleE<gt> >>, which a web browser
-(Firefox, Chrome, ...) shows on hovering.  Image viewers such as Eye of GNOME
-and Inkscape open the same file and show the plot as it is, without the
-labels.  C<output_file> must end in C<.svg> or C<.svgz>; any other format has no
-tooltips, and is drawn without them, with a warning.
+Opened in a web browser (Firefox, Chromium, Chrome, ...), the SVG draws the
+label itself, in a box beside the point, by a short script at the end of the
+file.  Each label is also the point's C<< E<lt>titleE<gt> >>, for whatever runs no script:
+the script removes the titles as it starts, so that a browser does not show a
+label twice.  Image viewers such as Eye of GNOME and Inkscape open the same
+file and show the plot as it is, without the labels, and so does a browser
+showing the SVG through an C<< E<lt>imgE<gt> >> tag, which runs no script.  C<output_file>
+must end in C<.svg> or C<.svgz>; any other format has no tooltips, and is drawn
+without them, with a warning.
 
  scatter(
      output_file => '/tmp/samples.svg',
@@ -8850,11 +8964,19 @@ with C<perl -Ilib wide.example.pl> to regenerate them.
 
 all files that can have notes with them, give notes about how the file was written.  For example, SVG files have the following:
 
- <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm version 0.318 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7</dc:title>
+ <dc:title>made/written by /mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm version 0.322 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
 
 The Perl version is the one that wrote the script; the Python and matplotlib
-versions are the ones that ran it, read by the script itself, so they are right
-even when a script written with C<< execute =E<gt> 0 >> is run later or elsewhere.
+versions, the user and the host are those of whoever ran it, read by the script
+itself, so they are right even when a script written with C<< execute =E<gt> 0 >> is run
+later or elsewhere.  A user that cannot be found is written as C<unknown user>,
+and a host as C<unknown host>.
+
+In an SVG, this note is all the metadata there is: the date, format and type
+that matplotlib would add are left out, and so is the
+C<< E<lt>!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" ...E<gt> >> line, which no browser
+reads.  Other formats, such as PNG and PDF, keep matplotlib's own notes beside
+this one.
 
 =head2 Speed
 
