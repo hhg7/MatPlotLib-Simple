@@ -2,15 +2,15 @@ use strict;
 use feature 'say';
 use warnings FATAL => 'all';
 
-package Cn::Plot::Ggplot2;
+package Matplotlib::Simple::Ggplot2;
 # The ggplot2 engine: it writes plt's figure as an R script that draws it with
-# ggplot2, and runs that script with Rscript. Cn::Plot checks the arguments and
+# ggplot2, and runs that script with Rscript. Matplotlib::Simple checks the arguments and
 # refuses, by name, every plot type and keyword not listed below; render() is
 # given what is left.
 #
 # The figure is meant to be the one matplotlib draws from the same arguments,
 # so the semantics of each type -- the shapes of "data", the order of the keys,
-# the defaults -- are those of the matching *_helper in Cn::Plot::Matplotlib,
+# the defaults -- are those of the matching *_helper in Matplotlib::Simple::Matplotlib,
 # and the binning, the box and whisker statistics, the pie's wedges and the
 # summaries of "wide" are worked out here, in Perl, as numpy and matplotlib
 # work them out, rather than left to ggplot2's own stats, which differ: a
@@ -21,7 +21,7 @@ package Cn::Plot::Ggplot2;
 # an "add" graph lands where it would under matplotlib.
 #
 # That is "style => 'matplotlib'", the default. Under "style => 'native'"
-# (%Cn::Plot::styles) ggplot2 decides instead: series given no color take its
+# (%Matplotlib::Simple::styles) ggplot2 decides instead: series given no color take its
 # default hue scale and a colormap not asked for its default gradient; hist,
 # boxplot, violin and hist2d are drawn by its own stats -- stat_bin,
 # stat_boxplot, stat_ydensity, stat_bin_2d -- with their defaults; bars,
@@ -34,19 +34,19 @@ package Cn::Plot::Ggplot2;
 # with grid's own layouts, not patchwork or cowplot, which ggplot2 does not
 # depend on.
 require 5.010;
-our $VERSION = 0.4;
+our $VERSION = 0.33;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max min sum);
-BEGIN { require Cn::Plot }
+BEGIN { require Matplotlib::Simple }
 BEGIN {
 	no strict 'refs';
-	*{$_} = \&{"Cn::Plot::$_"} foreach qw(axis_limits axis_scale bin_counts bool_option
+	*{$_} = \&{"Matplotlib::Simple::$_"} foreach qw(axis_limits axis_scale bin_counts bool_option
 	 cb_limits check_key_order check_numbers check_scatter_lengths check_scatter_values
 	 check_wide_runs color_hex colormap_colors creator_note decoded_text finite_values
 	 is_finite is_nan linspace logscale_axes logspace nonfinite_name plain_text program_from_env
 	 run_script script_handle svg_creator_metadata table_cells);
 }
-# The plot types drawn, each with the keywords of Cn::Plot's %opt that are
+# The plot types drawn, each with the keywords of Matplotlib::Simple's %opt that are
 # read for it. hexbin is not here because geom_hex needs the hexbin package,
 # which ggplot2 does not depend on; venn_proportional_area is not here because
 # ggplot2 has no area-proportional Venn diagram. Neither is any keyword whose
@@ -80,9 +80,9 @@ my $engine = 'ggplot2';
 # script checks it before it draws, and t/18.ggplot2.t gates its render checks
 # on it.
 our $min_ggplot2 = '3.5.0';
-# matplotlib's default property cycle, "C0" to "C9", from Cn::Plot::Colors: an
+# matplotlib's default property cycle, "C0" to "C9", from Matplotlib::Simple::Colors: an
 # artist given no color takes the next of these, per subplot.
-my @cycle = map { color_hex( "C$_", 'the color cycle', $engine, 'Cn::Plot::Ggplot2' ) } 0 .. 9;
+my @cycle = map { color_hex( "C$_", 'the color cycle', $engine, 'Matplotlib::Simple::Ggplot2' ) } 0 .. 9;
 # matplotlib's default sizes, in ggplot2's units: lines 1.5 pt wide, and
 # markers 6 pt across, as ggplot2's "size" (3, measured against matplotlib's
 # markers in PNGs of the same data at the same size) and
@@ -100,7 +100,7 @@ sub r_str {
 	# always UTF-8. R has no way to write a NUL in a string, so one is refused.
 	my ($str) = @_;
 	$str = decoded_text( $str // '' );
-	die "Cn::Plot: the $engine engine cannot write text holding a NUL character into R" if $str =~ m/\x00/;
+	die "Matplotlib::Simple: the $engine engine cannot write text holding a NUL character into R" if $str =~ m/\x00/;
 	$str =~ s/\\/\\\\/g;    # first, or the escapes below would be doubled
 	$str =~ s/"/\\"/g;
 	$str =~ s/\n/\\n/g;
@@ -163,14 +163,14 @@ sub percentile {
 }
 sub with_commas {
 	# A whole number with a comma every three digits, as format_commas in
-	# Cn::Plot::Matplotlib writes the counts under a box or a violin.
+	# Matplotlib::Simple::Matplotlib writes the counts under a box or a violin.
 	my ($n) = @_;
 	1 while $n =~ s/^(\d+)(\d{3})/$1,$2/;
 	return $n;
 }
 sub colormap_at {
 	# A colormap's color at a point from 0 to 1, interpolated between the
-	# stops Cn::Plot::Colors keeps, as "#rrggbb".
+	# stops Matplotlib::Simple::Colors keeps, as "#rrggbb".
 	my ( $stops, $t ) = @_;
 	my $pos = $t * ( scalar @{$stops} - 1 );
 	my $i   = min( int $pos, $#{$stops} - 1 );
@@ -261,7 +261,7 @@ sub category_ticks {
 
 # ---------------------------------------------------------------------------
 # One drawer per plot type, each adding its layers to the subplot $s. Each is
-# barplot_helper, boxplot_helper and the rest of Cn::Plot::Matplotlib over
+# barplot_helper, boxplot_helper and the rest of Matplotlib::Simple::Matplotlib over
 # again, with the same checks, which die before anything is written.
 # ---------------------------------------------------------------------------
 sub draw_bar {
@@ -1523,7 +1523,7 @@ sub draw_scatter {
 }
 sub wide_summary {
 	# The runs of one "wide" group, summarised as write_wide_group in
-	# Cn::Plot::Matplotlib summarises them: each run sorted by x and
+	# Matplotlib::Simple::Matplotlib summarises them: each run sorted by x and
 	# interpolated onto 101 points across the group's x range, NaN outside the
 	# run's own range, and at each point the mean and the population standard
 	# deviation of the runs that reach it. Returns ( \@base_x, \@mean, \@sd ).
@@ -1852,7 +1852,7 @@ R
 sub render {
 	# plt's figure as an R script, which is run unless "execute" is false.
 	# Returns the script's path. Its arguments are those of
-	# Cn::Plot::Matplotlib::render.
+	# Matplotlib::Simple::Matplotlib::render.
 	#
 	# Each figure is self-contained -- it loads ggplot2, opens its own device,
 	# draws inside local() and closes the device -- so that several calls can
@@ -1880,9 +1880,9 @@ sub render {
 	# The note is a comment, so it is made ASCII by hand: r_str's escapes
 	# mean nothing there.
 	( my $note = creator_note($sub) ) =~ s/([^\x20-\x7e])/sprintf '\\x{%x}', ord $1/ge;
-	say {$fh} "# Written by Cn::Plot's $engine engine: $note";
+	say {$fh} "# Written by Matplotlib::Simple's $engine engine: $note";
 	say {$fh} 'if (!requireNamespace("ggplot2", quietly = TRUE) || utils::packageVersion("ggplot2") < ' . r_str($min_ggplot2) . ') {';
-	say {$fh} "\tmessage(\"Cn::Plot: the $engine engine needs the R package ggplot2 $min_ggplot2 or newer, which this R cannot load; install it with install.packages(\\\"ggplot2\\\")\")";
+	say {$fh} "\tmessage(\"Matplotlib::Simple: the $engine engine needs the R package ggplot2 $min_ggplot2 or newer, which this R cannot load; install it with install.packages(\\\"ggplot2\\\")\")";
 	say {$fh} "\tquit(status = 1)";
 	say {$fh} '}';
 	say {$fh} 'local({';
@@ -1904,7 +1904,7 @@ sub render {
 	say {$fh} '})';
 	if ( $args->{execute} ) {
 		$fh->flush;
-		run_script( [ program_from_env('CN_PLOT_RSCRIPT') // 'Rscript', $fh->filename ] );
+		run_script( [ program_from_env('MATPLOTLIB_SIMPLE_RSCRIPT') // 'Rscript', $fh->filename ] );
 	}
 	say 'will write ' . "\e[36;103m$args->{output_file}\e[0m";
 	return $fh->filename;

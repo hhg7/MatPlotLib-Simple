@@ -3,16 +3,15 @@ use strict;
 use feature 'say';
 use warnings FATAL => 'all';
 
-package Cn::Plot;
+package Matplotlib::Simple;
 # The front end: plt and its wrappers take the caller's arguments, fold "p"
 # and "df" into plots, and check every one of them, and then hand the figure
-# to the engine that draws it -- Cn::Plot::Matplotlib unless "engine" names
-# another (%engine_module). Until 0.4 this was Matplotlib::Simple, which drew
-# with matplotlib alone; its arguments are this module's, so the keywords are
-# matplotlib's names throughout, and an engine that has no counterpart for one
-# refuses it by name rather than leaving it out (check_engine).
+# to the engine that draws it -- Matplotlib::Simple::Matplotlib unless "engine" names
+# another (%engine_module). Until 0.33 Matplotlib::Simple drew with matplotlib
+# alone, so the keywords are matplotlib's names throughout, and an engine that
+# has no counterpart for one refuses it by name rather than leaving it out (check_engine).
 require 5.010;
-our $VERSION = 0.4;
+our $VERSION = 0.33;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use POSIX ();
@@ -126,7 +125,7 @@ our @plt_methods = (
 	'sca', #'scatter', # taken by "ax"
 	'sci', 'semilogx', 'semilogy', 'set_cmap',  'set_loglevel', 'setp', 'show',
 	'specgram',   'spring', 'spy', 'stackplot', 'stairs',       'stem', 'step',
-	'streamplot', # 'style' is plt's own keyword since 0.4; as a pyplot method it wrote plt.style(...), and plt.style is a module, so it never ran
+	'streamplot', # 'style' is plt's own keyword since 0.33; as a pyplot method it wrote plt.style(...), and plt.style is a module, so it never ran
 	'subplot',    # nrows, ncols : int, default: 1
 	'subplot2grid',    'subplot_mosaic', 'subplot_tool', 'subplots',
 	'subplots_adjust', 'summer', 'suptitle', 'switch_backend', 'sys', 'table',
@@ -1780,17 +1779,17 @@ sub refuse_figure_keywords {
 #                          the keywords of the figure as a whole, at the top
 #                          level of a single plot or of "plots"
 #   sub render { my ( $args, $context ) = @_; ... }
-#                          as Cn::Plot::Matplotlib::render, which documents
+#                          as Matplotlib::Simple::Matplotlib::render, which documents
 #                          what it is given; returns the script's path
 #
 # Each engine draws both styles (%styles); render finds the one asked for in
 # $context->{style}.
 #
-# Cn::Plot::Matplotlib instead sets $draws_everything, and is not checked.
+# Matplotlib::Simple::Matplotlib instead sets $draws_everything, and is not checked.
 our %engine_module = (
-	ggplot2    => 'Cn::Plot::Ggplot2',
-	gnuplot    => 'Cn::Plot::Gnuplot',
-	matplotlib => 'Cn::Plot::Matplotlib',
+	ggplot2    => 'Matplotlib::Simple::Ggplot2',
+	gnuplot    => 'Matplotlib::Simple::Gnuplot',
+	matplotlib => 'Matplotlib::Simple::Matplotlib',
 );
 my $default_engine = 'matplotlib';
 sub engine_name {
@@ -1945,7 +1944,7 @@ sub script_handle {
 		# keep.
 		$fh = File::Temp->new(
 			DIR      => File::Spec->tmpdir,
-			TEMPLATE => sprintf( 'cn-plot-%d-%d-%d-XXXXXX', $$, time, $n_scripts++ ),
+			TEMPLATE => sprintf( 'matplotlib-simple-%d-%d-%d-XXXXXX', $$, time, $n_scripts++ ),
 			SUFFIX   => $suffix,
 			UNLINK   => 0
 		);
@@ -2042,7 +2041,7 @@ sub creator_note {
 	# its script reads as it runs.
 	my ($current_sub) = @_;
 	return getcwd() . "/$RealScript called using \"$current_sub\" in "
-	 . ( $INC{'Cn/Plot.pm'} // __FILE__ ) . " version $VERSION with Perl " . sprintf( '%vd', $^V );
+	 . ( $INC{'Matplotlib/Simple.pm'} // __FILE__ ) . " version $VERSION with Perl " . sprintf( '%vd', $^V );
 }
 sub svg_creator_metadata {
 	# The <metadata> an SVG from matplotlib carries its Creator note in, as
@@ -2060,7 +2059,7 @@ sub svg_creator_metadata {
 }
 # What the engines other than matplotlib read the keywords as. The keywords
 # are matplotlib's, and so are the conventions of their values: text may be
-# Python of the caller's own (quote_text in Cn::Plot::Matplotlib), a color is
+# Python of the caller's own (quote_text in Matplotlib::Simple::Matplotlib), a color is
 # one of matplotlib's names, an axis range is the arguments of set_xlim. These
 # turn each into something any engine can write, and refuse what has no
 # meaning outside matplotlib by name.
@@ -2132,13 +2131,13 @@ sub axis_scale {
 }
 sub color_hex {
 	# A matplotlib color as "#rrggbb", or "#rrggbbaa" where it has an alpha
-	# below 1: one of matplotlib's names (Cn::Plot::Colors), a hex code, a
+	# below 1: one of matplotlib's names (Matplotlib::Simple::Colors), a hex code, a
 	# gray level from "0" to "1", or an RGB or RGBA tuple of numbers from 0 to
 	# 1, as an array or as Python. The names are matplotlib's because gnuplot
 	# and R each have their own lists, which differ from it and from each other.
 	my ( $color, $option, $engine, $current_sub ) = @_;
-	require Cn::Plot::Colors;
-	my $named = do { no warnings 'once'; \%Cn::Plot::Colors::named };
+	require Matplotlib::Simple::Colors;
+	my $named = do { no warnings 'once'; \%Matplotlib::Simple::Colors::named };
 	my @channels;
 	if ( ref $color eq 'ARRAY' ) {
 		@channels = @{$color};
@@ -2170,11 +2169,11 @@ sub color_hex {
 }
 sub colormap_colors {
 	# The colors of a matplotlib colormap from its low end to its high end, as
-	# "#rrggbb", read from Cn::Plot::Colors; a name ending in "_r" is the map
+	# "#rrggbb", read from Matplotlib::Simple::Colors; a name ending in "_r" is the map
 	# reversed, as in matplotlib.
 	my ( $name, $engine, $current_sub ) = @_;
-	require Cn::Plot::Colors;
-	my $maps = do { no warnings 'once'; \%Cn::Plot::Colors::colormap };
+	require Matplotlib::Simple::Colors;
+	my $maps = do { no warnings 'once'; \%Matplotlib::Simple::Colors::colormap };
 	my $text = ( ref $name ) ? '' : ( $name // '' ) =~ s/^\s*(['"]?)(.*?)\1\s*$/$2/sr;
 	my $reversed = ( $text =~ s/_r$// ) ? 1 : 0;
 	if ( not defined $maps->{$text} ) {
@@ -2542,9 +2541,9 @@ foreach my $sub_name (@wrappers) {
 }
 # The default engine, loaded with the module rather than on the first figure,
 # so that its subs -- python_command, which the tests call -- can be called by
-# name as soon as Cn::Plot is loaded. Last, because it aliases subs of this
+# name as soon as Matplotlib::Simple is loaded. Last, because it aliases subs of this
 # package, which have to be compiled first.
-require Cn::Plot::Matplotlib;
+require Matplotlib::Simple::Matplotlib;
 1;
 __END__
 # from md2pod.pl πατερ ημων ο εν τοις ουρανοις, ἁγιασθήτω τὸ ὄνομά σου
@@ -2552,14 +2551,12 @@ __END__
 
 =head1 NAME
 
-Cn::Plot - Plots from Perl data structures, drawn by matplotlib, gnuplot or ggplot2, with one interface for every plot type
-
-Until version 0.4 this module was called C<Matplotlib::Simple>, and it drew with matplotlib alone.  Apart from C<use Cn::Plot> in place of C<use Matplotlib::Simple>, a program written for it runs unchanged and draws the same figures.  See L<#engines> for the rest.
+Matplotlib::Simple - Plots from Perl data structures, drawn by matplotlib, gnuplot or ggplot2, with one interface for every plot type
 
 =head1 Synopsis
 
 Take a data structure in Perl, and automatically write a script that draws it: a Python 3 script using matplotlib by default, or with C<< engine =E<gt> 'gnuplot' >> or C<< engine =E<gt> 'ggplot2' >> a gnuplot or R script.  The script is saved in the system's temporary directory (C<< File::Spec-E<gt>tmpdir >>, which is C</tmp> on unix), to be edited at the user's discretion.
-The default engine depends on Python 3 and matplotlib.  The script is run with C<python3>; on Windows, where a standard install has no C<python3>, it is run with the first of C<python>, C<py -3> and C<python3> that reports itself as Python 3 (as of version 0.315 -- before that, the module could not run its script on Windows at all).  To run a different interpreter -- a venv, or a newer Python on a cluster whose system C<python3> is too old -- set the environment variable C<CN_PLOT_PYTHON> to its path, such as C<export CN_PLOT_PYTHON=~/mpl/bin/python3>.  Its name until version 0.4, C<MATPLOTLIB_SIMPLE_PYTHON> (as of version 0.317), is still read when C<CN_PLOT_PYTHON> is not set.  The generated scripts cannot run with a matplotlib older than 3.5, which does not accept the constrained layout they ask for; the test suite is written against 3.10 and newer, and skips its drawing checks with anything older.  Pass C<< execute =E<gt> 0 >> to write the script without running it.
+The default engine depends on Python 3 and matplotlib.  The script is run with C<python3>; on Windows, where a standard install has no C<python3>, it is run with the first of C<python>, C<py -3> and C<python3> that reports itself as Python 3 (as of version 0.315 -- before that, the module could not run its script on Windows at all).  To run a different interpreter -- a venv, or a newer Python on a cluster whose system C<python3> is too old -- set the environment variable C<MATPLOTLIB_SIMPLE_PYTHON> to its path, such as C<export MATPLOTLIB_SIMPLE_PYTHON=~/mpl/bin/python3> (as of version 0.317).  The generated scripts cannot run with a matplotlib older than 3.5, which does not accept the constrained layout they ask for; the test suite is written against 3.10 and newer, and skips its drawing checks with anything older.  Pass C<< execute =E<gt> 0 >> to write the script without running it.
 
 My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib itself.
 
@@ -2567,7 +2564,7 @@ My aim is to simplify the most common tasks as much as possible.  In my opinion,
 
 Simplest use case:
 
- use Cn::Plot;
+ use Matplotlib::Simple;
  bar(
     output_file       => '/tmp/gospel.word.counts.png',
     data              => {
@@ -2580,7 +2577,7 @@ Simplest use case:
 
 A more complete (and slightly faster execution):
 
- use Cn::Plot;
+ use Matplotlib::Simple;
  plt(
     output_file       => '/tmp/gospel.word.counts.png',
     plot_type         => 'bar',
@@ -2603,7 +2600,7 @@ A more complete (and slightly faster execution):
 
 Having a C<plots> argument as an array lets the module know to create subplots:
 
- use Cn::Plot 'plt';
+ use Matplotlib::Simple 'plt';
  plt(
      output_file     => 'svg/pies.png',
      plots             => [
@@ -2860,7 +2857,7 @@ C<add> graph, says which one it was:
 Every figure is drawn by an I<engine>, which is matplotlib unless C<engine> names
 another.  The rest of the call stays as it is:
 
- use Cn::Plot;
+ use Matplotlib::Simple;
  bar(
     output_file => 'gospel.svg',
     data        => { Matthew => 18345, Mark => 11304, Luke => 19482, John => 15635 },
@@ -2873,13 +2870,13 @@ another.  The rest of the call stays as it is:
 <tbody>
 <tr><td><code>engine</code></td><td>writes</td><td>runs it with</td><td>needs</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td><td>-------</td></tr>
-<tr><td><code>matplotlib</code></td><td>a Python 3 script, <code>.py</code></td><td><code>python3</code>, or <code>CN_PLOT_PYTHON</code></td><td>matplotlib 3.5 or newer, and <code>matplotlib_venn</code> for <code>venn_proportional_area</code></td></tr>
-<tr><td><code>gnuplot</code></td><td>a gnuplot script, <code>.gp</code></td><td><code>gnuplot</code>, or <code>CN_PLOT_GNUPLOT</code></td><td>gnuplot 5.2 or newer</td></tr>
-<tr><td><code>ggplot2</code></td><td>an R script, <code>.R</code></td><td><code>Rscript</code>, or <code>CN_PLOT_RSCRIPT</code></td><td>R with the package ggplot2 3.5.0 or newer, and nothing else</td></tr>
+<tr><td><code>matplotlib</code></td><td>a Python 3 script, <code>.py</code></td><td><code>python3</code>, or <code>MATPLOTLIB_SIMPLE_PYTHON</code></td><td>matplotlib 3.5 or newer, and <code>matplotlib_venn</code> for <code>venn_proportional_area</code></td></tr>
+<tr><td><code>gnuplot</code></td><td>a gnuplot script, <code>.gp</code></td><td><code>gnuplot</code>, or <code>MATPLOTLIB_SIMPLE_GNUPLOT</code></td><td>gnuplot 5.2 or newer</td></tr>
+<tr><td><code>ggplot2</code></td><td>an R script, <code>.R</code></td><td><code>Rscript</code>, or <code>MATPLOTLIB_SIMPLE_RSCRIPT</code></td><td>R with the package ggplot2 3.5.0 or newer, and nothing else</td></tr>
 </tbody>
 </table>
 
-C<CN_PLOT_GNUPLOT> and C<CN_PLOT_RSCRIPT> work as C<CN_PLOT_PYTHON> does: when set
+C<MATPLOTLIB_SIMPLE_GNUPLOT> and C<MATPLOTLIB_SIMPLE_RSCRIPT> work as C<MATPLOTLIB_SIMPLE_PYTHON> does: when set
 and not empty, each is the path of the program to run, taken whole, spaces and
 all.  C<engine> belongs to the whole figure: it goes at the top of the call,
 beside C<plots> or C<p>, and is refused inside a subplot.  C<< execute =E<gt> 0 >>, C<fh>
@@ -3390,7 +3387,7 @@ an example of multiple plots, showing many options:
 
 =head3 single, simple plot
 
- use Cn::Plot 'plt';
+ use Matplotlib::Simple 'plt';
  plt(
      output_file             => 'output.images/single.barplot.png',
      data    => { # simple hash
@@ -3683,7 +3680,7 @@ The C<whiskers> switch belongs to L<#violin>, not to C<boxplot>.
 
 single plots are simple
 
- use Cn::Plot 'boxplot';
+ use Matplotlib::Simple 'boxplot';
  boxplot(
      output_file => 'output.images/single.boxplot.png',
      data              => {                                     # simple hash
@@ -4273,7 +4270,7 @@ as of version 0.26, single arrays can be given to C<hist> instead of a hash, sim
 
 for slightly more complex data sets, hashes are taken:
 
- use Cn::Plot 'hist';
+ use Matplotlib::Simple 'hist';
  
  my @e = generate_normal_dist( 100, 15, 3 * 200 );
  my @b = generate_normal_dist( 85,  15, 3 * 200 );
@@ -6082,7 +6079,7 @@ with C<perl -Ilib wide.example.pl> to regenerate them.
 
 all files that can have notes with them, give notes about how the file was written.  For example, SVG files have the following:
 
- <dc:title>/mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Cn/Plot.pm version 0.4 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
+ <dc:title>/mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm version 0.33 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
 
 The Perl version is the one that wrote the script; the Python and matplotlib
 versions, the user and the host are those of whoever ran it, read by the script
@@ -6100,8 +6097,8 @@ An SVG from the L<#engines> has the same note in the same place,
 C<< E<lt>dc:creatorE<gt>E<lt>cc:AgentE<gt>E<lt>dc:titleE<gt> >>, ending with that engine's versions in place
 of Python's and matplotlib's:
 
- ... version 0.4 with Perl 5.44.0, gnuplot 6.0.0, by dcondon on login1
- ... version 0.4 with Perl 5.44.0, R 4.6.1, ggplot2 4.0.3, by dcondon on login1
+ ... version 0.33 with Perl 5.44.0, gnuplot 6.0.0, by dcondon on login1
+ ... version 0.33 with Perl 5.44.0, R 4.6.1, ggplot2 4.0.3, by dcondon on login1
 
 and nothing else of the engine's own: gnuplot's C<< E<lt>titleE<gt>GnuplotE<lt>/titleE<gt> >>, which
 a browser shows as the figure's name, and its C<< E<lt>descE<gt>Produced by GNUPLOT ...E<lt>/descE<gt> >>

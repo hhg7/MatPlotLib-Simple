@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# Breadth coverage for Cn::Plot: drive every plot type (through both
+# Breadth coverage for Matplotlib::Simple: drive every plot type (through both
 # its wrapper and plt), the major per-type options, the several data shapes, and
 # the subplot/twinx/add machinery. The bulk runs with execute => 0, so the Perl
 # helper logic that builds the Python is exercised even without matplotlib; a
@@ -14,12 +14,12 @@ use feature 'say';
 use File::Temp qw(tempfile tempdir);
 use File::Spec;
 use Capture::Tiny 'capture';
-use Cn::Plot;
+use Matplotlib::Simple;
 # The interpreter the module itself runs: "python3", or on MSWin32 the first of
 # python, py -3 and python3 that is Python 3. Asking the module, rather than
 # naming python3 here, is what lets a Windows smoker that has Python test the
 # module with it instead of skipping; the list is empty when there is none.
-my @PY = Cn::Plot::Matplotlib::python_command();
+my @PY = Matplotlib::Simple::Matplotlib::python_command();
 my $PY = join ' ', @PY;
 use Test::More;
 

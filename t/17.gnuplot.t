@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 #
-# engine => 'gnuplot': lib/Cn/Plot/Gnuplot.pm, one block per thing it must get
+# engine => 'gnuplot': lib/Matplotlib/Simple/Gnuplot.pm, one block per thing it must get
 # right.
 #
 # Most of this is execute => 0 and reads the generated gnuplot script as text,
@@ -9,7 +9,7 @@
 # and paths, and every shape of "data" each type takes.
 #
 # The render checks run the script, and need gnuplot 5.2 or newer, found as
-# CN_PLOT_GNUPLOT or "gnuplot", as the module finds it. 5.2 is where
+# MATPLOTLIB_SIMPLE_GNUPLOT or "gnuplot", as the module finds it. 5.2 is where
 # "reset session", which starts every figure, was added (gnuplot's NEWS for
 # 5.2.0); the rest of what the scripts use -- datablocks, "set offsets graph",
 # "set link", transparent fills and the noenhanced svg, pngcairo and pdfcairo
@@ -26,14 +26,14 @@ use utf8;
 use File::Temp 'tempdir';
 use File::Spec;
 use Capture::Tiny 'capture';
-use Cn::Plot;
+use Matplotlib::Simple;
 use Test::More;
 
 binmode Test::More->builder->$_, ':encoding(UTF-8)' foreach qw(output failure_output todo_output);
 my $TMP = tempdir( CLEANUP => 1 );
 my $seq = 0;
 
-my $GP = ( defined $ENV{CN_PLOT_GNUPLOT} && length $ENV{CN_PLOT_GNUPLOT} ) ? $ENV{CN_PLOT_GNUPLOT} : 'gnuplot';
+my $GP = ( defined $ENV{MATPLOTLIB_SIMPLE_GNUPLOT} && length $ENV{MATPLOTLIB_SIMPLE_GNUPLOT} ) ? $ENV{MATPLOTLIB_SIMPLE_GNUPLOT} : 'gnuplot';
 my ( $gp_out, $gp_err, $gp_status ) = capture {
 	no warnings 'exec';    # a missing gnuplot is a skip, not a failure
 	system( $GP, '--version' );
@@ -204,7 +204,7 @@ foreach my $name ( sort keys %figure ) {
 	($gp) = gen( plot_type => 'bar', data => { A => 1, B => 100 }, log => 'True' );
 	like( $gp, qr/^set logscale y$/m, 'log => "True" puts the bars on a log axis' );
 	# matplotlib's range for 1 .. 100 on a log axis: 5% of the 2 decades either
-	# side, 10 ** -0.1 to 10 ** 2.1. The bars started at 0.1 until 0.4, which
+	# side, 10 ** -0.1 to 10 ** 2.1. The bars started at 0.1 until 0.33, which
 	# dragged the axis down a decade below matplotlib's.
 	like( $gp, qr/^set yrange \[0\.794328234724281\d*:125\.89254117941\d*\]$/m, 'the log axis runs as far as matplotlib\'s, 5% of its decades past the bars' );
 	like( $gp, qr/^0 \S+ -0\.4 0\.4 0\.794328234724281\d* 1 \d+$/m, 'and a bar of 1 starts at the foot of the axis, a sliver, as matplotlib draws it' );
@@ -292,7 +292,7 @@ foreach my $name ( sort keys %figure ) {
 	my @figures = split /^(?=# .* called using)/m, $gp;
 	is( scalar @figures, 2, 'two figures in one script' );
 	like( $figures[1] // '', qr/\A# [^\n]*\nreset session\n/, 'the second starts with "reset session"' );
-	like( $figures[0], qr/^unset output\nprint sprintf\("Cn::Plot gnuplot [^\n]*\n\z/m, 'the first ends with "unset output", closing its file, and then names the gnuplot that drew it' );
+	like( $figures[0], qr/^unset output\nprint sprintf\("Matplotlib::Simple gnuplot [^\n]*\n\z/m, 'the first ends with "unset output", closing its file, and then names the gnuplot that drew it' );
 	unlike( $figures[1] // '', qr/FIRST|logscale y|\[0:99\]/, 'none of the first figure\'s settings is written into the second' );
 	SKIP: {
 		skip( 'no gnuplot >= 5.2', 3 ) unless $gp_available;
@@ -458,8 +458,8 @@ foreach my $name ( 'bar, one bar per key', 'boxplot, a hash', 'hist, a hash', 'v
 	($gp) = gen( %grid, plots => [ $grid{plots}[0], { plot_type => 'hist', data => { A => \@a } }, @{ $grid{plots} }[ 2, 3 ] ], style => 'native' );
 	my ($step) = $gp =~ m/^set ytics (\d+)$/m;
 	ok( ( defined $step ) && ( $step >= 20 ), 'native: a hist\'s counts are labelled every 20 or more, not every 10' ) or diag( '  step: ' . ( $step // 'none' ) );
-	is( Cn::Plot::Gnuplot::native_bin_peak( [ 0, 1, 1, 2, 2, 2 ], 3 ), 3, 'native_bin_peak: three centers, 0, 1 and 2, the fullest holding 3' );
-	is( Cn::Plot::Gnuplot::native_bin_peak( [ 0.4, 0.6, 1.4, 1.6 ], [ 0, 1, 2 ] ), 2, 'native_bin_peak: edges, two values in each bin' );
+	is( Matplotlib::Simple::Gnuplot::native_bin_peak( [ 0, 1, 1, 2, 2, 2 ], 3 ), 3, 'native_bin_peak: three centers, 0, 1 and 2, the fullest holding 3' );
+	is( Matplotlib::Simple::Gnuplot::native_bin_peak( [ 0.4, 0.6, 1.4, 1.6 ], [ 0, 1, 2 ] ), 2, 'native_bin_peak: edges, two values in each bin' );
 }
 
 # ----------------------------------------------------------------------------
@@ -481,7 +481,7 @@ SKIP: {
 }
 
 # ----------------------------------------------------------------------------
-# 15. Fixes found by review before 0.4 was released: each matched against what
+# 15. Fixes found by review before 0.33 was released: each matched against what
 # matplotlib draws.
 # ----------------------------------------------------------------------------
 # The bin counts are numpy 2.5.2's: np.histogram([0.1, 1, 2, 2.9], 3) is
@@ -491,7 +491,7 @@ SKIP: {
 {
 	my $counts = sub {
 		my ( $v, $bins ) = @_;
-		return [ Cn::Plot::Gnuplot::bin_count( $v, [ Cn::Plot::Gnuplot::bin_edges( $v, $bins, '"bins"' ) ] ) ];
+		return [ Matplotlib::Simple::Gnuplot::bin_count( $v, [ Matplotlib::Simple::Gnuplot::bin_edges( $v, $bins, '"bins"' ) ] ) ];
 	};
 	# Edges made as lo + (hi - lo) * i / n left the last at 2.8999999999999995,
 	# below the greatest value, which was then in no bin.

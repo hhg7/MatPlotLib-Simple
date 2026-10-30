@@ -1,11 +1,11 @@
-# Security Policy for the Cn::Plot distribution.
+# Security Policy for the Matplotlib::Simple distribution.
 
 Report security issues by email to David E. Condon <dec986@gmail.com>.
 
-This is the Security Policy for Cn::Plot.
+This is the Security Policy for Matplotlib::Simple.
 
 The latest version of the Security Policy can be found in the
-[git repository for Cn::Plot](https://github.com/hhg7/MatPlotLib-Simple).
+[git repository for Matplotlib::Simple](https://github.com/hhg7/MatPlotLib-Simple).
 
 This text is based on the CPAN Security Group's Guidelines for Adding
 a Security Policy to Perl Distributions (version 1.3.0)
@@ -13,7 +13,7 @@ https://security.metacpan.org/docs/guides/security-policy-for-authors.html
 
 # How to Report a Security Vulnerability
 
-Security vulnerabilities can be reported to the current Cn::Plot
+Security vulnerabilities can be reported to the current Matplotlib::Simple
 maintainers by email to David E. Condon <dec986@gmail.com>.
 
 Please include as many details as possible, including code samples
@@ -59,10 +59,10 @@ They may also forward this issue to CPANSec.
 
 # Which Software This Policy Applies To
 
-Any security vulnerabilities in Cn::Plot are covered by this policy.
+Any security vulnerabilities in Matplotlib::Simple are covered by this policy.
 
 Security vulnerabilities in versions of any libraries that are
-included in Cn::Plot are also covered by this policy.
+included in Matplotlib::Simple are also covered by this policy.
 
 Security vulnerabilities are considered anything that allows users
 to execute unauthorised code, access unauthorised resources, or to
@@ -70,27 +70,27 @@ have an adverse impact on accessibility or performance of a system.
 
 Security vulnerabilities in upstream software (prerequisite modules
 or system libraries, or in Perl), are not covered by this policy
-unless they affect Cn::Plot, or Cn::Plot can
+unless they affect Matplotlib::Simple, or Matplotlib::Simple can
 be used to exploit vulnerabilities in them.
 
 Security vulnerabilities in downstream software (any software that
-uses Cn::Plot, or plugins to it that are not included with the
-Cn::Plot distribution) are not covered by this policy.
+uses Matplotlib::Simple, or plugins to it that are not included with the
+Matplotlib::Simple distribution) are not covered by this policy.
 
-## Supported Versions of Cn::Plot
+## Supported Versions of Matplotlib::Simple
 
 The maintainer(s) will only commit to releasing security fixes for
-the latest version of Cn::Plot.
+the latest version of Matplotlib::Simple.
 
-Note that the Cn::Plot project only supports major versions of Perl since
-5.10, even though Cn::Plot will run on
+Note that the Matplotlib::Simple project only supports major versions of Perl since
+5.10, even though Matplotlib::Simple will run on
 older versions of Perl. If a security fix requires us to increase
 the minimum version of Perl that is supported, then we may do so.
 
 # Installation and Usage Issues
 
 The distribution metadata specifies minimum versions of
-prerequisites that are required for Cn::Plot to work.  However, some
+prerequisites that are required for Matplotlib::Simple to work.  However, some
 of these prerequisites may have security vulnerabilities, and you
 should ensure that you are using up-to-date versions of these
 prerequisites.

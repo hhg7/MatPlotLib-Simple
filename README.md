@@ -1,20 +1,17 @@
 # NAME
 
-Cn::Plot - Plots from Perl data structures, drawn by matplotlib, gnuplot or ggplot2, with one interface for every plot type
-
-Until version 0.4 this module was called `Matplotlib::Simple`, and it drew with matplotlib alone.  Apart from `use Cn::Plot` in place of `use Matplotlib::Simple`, a program written for it runs unchanged and draws the same figures.  See [Engines](#engines) for the rest.
+Matplotlib::Simple - Plots from Perl data structures, drawn by matplotlib, gnuplot or ggplot2, with one interface for every plot type
 
 # Synopsis
 
-Take a data structure in Perl, and automatically write a script that draws it: a Python 3 script using matplotlib by default, or with `engine => 'gnuplot'` or `engine => 'ggplot2'` a gnuplot or R script.  The script is saved in the system's temporary directory (`File::Spec->tmpdir`, which is `/tmp` on unix), to be edited at the user's discretion.
-The default engine depends on Python 3 and matplotlib.  The script is run with `python3`; on Windows, where a standard install has no `python3`, it is run with the first of `python`, `py -3` and `python3` that reports itself as Python 3 (as of version 0.315 -- before that, the module could not run its script on Windows at all).  To run a different interpreter -- a venv, or a newer Python on a cluster whose system `python3` is too old -- set the environment variable `CN_PLOT_PYTHON` to its path, such as `export CN_PLOT_PYTHON=~/mpl/bin/python3`.  Its name until version 0.4, `MATPLOTLIB_SIMPLE_PYTHON` (as of version 0.317), is still read when `CN_PLOT_PYTHON` is not set.  The generated scripts cannot run with a matplotlib older than 3.5, which does not accept the constrained layout they ask for; the test suite is written against 3.10 and newer, and skips its drawing checks with anything older.  Pass `execute => 0` to write the script without running it.
+Use python3/matplotlib, gnuplot, and/or R/ggplot2 to make figures, using the exact same language syntax. Learning this one module gives easy creation of figures using 3 different common plotting libraries.
 
-My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib itself.
+My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib/gnuplot/ggplot themselves.
 
 # Single Plots
 Simplest use case:
 
-    use Cn::Plot;
+    use Matplotlib::Simple;
     bar(
 	   output_file       => '/tmp/gospel.word.counts.png',
 	   data              => {
@@ -27,7 +24,7 @@ Simplest use case:
 
 A more complete (and slightly faster execution):
 
-    use Cn::Plot;
+    use Matplotlib::Simple;
     plt(
 	   output_file       => '/tmp/gospel.word.counts.png',
 	   plot_type         => 'bar',
@@ -45,7 +42,7 @@ A more complete (and slightly faster execution):
 
 Having a `plots` argument as an array lets the module know to create subplots:
 
-    use Cn::Plot 'plt';
+    use Matplotlib::Simple 'plt';
     plt(
     	output_file     => 'svg/pies.png',
     	plots             => [
@@ -292,7 +289,7 @@ no per-type list to check them against.  A type given for a subplot, or for an
 Every figure is drawn by an *engine*, which is matplotlib unless `engine` names
 another.  The rest of the call stays as it is:
 
-    use Cn::Plot;
+    use Matplotlib::Simple;
     bar(
        output_file => 'gospel.svg',
        data        => { Matthew => 18345, Mark => 11304, Luke => 19482, John => 15635 },
@@ -302,11 +299,11 @@ another.  The rest of the call stays as it is:
 
 | `engine` | writes | runs it with | needs |
 | -------- | ------- | ------- | ------- |
-|`matplotlib`|a Python 3 script, `.py`|`python3`, or `CN_PLOT_PYTHON`|matplotlib 3.5 or newer, and `matplotlib_venn` for `venn_proportional_area`|
-|`gnuplot`|a gnuplot script, `.gp`|`gnuplot`, or `CN_PLOT_GNUPLOT`|gnuplot 5.2 or newer|
-|`ggplot2`|an R script, `.R`|`Rscript`, or `CN_PLOT_RSCRIPT`|R with the package ggplot2 3.5.0 or newer, and nothing else|
+|`matplotlib`|a Python 3 script, `.py`|`python3`, or `MATPLOTLIB_SIMPLE_PYTHON`|matplotlib 3.5 or newer, and `matplotlib_venn` for `venn_proportional_area`|
+|`gnuplot`|a gnuplot script, `.gp`|`gnuplot`, or `MATPLOTLIB_SIMPLE_GNUPLOT`|gnuplot 5.2 or newer|
+|`ggplot2`|an R script, `.R`|`Rscript`, or `MATPLOTLIB_SIMPLE_RSCRIPT`|R with the package ggplot2 3.5.0 or newer, and nothing else|
 
-`CN_PLOT_GNUPLOT` and `CN_PLOT_RSCRIPT` work as `CN_PLOT_PYTHON` does: when set
+`MATPLOTLIB_SIMPLE_GNUPLOT` and `MATPLOTLIB_SIMPLE_RSCRIPT` work as `MATPLOTLIB_SIMPLE_PYTHON` does: when set
 and not empty, each is the path of the program to run, taken whole, spaces and
 all.  `engine` belongs to the whole figure: it goes at the top of the call,
 beside `plots` or `p`, and is refused inside a subplot.  `execute => 0`, `fh`
@@ -743,7 +740,7 @@ an example of multiple plots, showing many options:
 
 ### single, simple plot
 
-    use Cn::Plot 'plt';
+    use Matplotlib::Simple 'plt';
     plt(
 	    output_file             => 'output.images/single.barplot.png',
 	    data	=> { # simple hash
@@ -1016,7 +1013,7 @@ The `whiskers` switch belongs to [`violin`](#violin), not to `boxplot`.
 
 single plots are simple
 
-    use Cn::Plot 'boxplot';
+    use Matplotlib::Simple 'boxplot';
     boxplot(
     	output_file => 'output.images/single.boxplot.png',
     	data              => {                                     # simple hash
@@ -1560,7 +1557,7 @@ as of version 0.26, single arrays can be given to `hist` instead of a hash, simp
 
 for slightly more complex data sets, hashes are taken:
 
-    use Cn::Plot 'hist';
+    use Matplotlib::Simple 'hist';
 	
     my @e = generate_normal_dist( 100, 15, 3 * 200 );
     my @b = generate_normal_dist( 85,  15, 3 * 200 );
@@ -3206,7 +3203,7 @@ with `perl -Ilib wide.example.pl` to regenerate them.
 
 all files that can have notes with them, give notes about how the file was written.  For example, SVG files have the following:
 
-    <dc:title>/mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Cn/Plot.pm version 0.4 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
+    <dc:title>/mnt/ceph/dcondon/ui/gromacs/tut/dup.2puy/1.plot.gromacs.pl called using "plot" in /mnt/ceph/dcondon/perl5/perlbrew/perls/perl-5.42.0/lib/site_perl/5.42.0/x86_64-linux/Matplotlib/Simple.pm version 0.33 with Perl 5.42.0, Python 3.12.3, matplotlib 3.10.7, by dcondon on login1</dc:title>
 
 The Perl version is the one that wrote the script; the Python and matplotlib
 versions, the user and the host are those of whoever ran it, read by the script
@@ -3224,8 +3221,8 @@ An SVG from the [other engines](#engines) has the same note in the same place,
 `<dc:creator><cc:Agent><dc:title>`, ending with that engine's versions in place
 of Python's and matplotlib's:
 
-    ... version 0.4 with Perl 5.44.0, gnuplot 6.0.0, by dcondon on login1
-    ... version 0.4 with Perl 5.44.0, R 4.6.1, ggplot2 4.0.3, by dcondon on login1
+    ... version 0.33 with Perl 5.44.0, gnuplot 6.0.0, by dcondon on login1
+    ... version 0.33 with Perl 5.44.0, R 4.6.1, ggplot2 4.0.3, by dcondon on login1
 
 and nothing else of the engine's own: gnuplot's `<title>Gnuplot</title>`, which
 a browser shows as the figure's name, and its `<desc>Produced by GNUPLOT ...</desc>`

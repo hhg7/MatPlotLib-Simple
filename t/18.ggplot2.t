@@ -9,14 +9,14 @@
 # every script written here with R's own parser, as t/05.generated.python.t
 # does with Python's, and needs Rscript. Blocks 16 and 17 render, one in each
 # style, and need Rscript with ggplot2 3.5.0 or newer -- the version the script
-# itself asks for, $Cn::Plot::Ggplot2::min_ggplot2, which is the first with the
+# itself asks for, $Matplotlib::Simple::Ggplot2::min_ggplot2, which is the first with the
 # "transform" argument of the position scales and geom_boxplot's
 # "staplewidth"; what "native" adds, geom_bin_2d, after_stat and "orientation",
 # is older. Without either, they SKIP. Block 18 needs nothing.
 #
 # The figures were compared by eye with matplotlib's from the same arguments,
 # type by type, in PNGs drawn by both engines: that is not something a test
-# can check, and was done by hand for 0.4.
+# can check, and was done by hand for 0.33.
 #
 require 5.010;
 use strict;
@@ -25,7 +25,7 @@ use utf8;
 use File::Temp 'tempdir';
 use File::Spec;
 use Capture::Tiny 'capture';
-use Cn::Plot;
+use Matplotlib::Simple;
 use Test::More;
 
 my $TMP = tempdir( CLEANUP => 1 );
@@ -250,11 +250,11 @@ like( refusal( plot_type => 'plot', data => { A => [ \@x, \@y ] }, set_xlim => '
 # 8. The binning and the summaries are numpy's.
 # ----------------------------------------------------------------------------
 {
-	is( Cn::Plot::Ggplot2::bin_index( [ 0, 1, 2 ], 2 ), 1, 'the last bin holds its right edge' );
-	is( Cn::Plot::Ggplot2::bin_index( [ 0, 1, 2 ], 1 ), 1, 'every other bin holds its left edge alone' );
-	ok( !defined Cn::Plot::Ggplot2::bin_index( [ 0, 1, 2 ], 2.5 ), 'a value outside the edges is in no bin' );
-	is( Cn::Plot::Ggplot2::percentile( [ 1, 2, 3, 4 ], 0.25 ), 1.75, 'percentile is numpy\'s linear one' );
-	my ( $base, $mean, $sd ) = Cn::Plot::Ggplot2::wide_summary( [ [ [ 0, 2 ], [ 0, 2 ] ], [ [ 1, 0 ], [ 2, 1 ] ] ] );
+	is( Matplotlib::Simple::Ggplot2::bin_index( [ 0, 1, 2 ], 2 ), 1, 'the last bin holds its right edge' );
+	is( Matplotlib::Simple::Ggplot2::bin_index( [ 0, 1, 2 ], 1 ), 1, 'every other bin holds its left edge alone' );
+	ok( !defined Matplotlib::Simple::Ggplot2::bin_index( [ 0, 1, 2 ], 2.5 ), 'a value outside the edges is in no bin' );
+	is( Matplotlib::Simple::Ggplot2::percentile( [ 1, 2, 3, 4 ], 0.25 ), 1.75, 'percentile is numpy\'s linear one' );
+	my ( $base, $mean, $sd ) = Matplotlib::Simple::Ggplot2::wide_summary( [ [ [ 0, 2 ], [ 0, 2 ] ], [ [ 1, 0 ], [ 2, 1 ] ] ] );
 	is_deeply( [ @{$mean}[ 0, 50, 100 ] ], [ 0.5, 1.5, 2 ], 'wide: the runs are sorted by x, and a point only one run reaches is that run' );
 	is( $sd->[0], 0.5, 'wide: the standard deviation is the population one' );
 }
@@ -264,7 +264,7 @@ like( refusal( plot_type => 'plot', data => { A => [ \@x, \@y ] }, set_xlim => '
 # ----------------------------------------------------------------------------
 # The native constructs are absent from every matplotlib-style script, and
 # leaving the style out writes what naming "native" writes. The digests are of
-# scripts the engine wrote before "style" was added in 0.4 (SHA-256, line 1 --
+# scripts the engine wrote before "style" was added in 0.33 (SHA-256, line 1 --
 # the note naming where and by whom it was written -- left out, and the
 # local() that copies that note into the SVG, which came later). They pin the
 # figures "native" must not disturb; overlay, logbar and wide are not among
@@ -275,10 +275,13 @@ like( refusal( plot_type => 'plot', data => { A => [ \@x, \@y ] }, set_xlim => '
 # significant digit, by 5e-15 at most), and hist and hist2d when their edges
 # came to be numpy's linspace -- their old scripts had lost the greatest
 # value of each hist set and two points of the hist2d, and the new counts
-# were checked against np.histogram and np.histogram2d. To see the digests
+# were checked against np.histogram and np.histogram2d. All twelve were taken
+# again when the module went back to the name Matplotlib::Simple, which the
+# script gives in its message about ggplot2's version; with "Cn::Plot" put
+# back in its place, each script still gave its old digest. To see the digests
 # the engine writes now, run
 #
-#	CN_PLOT_PRINT_PINS=1 prove -Ilib t/18.ggplot2.t
+#	MATPLOTLIB_SIMPLE_PRINT_PINS=1 prove -Ilib t/18.ggplot2.t
 use Digest::SHA 'sha256_hex';
 my %native_only = (
 	'geom_col'       => qr/geom_col\(/,
@@ -291,18 +294,18 @@ my %native_only = (
 );
 my @pin_v = map { sin($_) * 3 + $_ / 10 } 1 .. 40;
 my %pinned = (
-	grouped => [ '5f5812a8daec84f7c474082280e6d946ba284b6c80a20e61439ba7b26e8a7ff2', { plot_type => 'bar', data => { '2023' => { A => 3, B => 5 }, '2024' => { A => 4, B => 3 } }, title => 'g' } ],
-	simple  => [ '9c703af457597a515eba21472d3c47e070bda25fa4bbccf18103974c0cb50da5', { plot_type => 'bar', data => { a => 1, b => 2 }, yerr => { a => 0.1, b => 0.2 } } ],
-	boxplot => [ '5800aab6df02dd372a27dcd06c2ed3c14aef80d21551c79d77e97c8f206cc8d0', { plot_type => 'boxplot', data => { A => [@pin_v], B => [ map { $_ * 2 } @pin_v ] }, showmeans => 1 } ],
-	violin  => [ '4b953761cc3fb103fc52d48cbd2056bc5ac5f9d3873b8e945800f7dbcd32b772', { plot_type => 'violin', data => { A => [@pin_v], B => [ map { $_ * 2 } @pin_v ] } } ],
-	hist    => [ 'cdf78200a90670b417945648ab76872bc185a5dadb4994534953c078ddb83dd6', { plot_type => 'hist', data => { A => [@pin_v], B => [ map { $_ + 1 } @pin_v ] }, bins => 7 } ],
-	hist2d  => [ '13eca3a0e8274d8318380b77e2051e5b51be0cd8c1ff40adcc353fd7d508b1d4', { plot_type => 'hist2d', data => { x => [@pin_v], y => [ reverse @pin_v ] }, xbins => 5, ybins => 4 } ],
-	scatter => [ '01d65bb949f875b9539ffc9193ddf50e821bf4fd6d2702ffac4c854145ec61e3', { plot_type => 'scatter', data => { x => [ 1 .. 5 ], y => [ 2, 4, 1, 3, 5 ], z => [ 5, 4, 3, 2, 1 ] } } ],
-	sets    => [ 'c714ad1bc36799cffae5c17060e3d4e621e30bad2b8f520fce9f92cc77c98713', { plot_type => 'scatter', data => { P => { x => [ 1, 2 ], y => [ 3, 4 ] }, Q => { x => [ 2, 3 ], y => [ 1, 2 ] } } } ],
-	table   => [ '1b49dd5ef9d4d5102ef374065835a067909802dc80412581c0f5f559cf48793c', { plot_type => 'colored_table', data => { H => { H => 1, C => 2 }, C => { C => 3 } }, mirror => 1, show_numbers => 1 } ],
-	pie     => [ '05671e8742b8e3c36f3a4f6fd68f99496938798f83be2c45f81c446de96a194a', { plot_type => 'pie', data => { a => 1, b => 2, c => 3 }, autopct => '%1.1f%%' } ],
-	imshow  => [ '872563916ae435d00ead733a2579e1591ca4cabcdc96b2cd4a9a774a42c87bc4', { plot_type => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ], cmap => 'viridis' } ],
-	plot    => [ 'ddde7e170241b716a3f8d1392a8d4822a61874bf51eb73038577a7e87115f8c4', { plot_type => 'plot', data => { s => [ [ 1, 2, 3 ], [ 1, 4, 9 ] ], t => [ 3, 2, 1 ] } } ],
+	grouped => [ '5de8eb822ca4c3bcad0eb400c18d5c97b71ead2fd59ead0b592488f4e22323b6', { plot_type => 'bar', data => { '2023' => { A => 3, B => 5 }, '2024' => { A => 4, B => 3 } }, title => 'g' } ],
+	simple  => [ '14296eec1fae7a3e32232d81c1519e3d8e07432186467c74a7d00d42e4f5a89f', { plot_type => 'bar', data => { a => 1, b => 2 }, yerr => { a => 0.1, b => 0.2 } } ],
+	boxplot => [ '2abbdfb316b1b6b8b23f5c68b33a5695e10fee570b3caccdc6f742fd9996dedb', { plot_type => 'boxplot', data => { A => [@pin_v], B => [ map { $_ * 2 } @pin_v ] }, showmeans => 1 } ],
+	violin  => [ 'fff037c0bf0649ed3f1dfdccad013eec552183d207d68a86d176b15b2fe96f4c', { plot_type => 'violin', data => { A => [@pin_v], B => [ map { $_ * 2 } @pin_v ] } } ],
+	hist    => [ '8579b60fdc5f1a25c890a3e95de237f9b3c28f8e4699c874f4be5e42bcd6727f', { plot_type => 'hist', data => { A => [@pin_v], B => [ map { $_ + 1 } @pin_v ] }, bins => 7 } ],
+	hist2d  => [ '7a76da2d500145d6fefae9645d3ca230dfd79df8c0b955ec486f27713ea08f7d', { plot_type => 'hist2d', data => { x => [@pin_v], y => [ reverse @pin_v ] }, xbins => 5, ybins => 4 } ],
+	scatter => [ '8e87b45a515648ff0ce8a790a696c78245e088f11e0388d763d318a57c312770', { plot_type => 'scatter', data => { x => [ 1 .. 5 ], y => [ 2, 4, 1, 3, 5 ], z => [ 5, 4, 3, 2, 1 ] } } ],
+	sets    => [ '16470a65d64fe52ee25a34fe11ab6d0e5d675fcd7a5dfa2d5f4e51213f22f047', { plot_type => 'scatter', data => { P => { x => [ 1, 2 ], y => [ 3, 4 ] }, Q => { x => [ 2, 3 ], y => [ 1, 2 ] } } } ],
+	table   => [ '47f088caeab29766a0003e03d0fc99cfca1eb900a66a60c5ef43e24fdc2fe36e', { plot_type => 'colored_table', data => { H => { H => 1, C => 2 }, C => { C => 3 } }, mirror => 1, show_numbers => 1 } ],
+	pie     => [ '5975722f0b84206347b05f14769cdd688f9a0685229e6383361e03a6411a2b90', { plot_type => 'pie', data => { a => 1, b => 2, c => 3 }, autopct => '%1.1f%%' } ],
+	imshow  => [ 'aa70df9251989fc0d9b43b32e851faf995e62747e66d60c6e7c1ed9ad1f8af28', { plot_type => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ], cmap => 'viridis' } ],
+	plot    => [ '4becca4b6667ba46f6ac82c0a6c3019fd73e54250ed40362984d65b17cbc010c', { plot_type => 'plot', data => { s => [ [ 1, 2, 3 ], [ 1, 4, 9 ] ], t => [ 3, 2, 1 ] } } ],
 );
 sub pinned_script {
 	# The script of a pinned figure, as the digests were taken: written to
@@ -316,7 +319,7 @@ sub pinned_script {
 	foreach my $name ( sort keys %pinned ) {
 		my ( $digest, $args ) = @{ $pinned{$name} };
 		my $script = pinned_script( $args, style => 'matplotlib' );
-		diag("$name => '" . sha256_hex($script) . "'") if $ENV{CN_PLOT_PRINT_PINS};
+		diag("$name => '" . sha256_hex($script) . "'") if $ENV{MATPLOTLIB_SIMPLE_PRINT_PINS};
 		is( sha256_hex($script), $digest, "$name: the matplotlib-style script is the one written before \"style\" was added" );
 		is( pinned_script($args), pinned_script( $args, style => 'native' ), "$name: no style writes what style => 'native' writes" );
 	}
@@ -461,7 +464,7 @@ my $shared_script;
 # ----------------------------------------------------------------------------
 # 15. R parses every script written above.
 # ----------------------------------------------------------------------------
-my @R = ( Cn::Plot::program_from_env('CN_PLOT_RSCRIPT') // 'Rscript' );
+my @R = ( Matplotlib::Simple::program_from_env('MATPLOTLIB_SIMPLE_RSCRIPT') // 'Rscript' );
 my ( $r_out, undef, $r_status ) = capture {
 	no warnings 'exec';
 	# single quotes only: see CLAUDE.md on list-form system on Win32
@@ -471,7 +474,7 @@ my $r_available = ( $r_status == 0 && $r_out =~ m/^\d+ \S+ (\S+)/ ) ? 1 : 0;
 my $gg_version = $r_available ? ( $r_out =~ m/ (\S+)$/ )[0] : 'none';
 my $gg_available = 0;
 if ( $gg_version =~ m/^(\d+)\.(\d+)/ ) {
-	my ( $want_major, $want_minor ) = $Cn::Plot::Ggplot2::min_ggplot2 =~ m/^(\d+)\.(\d+)/;
+	my ( $want_major, $want_minor ) = $Matplotlib::Simple::Ggplot2::min_ggplot2 =~ m/^(\d+)\.(\d+)/;
 	$gg_available = ( $1 > $want_major || ( $1 == $want_major && $2 >= $want_minor ) ) ? 1 : 0;
 }
 diag( $r_available ? "Rscript found, ggplot2 $gg_version (render checks " . ( $gg_available ? 'ON' : 'OFF' ) . ')' : 'no Rscript (parse and render checks skipped)' );
@@ -508,7 +511,7 @@ sub well_formed {
 	return @open ? 0 : 1;
 }
 SKIP: {
-	skip( "no ggplot2 >= $Cn::Plot::Ggplot2::min_ggplot2", 2 * scalar( keys %every_type ) + 3 ) unless $gg_available;
+	skip( "no ggplot2 >= $Matplotlib::Simple::Ggplot2::min_ggplot2", 2 * scalar( keys %every_type ) + 3 ) unless $gg_available;
 	foreach my $type ( sort keys %every_type ) {
 		my $file = out_file();
 		my ( $out, $err, $ok ) = capture { eval { plt( engine => 'ggplot2', style => 'matplotlib', plot_type => $type, %{ $every_type{$type} }, output_file => $file ); 1 } };
@@ -547,7 +550,7 @@ sub colored_fills {
 	return scalar keys %fill;
 }
 SKIP: {
-	skip( "no ggplot2 >= $Cn::Plot::Ggplot2::min_ggplot2", 2 * scalar( keys %every_type ) + 2 * scalar( keys %native_drawn ) ) unless $gg_available;
+	skip( "no ggplot2 >= $Matplotlib::Simple::Ggplot2::min_ggplot2", 2 * scalar( keys %every_type ) + 2 * scalar( keys %native_drawn ) ) unless $gg_available;
 	foreach my $type ( sort keys %every_type ) {
 		my $file = out_file();
 		my ( $out, $err, $ok ) = capture { eval { plt( engine => 'ggplot2', style => 'native', plot_type => $type, %{ $every_type{$type} }, output_file => $file ); 1 } };
@@ -566,12 +569,12 @@ SKIP: {
 # 18. An Rscript that is not there is reported as failing to start.
 # ----------------------------------------------------------------------------
 {
-	local $ENV{CN_PLOT_RSCRIPT} = File::Spec->catfile( $TMP, 'no such Rscript' );
+	local $ENV{MATPLOTLIB_SIMPLE_RSCRIPT} = File::Spec->catfile( $TMP, 'no such Rscript' );
 	my ( undef, undef ) = capture { eval { plt( engine => 'ggplot2', plot_type => 'bar', data => { A => 1 }, output_file => out_file() ) } };
-	like( "$@", qr/no such Rscript\S* .* failed to start/, 'a missing interpreter named by CN_PLOT_RSCRIPT is reported as failing to start' );
+	like( "$@", qr/no such Rscript\S* .* failed to start/, 'a missing interpreter named by MATPLOTLIB_SIMPLE_RSCRIPT is reported as failing to start' );
 }
 # ----------------------------------------------------------------------------
-# 19. Fixes found by review before 0.4 was released.
+# 19. Fixes found by review before 0.33 was released.
 # ----------------------------------------------------------------------------
 # The counts are numpy 2.5.2's: np.histogram([0.1, 1, 2, 2.9], 3) is
 # [2, 0, 2] over the edges 0.1, 1.0333333333333332, 1.9666666666666666 and
@@ -585,8 +588,8 @@ SKIP: {
 	like( script_of( plot_type => 'hist', data => [ 0.5, 1, 1.5, 2 ], bins => [ 0, 1, 1, 2 ] ), qr/ymax = c\(1, 0, 3\)/, 'hist: two equal edges are a bin of no width, as numpy allows' );
 	like( refusal( plot_type => 'hist', data => [ 0.5, 1 ], bins => [ 0, 1, 1, 2 ], style => 'native' ), qr/two equal edges, a bin of no width, which ggplot2's stat_bin refuses/, 'hist, native: which R\'s cut() refuses, so it is refused by name' );
 	like( refusal( plot_type => 'hist', data => [ 0.5, 1 ], bins => [ 0, 2, 1 ] ), qr/never falling/, 'hist: edges that fall are refused, as numpy refuses them' );
-	is( Cn::Plot::Ggplot2::r_num( 1 / 3 ), '0.33333333333333331', 'r_num: a computed number keeps every digit' );
-	is( Cn::Plot::Ggplot2::r_num('0.1'), '0.1', 'r_num: and one that needs no more than 15 is written in 15' );
+	is( Matplotlib::Simple::Ggplot2::r_num( 1 / 3 ), '0.33333333333333331', 'r_num: a computed number keeps every digit' );
+	is( Matplotlib::Simple::Ggplot2::r_num('0.1'), '0.1', 'r_num: and one that needs no more than 15 is written in 15' );
 	like( refusal( plot_type => 'hist2d', data => { x => [ 0.3, 0.3 ], y => [ 2, 3 ] }, logscale => ['x'] ), qr/every x is 0\.3, a range of nothing/, 'hist2d: one value on a log axis is refused by name, not taken the log of below 0' );
 
 	# "data" as one array names its one set "", and "colors" keyed by it died
@@ -611,7 +614,7 @@ SKIP: {
 	}
 	like( refusal( plot_type => 'hist2d', data => { x => [], y => [] }, style => 'native' ), qr/"x" has no finite value, so hist2d has no range to bin it over/, 'hist2d, native: no points is refused as the matplotlib style refuses it' );
 	SKIP: {
-		skip( "no ggplot2 >= $Cn::Plot::Ggplot2::min_ggplot2", 2 * scalar( keys %empty ) ) unless $gg_available;
+		skip( "no ggplot2 >= $Matplotlib::Simple::Ggplot2::min_ggplot2", 2 * scalar( keys %empty ) ) unless $gg_available;
 		foreach my $name ( sort keys %empty ) {
 			foreach my $style ( 'matplotlib', 'native' ) {
 				my $file = out_file();

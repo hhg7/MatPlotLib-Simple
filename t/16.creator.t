@@ -28,9 +28,9 @@ use File::Temp 'tempdir';
 use File::Spec;
 use Capture::Tiny 'capture';
 use Sys::Hostname ();
-use Cn::Plot;
+use Matplotlib::Simple;
 # The interpreter the module itself runs; see t/07.review.fixes.t.
-my @PY = Cn::Plot::Matplotlib::python_command();
+my @PY = Matplotlib::Simple::Matplotlib::python_command();
 my $PY = join ' ', @PY;
 use Test::More;
 
@@ -152,7 +152,7 @@ SKIP: {
 # 5. gnuplot: the note Perl adds to an SVG, without gnuplot.
 # ----------------------------------------------------------------------------
 {
-	require Cn::Plot::Gnuplot;
+	require Matplotlib::Simple::Gnuplot;
 	my $file = out_file();
 	open my $o, '>:raw', $file or die "can't write $file: $!";
 	# The head of an SVG from gnuplot 6.0's svg terminal.
@@ -160,7 +160,7 @@ SKIP: {
 	close $o or die "can't close $file: $!";
 	{
 		local $ENV{LOGNAME} = "r\xcf\x81&<o>";    # an environment holds bytes: this is UTF-8 for "r\x{3c1}&<o>"
-		Cn::Plot::Gnuplot::creator_svg( $file, "/R&D/\x{3c1}.pl called using \"plt\"", '6.0.0' );
+		Matplotlib::Simple::Gnuplot::creator_svg( $file, "/R&D/\x{3c1}.pl called using \"plt\"", '6.0.0' );
 	}
 	my $svg = slurp($file);
 	my $host = eval { Sys::Hostname::hostname() } // 'unknown host';
@@ -169,13 +169,13 @@ SKIP: {
 	unlike( $svg, qr{<title>Gnuplot</title>|<desc>}, "gnuplot's own title and description are gone" );
 	like( $svg, qr{<title>gnuplot_plot_1</title>}, 'the titles of the plots are not' );
 	my ( undef, undef, $gp ) = capture { plt( {%bar, engine => 'gnuplot', output_file => out_file(), execute => 0} ) };
-	like( slurp($gp), qr/^print sprintf\("Cn::Plot gnuplot %\.1f\.%s", GPVAL_VERSION, GPVAL_PATCHLEVEL\)$/m, 'the script names the gnuplot that ran it' );
+	like( slurp($gp), qr/^print sprintf\("Matplotlib::Simple gnuplot %\.1f\.%s", GPVAL_VERSION, GPVAL_PATCHLEVEL\)$/m, 'the script names the gnuplot that ran it' );
 }
 
 # ----------------------------------------------------------------------------
 # 6. gnuplot, rendered: each SVG it draws carries the note.
 # ----------------------------------------------------------------------------
-my $GP = Cn::Plot::program_from_env('CN_PLOT_GNUPLOT') // 'gnuplot';
+my $GP = Matplotlib::Simple::program_from_env('MATPLOTLIB_SIMPLE_GNUPLOT') // 'gnuplot';
 my ( $gp_out, undef, $gp_status ) = capture {
 	no warnings 'exec';    # a missing gnuplot is a skip, not a failure
 	system( $GP, '--version' );
@@ -186,7 +186,7 @@ SKIP: {
 	my ($version) = $gp_out =~ m/^gnuplot\s+(\d+\.\d+) patchlevel (\S+)/;
 	my $file = out_file();
 	capture { plt( {%bar, engine => 'gnuplot', output_file => $file} ) };
-	like( creator( slurp($file) ), qr/ called using "plt" in .* with Perl [\d.]+, gnuplot \Q$version.\E\S+, by \Q${\ Cn::Plot::Gnuplot::creator_user() }\E on .+\z/, 'the SVG names gnuplot, its version and who ran it' );
+	like( creator( slurp($file) ), qr/ called using "plt" in .* with Perl [\d.]+, gnuplot \Q$version.\E\S+, by \Q${\ Matplotlib::Simple::Gnuplot::creator_user() }\E on .+\z/, 'the SVG names gnuplot, its version and who ran it' );
 	# Two figures in one script, run by the second.
 	my $fh = File::Temp->new( DIR => $TMP, SUFFIX => '.gp', UNLINK => 1 );
 	my @files = ( out_file(), out_file() );
@@ -211,7 +211,7 @@ SKIP: {
 	( undef, undef, $r ) = capture { plt( {%bar, engine => 'ggplot2', output_file => out_file('png'), execute => 0} ) };
 	unlike( slurp($r), qr/Sys\.info/, 'ggplot2: and only for an SVG' );
 }
-my @R = ( Cn::Plot::program_from_env('CN_PLOT_RSCRIPT') // 'Rscript' );
+my @R = ( Matplotlib::Simple::program_from_env('MATPLOTLIB_SIMPLE_RSCRIPT') // 'Rscript' );
 my ( $r_out, undef, $r_status ) = capture {
 	no warnings 'exec';
 	# single quotes only: see CLAUDE.md on list-form system on Win32

@@ -1,6 +1,6 @@
 #!/bin/sh
-# Install Cn::Plot from this working copy into the perl on PATH, so that
-# "use Cn::Plot" works from any directory on this computer:
+# Install Matplotlib::Simple from this working copy into the perl on PATH, so that
+# "use Matplotlib::Simple" works from any directory on this computer:
 #
 #	./compile.sh            # install prerequisites, build, test, install
 #	./compile.sh --notest   # the same without the suite, which takes ~2 minutes
@@ -35,4 +35,4 @@ make install
 
 # Read back from a directory with no lib/ in it, so it is the installed copy that answers.
 cd /
-perl -MCn::Plot -e 'print "Cn::Plot $Cn::Plot::VERSION is installed at $INC{q{Cn/Plot.pm}}\n"'
+perl -MMatplotlib::Simple -e 'print "Matplotlib::Simple $Matplotlib::Simple::VERSION is installed at $INC{q{Matplotlib/Simple.pm}}\n"'

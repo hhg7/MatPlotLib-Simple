@@ -2,9 +2,9 @@ use strict;
 use feature 'say';
 use warnings FATAL => 'all';
 
-package Cn::Plot::Gnuplot;
+package Matplotlib::Simple::Gnuplot;
 # The gnuplot engine: "engine => 'gnuplot'" writes plt's figure as a gnuplot
-# script and runs it. Cn::Plot has checked the arguments, and check_engine has
+# script and runs it. Matplotlib::Simple has checked the arguments, and check_engine has
 # refused every plot type and keyword not listed below, before render() is
 # called.
 #
@@ -24,22 +24,22 @@ package Cn::Plot::Gnuplot;
 # 4.8 inch figure (rcParams figure.figsize) and 100 dots per inch for a PNG
 # (rcParams figure.dpi).
 require 5.010;
-our $VERSION = 0.4;
+our $VERSION = 0.33;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max min sum);
 use POSIX ();
 use Encode ();
 use Sys::Hostname ();
-BEGIN { require Cn::Plot }
+BEGIN { require Matplotlib::Simple }
 BEGIN {
 	no strict 'refs';
-	*{$_} = \&{"Cn::Plot::$_"} foreach qw(axis_limits axis_scale bin_counts bool_option
+	*{$_} = \&{"Matplotlib::Simple::$_"} foreach qw(axis_limits axis_scale bin_counts bool_option
 	 cb_limits check_key_order check_numbers check_scatter_lengths check_scatter_values
 	 check_wide_runs color_hex colormap_colors creator_note decoded_text finite_values
 	 is_finite is_nan linspace logscale_axes logspace plain_text program_from_env run_script script_handle
 	 svg_creator_metadata table_cells);
 }
-# What this engine draws: plot type => the keywords of %Cn::Plot::opt it reads
+# What this engine draws: plot type => the keywords of %Matplotlib::Simple::opt it reads
 # for that type. hexbin and venn_proportional_area are not here: gnuplot has
 # no hexagonal binning and no area-proportional Venn layout, and neither is
 # drawn rather than drawn as something else.
@@ -65,7 +65,7 @@ our @plot_keywords   = ( 'set_title', 'set_xlabel', 'set_xlim', 'set_xscale', 's
 our @figure_keywords = ( 'scale', 'scalex', 'scaley', 'suptitle' );
 
 my $engine = 'gnuplot';
-# 1 = style => 'native' (%Cn::Plot::styles): gnuplot's own colors, palette,
+# 1 = style => 'native' (%Matplotlib::Simple::styles): gnuplot's own colors, palette,
 # statistics and look; 0 = matplotlib's, as everywhere else in this file. Set
 # by render.
 my $native = 0;
@@ -1742,7 +1742,7 @@ sub creator_svg {
 }
 sub render {
 	# plt's figure as a gnuplot script, which is run unless "execute" is false.
-	# Returns the script's path. Takes what Cn::Plot::Matplotlib::render does.
+	# Returns the script's path. Takes what Matplotlib::Simple::Matplotlib::render does.
 	my ( $args, $context ) = @_;
 	$current_sub = $context->{sub};
 	$native = ( ( $context->{style} // 'native' ) eq 'native' ) ? 1 : 0;
@@ -1774,7 +1774,7 @@ sub render {
 	my $suptitle = defined $args->{suptitle} ? one_text( $args, 'suptitle' ) : undef;
 	my $multiplot = ( ( scalar @plots > 1 ) || ( defined $suptitle ) ) ? 1 : 0;
 	# A lexical, not $fh: the file is flushed and closed when it goes out of
-	# scope, as Cn::Plot::Matplotlib's is, so that the script is whole when the
+	# scope, as Matplotlib::Simple::Matplotlib's is, so that the script is whole when the
 	# caller reads it.
 	my $out = script_handle( $args, '.gp', $current_sub );
 	( my $note = creator_note($current_sub) ) =~ s/[\r\n]+/ /g;    # a comment ends at the line's end
@@ -1791,11 +1791,11 @@ sub render {
 	say {$out} 'unset output';
 	# To STDERR, where "print" writes, for creator_svg to read once the script
 	# has run. GPVAL_VERSION is a number, such as 6.0, and the patch level text.
-	say {$out} 'print sprintf("Cn::Plot gnuplot %.1f.%s", GPVAL_VERSION, GPVAL_PATCHLEVEL)';
+	say {$out} 'print sprintf("Matplotlib::Simple gnuplot %.1f.%s", GPVAL_VERSION, GPVAL_PATCHLEVEL)';
 	push @{ $svg_notes{ $out->filename } }, [ $file, creator_note($current_sub) ] if $ext eq 'svg';
 	if ( $args->{execute} ) {
-		my $stderr = run_script( [ program_from_env('CN_PLOT_GNUPLOT') // 'gnuplot', $out->filename ] );
-		my ($version) = $stderr =~ m/^Cn::Plot gnuplot (\S+)$/m;
+		my $stderr = run_script( [ program_from_env('MATPLOTLIB_SIMPLE_GNUPLOT') // 'gnuplot', $out->filename ] );
+		my ($version) = $stderr =~ m/^Matplotlib::Simple gnuplot (\S+)$/m;
 		foreach my $svg ( @{ delete $svg_notes{ $out->filename } // [] } ) {
 			creator_svg( @{$svg}, $version // 'of unknown version' );
 		}

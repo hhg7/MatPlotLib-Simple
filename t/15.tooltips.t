@@ -25,9 +25,9 @@ use Capture::Tiny 'capture';
 use JSON::MaybeXS;
 use MIME::Base64;
 use Encode ();
-use Cn::Plot;
+use Matplotlib::Simple;
 # The interpreter the module itself runs; see t/07.review.fixes.t.
-my @PY = Cn::Plot::Matplotlib::python_command();
+my @PY = Matplotlib::Simple::Matplotlib::python_command();
 my $PY = join ' ', @PY;
 use Test::More;
 binmode( Test::More->builder->$_, ':encoding(UTF-8)' ) foreach qw(output failure_output todo_output);
@@ -168,7 +168,7 @@ my %one = ( X => [ 1, 2, 3, 4 ], Y => [ 3, 1, 4, 2 ] );
 {
 	my ( $py, $file ) = lives( { plot_type => 'scatter', data => {%one}, tooltips => [ 'alpha', undef, 'gamma', 4 ] }, 'one set: an array of labels with an undef is accepted' );
 	like( $py, qr/^ax0\.scatter\(x, y , urls = tooltip_urls\)$/m, 'one set: the urls reach ax.scatter' );
-	is_deeply( written( $py, 'tooltip_urls' ), [ map { defined $_ ? "#cn-plot-tooltip-$_" : undef } ( 0, undef, 1, 2 ) ],
+	is_deeply( written( $py, 'tooltip_urls' ), [ map { defined $_ ? "#matplotlib-simple-tooltip-$_" : undef } ( 0, undef, 1, 2 ) ],
 		'one set: each labelled point has its own url, and the undef point none' );
 	is_deeply( written( $py, 'tooltip_text' ), [ 'alpha', 'gamma', '4' ], 'one set: the labels are written as text, the number too' );
 	like( $py, qr/svg_tree\.write\(/, 'one set: the SVG is rewritten with the titles' );
@@ -314,7 +314,7 @@ SKIP: {
 	my $svg = render( plot_type => 'scatter', data => { X => [ 1, 2, 3, 4 ], Y => [ 3, 1, 4, 2 ] }, tooltips => [ 'p1', undef, 'p3 <&> "ρ"', 'p4' ] );
 	is_deeply( [ labels_by_x($svg) ], [ 'p1', 'p3 <&> "ρ"', 'p4' ], 'one set: each title is on its own point, the undef point has none' );
 	# the url, not the bare name, which is also the class of each labelled <g>
-	unlike( $svg, qr/#cn-plot-tooltip-|<a /, 'one set: no link is left in the SVG' );
+	unlike( $svg, qr/#matplotlib-simple-tooltip-|<a /, 'one set: no link is left in the SVG' );
 	like( $svg, qr/\A<\?xml version='1\.0' encoding='utf-8'\?>\n<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/, 'one set: the SVG is written back with its own namespace as the default' );
 	# matplotlib leaves out the NaN point and the one not above 0 on a log axis
 	$svg = render( plot_type => 'scatter', data => { X => [ 1, 2, 3, 4, 5 ], Y => [ 1, 'nan', 3, -1, 5 ] }, logscale => ['y'], tooltips => [ map { "p$_" } 1 .. 5 ] );
@@ -394,7 +394,7 @@ my @awkward = (
 		qr/"tooltips" of set "B" has 1 labels, but there are 2 points/, 'a figure dies at its second set' );
 	my ($py) = lives( { plot_type => 'scatter', data => { X => [1], Y => [1] }, tooltips => ['z'] }, 'the next figure is accepted' );
 	is_deeply( written( $py, 'tooltip_text' ), ['z'], 'the next figure has only its own label' );
-	is_deeply( written( $py, 'tooltip_urls' ), ['#cn-plot-tooltip-0'], 'the next figure numbers from 0' );
+	is_deeply( written( $py, 'tooltip_urls' ), ['#matplotlib-simple-tooltip-0'], 'the next figure numbers from 0' );
 	($py) = lives( { plot_type => 'scatter', data => { X => [1], Y => [1] }, tooltips => ['y'] }, 'a figure after one that succeeded is accepted' );
 	is_deeply( written( $py, 'tooltip_text' ), ['y'], 'a figure after one that succeeded has only its own label' );
 }
@@ -410,7 +410,7 @@ my @awkward = (
 	like( $py, qr/^fig\.colorbar\(im, label = 'Z value'/m, 'colored set: the colorbar is still drawn' );
 	# "keys" chooses which array is drawn as x; the labels go by index all the same
 	($py) = lives( { plot_type => 'scatter', data => {%colored}, keys => [qw(Y X Z)], tooltips => [ 'a', undef, 'c' ] }, '"keys": accepted' );
-	is_deeply( written( $py, 'tooltip_urls' ), [ '#cn-plot-tooltip-0', undef, '#cn-plot-tooltip-1' ], '"keys": the urls are by point, as given' );
+	is_deeply( written( $py, 'tooltip_urls' ), [ '#matplotlib-simple-tooltip-0', undef, '#matplotlib-simple-tooltip-1' ], '"keys": the urls are by point, as given' );
 	my %sets = ( A => { X => [1], Y => [1] }, B => { X => [2], Y => [2] } );
 	($py) = lives( { plot_type => 'scatter', data => {%sets}, key_order => [qw(B A)], tooltips => { A => ['a'], B => ['b'] },
 		set_options => { A => 'label = "first", marker = "s"' } }, 'key_order and set_options: accepted' );
@@ -532,16 +532,16 @@ SKIP: {
 {
 	my ($py) = gen( plot_type => 'scatter', data => {%one}, tooltips => [ 1 .. 4 ] );
 	like( $py, qr/^tooltip_script = r'''/m, 'the script that draws the label is written into the python' );
-	like( $py, qr/link\.set\('class', 'cn-plot-tooltip'\)/, 'each labelled point is given the class the script looks for' );
+	like( $py, qr/link\.set\('class', 'matplotlib-simple-tooltip'\)/, 'each labelled point is given the class the script looks for' );
 }
 SKIP: {
 	skip( 'no matplotlib >= 3.10', 5 ) unless $mpl_available;
 	my $svg = render( plot_type => 'scatter', data => {%one}, tooltips => [ 'a', undef, 'c', 'd' ] );
-	my @classed = $svg =~ m{<g class="cn-plot-tooltip">\s*<title>}g;
+	my @classed = $svg =~ m{<g class="matplotlib-simple-tooltip">\s*<title>}g;
 	is( scalar @classed, 3, 'each point with a label, and only those, is a <g> of the class, its <title> first' );
 	my @scripts = $svg =~ m{<script\b}g;
 	is( scalar @scripts, 1, 'the SVG has one script' );
-	like( $svg, qr{<script type="text/javascript">[^<]*g\.cn-plot-tooltip[^<]*</script>\s*</svg>\s*\z}, 'the script is the last thing in the SVG, so that it runs after every point and draws on top' );
+	like( $svg, qr{<script type="text/javascript">[^<]*g\.matplotlib-simple-tooltip[^<]*</script>\s*</svg>\s*\z}, 'the script is the last thing in the SVG, so that it runs after every point and draws on top' );
 	$svg = render( plot_type => 'scatter', output_file => out_file('svgz'), data => {%one}, tooltips => [ 1 .. 4 ] );
 	like( $svg, qr{<script type="text/javascript">}, 'an .svgz has the script too' );
 	$svg = render( plot_type => 'scatter', data => {%one} );

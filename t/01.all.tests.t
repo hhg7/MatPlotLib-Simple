@@ -7,12 +7,12 @@ use autodie ':default';   # ':all' would need IPC::System::Simple, for a system(
 use feature 'say';
 use File::Spec;
 use File::Temp 'tempfile';
-use Cn::Plot;
+use Matplotlib::Simple;
 # The interpreter the module itself runs: "python3", or on MSWin32 the first of
 # python, py -3 and python3 that is Python 3. Asking the module, rather than
 # naming python3 here, is what lets a Windows smoker that has Python test the
 # module with it instead of skipping; the list is empty when there is none.
-my @PY = Cn::Plot::Matplotlib::python_command();
+my @PY = Matplotlib::Simple::Matplotlib::python_command();
 my $PY = join ' ', @PY;
 use Test::Exception; # die_ok
 use Test::More;
@@ -39,7 +39,7 @@ if ($? == 0 && $python_version_raw =~ m/Python\s+3\.\d+/i) {
 
 unless ($python_available) {
     # plan skip_all is the core module way to gracefully skip the entire file
-    plan skip_all => 'SKIP: no Python 3 interpreter found (python3, or on MSWin32 python, py -3 or python3). Cn::Plot requires Python 3.';
+    plan skip_all => 'SKIP: no Python 3 interpreter found (python3, or on MSWin32 python, py -3 or python3). Matplotlib::Simple requires Python 3.';
 }
 
 # --- Dependency Check 2: Matplotlib ---

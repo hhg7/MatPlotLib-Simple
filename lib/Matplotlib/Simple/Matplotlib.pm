@@ -2,17 +2,17 @@ use strict;
 use feature 'say';
 use warnings FATAL => 'all';
 
-package Cn::Plot::Matplotlib;
-# The matplotlib engine, Cn::Plot's default: it writes plt's figure as a Python
+package Matplotlib::Simple::Matplotlib;
+# The matplotlib engine, Matplotlib::Simple's default: it writes plt's figure as a Python
 # 3 script that draws it with matplotlib, and runs that script. Everything
-# here was Matplotlib::Simple until 0.4, when the module was renamed and split
-# so that other engines could draw the same figures; Cn::Plot checks the
+# here was in Matplotlib::Simple itself until 0.33, when it was split out so
+# that other engines could draw the same figures; Matplotlib::Simple checks the
 # arguments, and calls render() below once they are good.
 #
-# The helpers keep checking their own keywords, against the same lists Cn::Plot
+# The helpers keep checking their own keywords, against the same lists Matplotlib::Simple
 # checks them with, which are shared below rather than copied.
 require 5.010;
-our $VERSION = 0.4;
+our $VERSION = 0.33;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use File::Spec;
@@ -23,24 +23,24 @@ use JSON::MaybeXS;
 use MIME::Base64;
 use Encode ();
 # Loaded first, even when this module is the one asked for, so that the names
-# below have something to alias. Cn::Plot requires this module at its end; by
+# below have something to alias. Matplotlib::Simple requires this module at its end; by
 # then this one is already in %INC, and is not loaded twice.
-BEGIN { require Cn::Plot }
-# The parts of Cn::Plot the helpers use under their old names: the checks that
+BEGIN { require Matplotlib::Simple }
+# The parts of Matplotlib::Simple the helpers use under their old names: the checks that
 # do not depend on the engine, and the keyword lists. Aliases, not copies, so
-# a list Cn::Plot changes is the list checked here.
+# a list Matplotlib::Simple changes is the list checked here.
 BEGIN {
 	no strict 'refs';
-	*{$_} = \&{"Cn::Plot::$_"} foreach qw(bad_keyword_error bin_counts bool_option cb_limits
+	*{$_} = \&{"Matplotlib::Simple::$_"} foreach qw(bad_keyword_error bin_counts bool_option cb_limits
 	 check_key_order check_numbers check_plot_type check_scatter_lengths creator_note
 	 check_scatter_values check_twinx_args check_wide_runs decoded_data
 	 decoded_text finite_values is_finite is_nan logscale_axes nonfinite_name
 	 program_from_env py_str run_script script_handle table_cells);
-	*{$_} = \@{"Cn::Plot::$_"} foreach qw(arg ax_methods cb_arg fig_methods plt_methods);
-	*{$_} = \%{"Cn::Plot::$_"} foreach qw(opt opt_key_of_type);
+	*{$_} = \@{"Matplotlib::Simple::$_"} foreach qw(arg ax_methods cb_arg fig_methods plt_methods);
+	*{$_} = \%{"Matplotlib::Simple::$_"} foreach qw(opt opt_key_of_type);
 }
 our ( @arg, @ax_methods, @cb_arg, @fig_methods, @plt_methods, %opt, %opt_key_of_type );
-# Every plot type and keyword Cn::Plot accepts is drawn here, so check_engine
+# Every plot type and keyword Matplotlib::Simple accepts is drawn here, so check_engine
 # has nothing to refuse; the other engines list what they draw instead.
 our $draws_everything = 1;
 sub py_list {
@@ -153,12 +153,12 @@ sub write_data {
 my %twin_axes;
 # The text of every scatter "tooltips" label in the figure, numbered by its
 # place here. scatter_helper draws a labelled point with the url
-# "#cn-plot-tooltip-<n>", and once the SVG is written plt turns each
+# "#matplotlib-simple-tooltip-<n>", and once the SVG is written plt turns each
 # such link into a group whose <title> is the text, which a browser shows on
 # hovering. plt empties it, and sets $tooltips_drawn, before it writes a figure.
 my @tooltip_text;
 my $tooltips_drawn = 0;    # 1 = output_file is an SVG, which the tooltips are written into; 0 = they are checked and left out
-my $tooltip_url = '#cn-plot-tooltip-';
+my $tooltip_url = '#matplotlib-simple-tooltip-';
 # The methods whose argument is usually bare text, which quote_text quotes.
 # "supxlabel" and "supylabel" are figure methods, which are otherwise written
 # as given: until 0.32 they were not here, so "supxlabel => 'Time'" wrote
@@ -2922,10 +2922,9 @@ my @windows_python_candidates = ( ['python'], [ 'py', '-3' ], ['python3'] );
 # that the test suite can point it at a stand-in interpreter.
 our $python_command;
 sub python_command {
-	# The interpreter plt runs scripts with, as a list. $ENV{CN_PLOT_PYTHON}, or
-	# failing that the $ENV{MATPLOTLIB_SIMPLE_PYTHON} of the module's old name, when
-	# set and not empty, is that interpreter, taken whole and neither
-	# searched for nor checked: it names a venv or a module-loaded Python
+	# The interpreter plt runs scripts with, as a list.
+	# $ENV{MATPLOTLIB_SIMPLE_PYTHON}, when set and not empty, is that
+	# interpreter, taken whole and neither searched for nor checked: it names a venv or a module-loaded Python
 	# without changing PATH, and is not split on spaces because a path such as
 	# "C:\Program Files\Python312\python.exe" has them. One that does not
 	# run is reported by plt as "failed to start". Otherwise it is
@@ -2938,7 +2937,7 @@ sub python_command {
 	# which prints "Python was not found" and exits 9009. Both streams are
 	# read, since Python 3 before 3.4 printed its version to STDERR.
 	return @{$python_command} if defined $python_command;
-	my $named = program_from_env( 'CN_PLOT_PYTHON', 'MATPLOTLIB_SIMPLE_PYTHON' );
+	my $named = program_from_env('MATPLOTLIB_SIMPLE_PYTHON');
 	if ( defined $named ) {
 		$python_command = [$named];
 		return @{$python_command};
@@ -2987,13 +2986,13 @@ sub render {
 	# plt's figure as a Python script, which is run unless "execute" is false.
 	# Returns the script's path.
 	#
-	# args:    plt's arguments once Cn::Plot has checked them: "p" and "df"
+	# args:    plt's arguments once Matplotlib::Simple has checked them: "p" and "df"
 	#          folded in, "nrows", "ncols" and "execute" set, every plot_type
 	#          checked and every plot given "data"
 	# context: sub         => the name the caller called ("plt", "bar", ...)
 	#          single_plot => 1 = one plot, its keywords at the top level;
 	#                         0 = "plots", one hash per subplot
-	#          style       => "matplotlib" or "native" (%Cn::Plot::styles), which
+	#          style       => "matplotlib" or "native" (%Matplotlib::Simple::styles), which
 	#                         draw the same figure here
 	my ( $args, $context ) = @_;
 	my $current_sub = $context->{sub};
@@ -3296,7 +3295,7 @@ PYTHON
 		# A <title> alone was not enough: whether a browser shows it on
 		# hovering is up to the browser and the desktop, and in 0.321 neither
 		# Firefox nor Chromium showed one on the author's machine. So the <g>
-		# is also given the class cn-plot-tooltip, and a script at
+		# is also given the class matplotlib-simple-tooltip, and a script at
 		# the end of the SVG draws the label itself, in a box beside the point
 		# under the mouse. The script takes each <title> out as it starts, so
 		# that a browser that does show titles does not show the label twice;
@@ -3310,7 +3309,7 @@ tooltip_script = r'''(function () {
 	var ns = 'http://www.w3.org/2000/svg';
 	var me = document.currentScript;
 	var svg = (me && me.ownerSVGElement) || document.documentElement;
-	var points = svg.querySelectorAll('g.cn-plot-tooltip');
+	var points = svg.querySelectorAll('g.matplotlib-simple-tooltip');
 	var gap = 4, pad = 3;
 	var tip = document.createElementNS(ns, 'g');
 	tip.setAttribute('pointer-events', 'none');
@@ -3385,7 +3384,7 @@ for link in list(svg_tree.iter('{%s}a' % svg_ns)):
 		continue
 	link.tag = '{%s}g' % svg_ns
 	link.attrib.clear()
-	link.set('class', 'cn-plot-tooltip')
+	link.set('class', 'matplotlib-simple-tooltip')
 	title = ET.Element('{%s}title' % svg_ns)
 	title.text = tooltip_text[int(href[len(tooltip_url):])]
 	link.insert(0, title)
@@ -3403,7 +3402,7 @@ PYTHON
 		if ( scalar @python == 0 ) {
 			die 'no Python 3 interpreter was found to run ' . $fh->filename
 			 . ': tried ' . join( ', ', map { '"' . join( ' ', @{$_} ) . '"' } @windows_python_candidates )
-			 . '. Install Python 3 and matplotlib, set CN_PLOT_PYTHON to the path of a Python 3 that has them, or pass "execute => 0" to write the script without running it';
+			 . '. Install Python 3 and matplotlib, set MATPLOTLIB_SIMPLE_PYTHON to the path of a Python 3 that has them, or pass "execute => 0" to write the script without running it';
 		}
 		run_script( [ @python, $fh->filename ] );
 		say 'will write ' . "\e[36;103m$args->{output_file}\e[0m" if defined $args->{output_file};

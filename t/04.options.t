@@ -30,7 +30,7 @@ use warnings FATAL => 'all';
 use File::Temp 'tempdir';
 use File::Spec;
 use Capture::Tiny 'capture';
-use Cn::Plot;
+use Matplotlib::Simple;
 use Test::More;
 
 our $TODO;

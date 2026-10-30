@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
-# The front end's part in choosing what draws a figure, added in 0.4 when
-# Matplotlib::Simple became Cn::Plot: "engine" and "style", check_engine's
+# The front end's part in choosing what draws a figure, added in 0.33 along
+# with the gnuplot and ggplot2 engines: "engine" and "style", check_engine's
 # refusals, and the readers that turn matplotlib's conventions for a value --
 # text that may be Python, a color by matplotlib's name, set_xlim's arguments,
 # a colormap -- into something any engine can write.
@@ -15,7 +15,7 @@
 # drawing is tested in t/17.gnuplot.t and t/18.ggplot2.t, and matplotlib's
 # everywhere else.
 #
-# The expected colors are matplotlib 3.11.2's, which lib/Cn/Plot/Colors.pm was
+# The expected colors are matplotlib 3.11.2's, which lib/Matplotlib/Simple/Colors.pm was
 # generated from (see make.colors.pl): "tab:blue" is matplotlib's #1f77b4, "C3"
 # its #d62728, and viridis runs from #440154 to #fde725.
 require 5.010;
@@ -25,7 +25,7 @@ use utf8;
 use File::Temp 'tempdir';
 use File::Spec;
 use Capture::Tiny 'capture';
-use Cn::Plot;
+use Matplotlib::Simple;
 use Test::More;
 binmode Test::More->builder->$_, ':encoding(UTF-8)' foreach qw(output failure_output todo_output);
 
@@ -86,7 +86,7 @@ sub script_of {
 # 3. "style" is "native", the default, or "matplotlib"; matplotlib draws the
 # same for both.
 # ----------------------------------------------------------------------------
-# "style" was on the list of pyplot methods until 0.4, and wrote plt.style(...),
+# "style" was on the list of pyplot methods until 0.33, and wrote plt.style(...),
 # which raised "TypeError: 'module' object is not callable": plt.style is a
 # module. No figure that drew can have used it.
 {
@@ -141,7 +141,7 @@ sub script_of {
 # ----------------------------------------------------------------------------
 # 5. plain_text reads text as matplotlib would show it.
 # ----------------------------------------------------------------------------
-# Text that Cn::Plot::Matplotlib's quote_text would leave as Python is read as
+# Text that Matplotlib::Simple::Matplotlib's quote_text would leave as Python is read as
 # Python, and anything else is the words as given.
 {
 	my %shown = (
@@ -167,11 +167,11 @@ sub script_of {
 		q{"one argument", }         => 'one argument',    # Python takes the trailing comma
 	);
 	foreach my $text ( sort keys %shown ) {
-		is( Cn::Plot::plain_text( $text, 'title', 'gnuplot', 'plt' ), $shown{$text}, "plain_text: $text" );
+		is( Matplotlib::Simple::plain_text( $text, 'title', 'gnuplot', 'plt' ), $shown{$text}, "plain_text: $text" );
 	}
-	like( error_of( sub { Cn::Plot::plain_text( q{"Counts", fontsize = 20}, 'title', 'gnuplot', 'plt' ) } ), qr/^plt: "title" is given matplotlib's arguments, fontsize = 20 after its text/, 'a literal followed by matplotlib\'s arguments is refused' );
-	like( error_of( sub { Cn::Plot::plain_text( q{label = "x", loc = "left"}, 'title', 'ggplot2', 'plt' ) } ), qr/^plt: "title" is given as matplotlib's keyword arguments/, 'and so are keyword arguments alone' );
-	like( error_of( sub { Cn::Plot::plain_text( q{f'{x}'}, 'xlabel', 'gnuplot', 'plt' ) } ), qr/^plt: "xlabel" is a Python f-string/, 'and an f-string, which only Python can fill in' );
+	like( error_of( sub { Matplotlib::Simple::plain_text( q{"Counts", fontsize = 20}, 'title', 'gnuplot', 'plt' ) } ), qr/^plt: "title" is given matplotlib's arguments, fontsize = 20 after its text/, 'a literal followed by matplotlib\'s arguments is refused' );
+	like( error_of( sub { Matplotlib::Simple::plain_text( q{label = "x", loc = "left"}, 'title', 'ggplot2', 'plt' ) } ), qr/^plt: "title" is given as matplotlib's keyword arguments/, 'and so are keyword arguments alone' );
+	like( error_of( sub { Matplotlib::Simple::plain_text( q{f'{x}'}, 'xlabel', 'gnuplot', 'plt' ) } ), qr/^plt: "xlabel" is a Python f-string/, 'and an f-string, which only Python can fill in' );
 }
 
 # ----------------------------------------------------------------------------
@@ -181,14 +181,14 @@ sub script_of {
 	my @cases = ( [ '0, 10', [ 0, 10 ] ], [ '(None, 5)', [ undef, 5 ] ], [ '[-1.5,1.5]', [ -1.5, 1.5 ] ], [ [ 1, 2 ], [ 1, 2 ] ] );
 	foreach my $case (@cases) {
 		my ( $given, $ends ) = @{$case};
-		is_deeply( [ Cn::Plot::axis_limits( $given, 'set_xlim', 'gnuplot', 'plt' ) ], $ends, 'axis_limits: ' . ( ref $given ? "[ @{$given} ]" : $given ) );
+		is_deeply( [ Matplotlib::Simple::axis_limits( $given, 'set_xlim', 'gnuplot', 'plt' ) ], $ends, 'axis_limits: ' . ( ref $given ? "[ @{$given} ]" : $given ) );
 	}
 	foreach my $bad ( 'right = 180', '0, inf', '0', [ 1, 2, 3 ] ) {
-		like( error_of( sub { Cn::Plot::axis_limits( $bad, 'set_xlim', 'gnuplot', 'plt' ) } ), qr/^plt: "set_xlim" is two finite numbers for the gnuplot engine/, 'axis_limits refuses ' . ( ref $bad ? 'an array of 3' : "\"$bad\"" ) );
+		like( error_of( sub { Matplotlib::Simple::axis_limits( $bad, 'set_xlim', 'gnuplot', 'plt' ) } ), qr/^plt: "set_xlim" is two finite numbers for the gnuplot engine/, 'axis_limits refuses ' . ( ref $bad ? 'an array of 3' : "\"$bad\"" ) );
 	}
-	is( Cn::Plot::axis_scale( q{'log'}, 'xscale', 'gnuplot', 'plt' ), 'log', 'axis_scale: a quoted "log"' );
-	is( Cn::Plot::axis_scale( 'linear', 'yscale', 'gnuplot', 'plt' ), 'linear', 'axis_scale: "linear"' );
-	like( error_of( sub { Cn::Plot::axis_scale( 'symlog', 'yscale', 'ggplot2', 'plt' ) } ), qr/^plt: "yscale" is "log" or "linear" for the ggplot2 engine, not "symlog"/, 'axis_scale refuses a scale only matplotlib has' );
+	is( Matplotlib::Simple::axis_scale( q{'log'}, 'xscale', 'gnuplot', 'plt' ), 'log', 'axis_scale: a quoted "log"' );
+	is( Matplotlib::Simple::axis_scale( 'linear', 'yscale', 'gnuplot', 'plt' ), 'linear', 'axis_scale: "linear"' );
+	like( error_of( sub { Matplotlib::Simple::axis_scale( 'symlog', 'yscale', 'ggplot2', 'plt' ) } ), qr/^plt: "yscale" is "log" or "linear" for the ggplot2 engine, not "symlog"/, 'axis_scale refuses a scale only matplotlib has' );
 }
 
 # ----------------------------------------------------------------------------
@@ -201,31 +201,31 @@ sub script_of {
 		'(1, 0, 0, 0.5)' => '#ff000080', q{'navy'} => '#000080',
 	);
 	foreach my $color ( sort keys %hex ) {
-		is( Cn::Plot::color_hex( $color, '"color"', 'gnuplot', 'plt' ), $hex{$color}, "color_hex: $color" );
+		is( Matplotlib::Simple::color_hex( $color, '"color"', 'gnuplot', 'plt' ), $hex{$color}, "color_hex: $color" );
 	}
-	is( Cn::Plot::color_hex( [ 0, 1, 0 ], '"color"', 'gnuplot', 'plt' ), '#00ff00', 'color_hex: an RGB array' );
+	is( Matplotlib::Simple::color_hex( [ 0, 1, 0 ], '"color"', 'gnuplot', 'plt' ), '#00ff00', 'color_hex: an RGB array' );
 	foreach my $bad ( 'xkcd:sky blue', 'notacolor', '1.5', [ 2, 0, 0 ] ) {
-		like( error_of( sub { Cn::Plot::color_hex( $bad, '"color"', 'ggplot2', 'plt' ) } ), qr/^plt: "color" is not a color the ggplot2 engine knows/, 'color_hex refuses ' . ( ref $bad ? 'an RGB array out of range' : "\"$bad\"" ) );
+		like( error_of( sub { Matplotlib::Simple::color_hex( $bad, '"color"', 'ggplot2', 'plt' ) } ), qr/^plt: "color" is not a color the ggplot2 engine knows/, 'color_hex refuses ' . ( ref $bad ? 'an RGB array out of range' : "\"$bad\"" ) );
 	}
-	my @viridis = Cn::Plot::colormap_colors( 'viridis', 'gnuplot', 'plt' );
+	my @viridis = Matplotlib::Simple::colormap_colors( 'viridis', 'gnuplot', 'plt' );
 	is_deeply( [ @viridis[ 0, -1 ] ], [ '#440154', '#fde725' ], 'colormap_colors: viridis, low end first' );
-	is_deeply( [ Cn::Plot::colormap_colors( 'viridis_r', 'gnuplot', 'plt' ) ], [ reverse @viridis ], 'and "_r" reverses it' );
-	like( error_of( sub { Cn::Plot::colormap_colors( 'vridis', 'gnuplot', 'plt' ) } ), qr/^plt: "cmap" "vridis" is not a colormap the gnuplot engine has; it has .*viridis/, 'an unknown colormap is refused, listing the ones there are' );
+	is_deeply( [ Matplotlib::Simple::colormap_colors( 'viridis_r', 'gnuplot', 'plt' ) ], [ reverse @viridis ], 'and "_r" reverses it' );
+	like( error_of( sub { Matplotlib::Simple::colormap_colors( 'vridis', 'gnuplot', 'plt' ) } ), qr/^plt: "cmap" "vridis" is not a colormap the gnuplot engine has; it has .*viridis/, 'an unknown colormap is refused, listing the ones there are' );
 }
 
 # ----------------------------------------------------------------------------
-# 8. Every module of the distribution carries Cn::Plot's version.
+# 8. Every module of the distribution carries Matplotlib::Simple's version.
 # ----------------------------------------------------------------------------
-# dist.ini takes the version from lib/Cn/Plot.pm, and PAUSE indexes each
+# dist.ini takes the version from lib/Matplotlib/Simple.pm, and PAUSE indexes each
 # package by its own $VERSION, so one left behind at a release is indexed as
 # older than the distribution that ships it.
 {
-	require Cn::Plot::Colors;
-	require Cn::Plot::Gnuplot;
-	require Cn::Plot::Ggplot2;
+	require Matplotlib::Simple::Colors;
+	require Matplotlib::Simple::Gnuplot;
+	require Matplotlib::Simple::Ggplot2;
 	no strict 'refs';
-	foreach my $module ( 'Cn::Plot::Colors', 'Cn::Plot::Ggplot2', 'Cn::Plot::Gnuplot', 'Cn::Plot::Matplotlib' ) {
-		is( ${"${module}::VERSION"}, $Cn::Plot::VERSION, "$module is version $Cn::Plot::VERSION, as Cn::Plot is" );
+	foreach my $module ( 'Matplotlib::Simple::Colors', 'Matplotlib::Simple::Ggplot2', 'Matplotlib::Simple::Gnuplot', 'Matplotlib::Simple::Matplotlib' ) {
+		is( ${"${module}::VERSION"}, $Matplotlib::Simple::VERSION, "$module is version $Matplotlib::Simple::VERSION, as Matplotlib::Simple is" );
 	}
 }
 
@@ -245,7 +245,7 @@ sub script_of {
 		push @names, ( File::Spec->splitpath($file) )[2];
 	}
 	srand();    # this file's later calls to rand() owe nothing to the 7
-	like( $names[0], qr/^cn-plot-$$-\d+-\d+-\w{6}\.py\z/, 'a script is named by the process, the time and a count, ahead of the random part' );
+	like( $names[0], qr/^matplotlib-simple-$$-\d+-\d+-\w{6}\.py\z/, 'a script is named by the process, the time and a count, ahead of the random part' );
 	( my $first = $names[0] ) =~ s/-\w{6}\.py\z//;
 	( my $second = $names[1] ) =~ s/-\w{6}\.gp\z//;
 	isnt( $first, $second, 'and two scripts made under the same seed differ ahead of it' );

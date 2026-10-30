@@ -5,7 +5,7 @@ no source::encoding;
 use warnings FATAL => 'all';
 use autodie ':default';
 use Cn::Util;
-use Cn::Plot;
+use Matplotlib::Simple;
 
 bar(
 	output_file => '/tmp/bar.svg',

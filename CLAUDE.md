@@ -1,4 +1,4 @@
-# Cn::Plot
+# Matplotlib::Simple
 
 A Perl module that turns a Perl data structure into a script that draws it --
 Python 3 with matplotlib by default, or with `engine => 'gnuplot'` or
@@ -6,9 +6,8 @@ Python 3 with matplotlib by default, or with `engine => 'gnuplot'` or
 temporary file, and (unless `execute => 0`) runs it. The Perl side is a code
 generator; the real output is the script.
 
-Until 0.4 it was `Matplotlib::Simple`, which drew with matplotlib alone. The
-rename and the split into a front end and engines are described under
-[Engines](#engines); the snapshots of past releases keep the old name.
+Until 0.33 it drew with matplotlib alone. The split into a front end and
+engines is described under [Engines](#engines).
 
 The global `~/.claude/CLAUDE.md` comment doctrine applies here in full. Perl
 source is indented with tabs.
@@ -43,7 +42,7 @@ and a SyntaxError from 3.15. An apostrophe anywhere in the path closes the
 literal early on any platform. Each engine has its escaper, and every label,
 key and output path goes through it:
 
-- matplotlib: `py_str($str)` (in `lib/Cn/Plot.pm`, since `frame_to_data` uses
+- matplotlib: `py_str($str)` (in `lib/Matplotlib/Simple.pm`, since `frame_to_data` uses
   it too) renders a Perl string as an escaped Python literal; use it for
   anything short that must land in the script as text — labels, metadata.
   `write_data({ data => ..., fh => ..., name => ... })` serialises to JSON,
@@ -76,7 +75,7 @@ not need Python (`execute => 0`, the option contract, the string escaping)
 must still run there, because that is the part Windows actually breaks.
 
 **Ask the module which Python to run; never name `python3` in a test.** Every
-gate uses `my @PY = Cn::Plot::Matplotlib::python_command()`, which is what `plt`
+gate uses `my @PY = Matplotlib::Simple::Matplotlib::python_command()`, which is what `plt`
 itself runs, so a Windows smoker that *does* have Python tests the module with
 it rather than skipping. Run it in the list form, `system(@PY, ...)`, and keep
 double quotes out of the arguments: Perl on Win32 builds the command line for
@@ -92,22 +91,21 @@ is the first of `python`, `py -3` and `python3` whose `--version` says
 Python 3; `--version` is checked rather than trusting that the name resolves,
 because Windows 10 and 11 install a Microsoft Store stub as `python.exe` that
 prints "Python was not found" and exits 9009. The answer is cached in the
-package variable `$Cn::Plot::Matplotlib::python_command` (undef = not yet
+package variable `$Matplotlib::Simple::Matplotlib::python_command` (undef = not yet
 looked for, `[]` = none found), which `t/08.python.interpreter.t` sets to drive
 the search with stand-in interpreters under `local $^O = 'MSWin32'`. Until
 0.315 the module ran `python3` unconditionally, so on Windows it could not run
 its script wherever Python *was* installed; that never showed up in a report
 because the smokers have no Python.
 
-`$ENV{CN_PLOT_PYTHON}`, when set and not empty, comes before all of that, and
-after it `$ENV{MATPLOTLIB_SIMPLE_PYTHON}`, its name from 0.317 until the rename
-in 0.4: it is the interpreter, as one path, neither searched for nor checked,
-and never split on spaces. It exists for machines whose `python3` is too old,
+`$ENV{MATPLOTLIB_SIMPLE_PYTHON}`, when set and not empty, comes before all of
+that (as of 0.317): it is the interpreter, as one path, neither searched for
+nor checked, and never split on spaces. It exists for machines whose `python3` is too old,
 such as an HPC cluster whose system Python is 3.6.8 with matplotlib 3.0, where
 a venv or `module load` provides a newer one. The tests that drive the search
-`local`ise both away so that a caller's setting cannot decide them. gnuplot
+`local`ise it away so that a caller's setting cannot decide them. gnuplot
 and R are found the same way, through `program_from_env`:
-`$ENV{CN_PLOT_GNUPLOT}` or `gnuplot`, `$ENV{CN_PLOT_RSCRIPT}` or `Rscript`,
+`$ENV{MATPLOTLIB_SIMPLE_GNUPLOT}` or `gnuplot`, `$ENV{MATPLOTLIB_SIMPLE_RSCRIPT}` or `Rscript`,
 with no search on Windows.
 
 ### A matplotlib gate is a version gate
@@ -161,7 +159,7 @@ them, and both now check their own result:
   `Can't binmode($fh, ':encoding(UTF-8)'): <$!>`.
 - `system(@python, $fh->filename)`, whose return value is sorted into the
   same three cases autodie distinguished — failed to start, died to a signal,
-  non-zero exit. Since 0.4 that is `run_script` in `lib/Cn/Plot.pm`, which
+  non-zero exit. Since 0.33 that is `run_script` in `lib/Matplotlib/Simple.pm`, which
   every engine runs its interpreter through, and the `binmode` is in
   `script_handle` there; the two traps below are about that code.
 
@@ -220,7 +218,7 @@ suite's dependencies. The check is cheap: hide the test-only modules from
 
     perl -e 'BEGIN { unshift @INC, sub {
         die "hidden\n" if $_[1] =~ m{^(autodie|Test/More|Test/Exception)\.pm$} } }
-        use lib "lib"; use Cn::Plot;
+        use lib "lib"; use Matplotlib::Simple;
         bar(output_file => "/tmp/x.svg", data => { A => 1, B => 2 })'
 
 The scripts in the repository root and in `t/` that are not `.t` files
@@ -230,7 +228,7 @@ problem, not an installer's.
 
 ## Engines
 
-`plt` is a front end. `lib/Cn/Plot.pm` takes the caller's arguments, folds `p`
+`plt` is a front end. `lib/Matplotlib/Simple.pm` takes the caller's arguments, folds `p`
 and `df` into plots, runs every check that does not depend on what draws the
 figure, and then hands it to the module `%engine_module` names for `engine`
 (matplotlib unless it says otherwise), whose `render($args, $context)` writes
@@ -246,7 +244,7 @@ decides the rest:
   reads for it), `@plot_keywords` and `@figure_keywords`. Nothing is ever
   silently left out of a figure. Declare a keyword only once the engine
   draws it; a combination the engine cannot draw is refused from its
-  `render`, by name. `Cn::Plot::Matplotlib` sets `$draws_everything` instead.
+  `render`, by name. `Matplotlib::Simple::Matplotlib` sets `$draws_everything` instead.
 - **Values are read as matplotlib reads them**, by the front end's readers:
   `plain_text` (text that would be Python to matplotlib is read as Python),
   `color_hex` (matplotlib's color names, from `Colors.pm`, never the engine's
@@ -255,7 +253,7 @@ decides the rest:
 - **`style`** is `'native'` (the default, matching the engine: its own
   palette, statistics and theme) or `'matplotlib'` (the engine draws what
   matplotlib draws, its statistics computed in Perl as numpy and scipy compute
-  them). The tests of an engine's matplotlib style name it, since 0.4's
+  them). The tests of an engine's matplotlib style name it, since 0.33's
   default changed from it before release. What the caller
   gave -- data, key order, a `color` or `cmap`, labels, ranges, log scales,
   size -- is drawn the same under both. Under matplotlib the two styles must
@@ -266,20 +264,20 @@ decides the rest:
 - `engine` and `style` belong to the whole figure, and are refused in a
   subplot or an `add` graph (`refuse_subplot_choices`).
 
-The helpers of `Cn::Plot::Matplotlib` reach the front end's checks and keyword
+The helpers of `Matplotlib::Simple::Matplotlib` reach the front end's checks and keyword
 lists through aliases made in its `BEGIN` block, so a list changed in
-`lib/Cn/Plot.pm` is the list the helpers check against. `lib/Cn/Plot.pm`
+`lib/Matplotlib/Simple.pm` is the list the helpers check against. `lib/Matplotlib/Simple.pm`
 requires the matplotlib engine at its end, after its own subs are compiled;
 the other engines are loaded when a figure first asks for one.
 
 ## Layout
 
-- `lib/Cn/Plot.pm` — the front end and the POD: `plt` and its wrappers, every
+- `lib/Matplotlib/Simple.pm` — the front end and the POD: `plt` and its wrappers, every
   check of the arguments, `p` and `df`, and the subs the engines share.
-- `lib/Cn/Plot/Matplotlib.pm` — the matplotlib engine, the default: every
+- `lib/Matplotlib/Simple/Matplotlib.pm` — the matplotlib engine, the default: every
   `*_helper`, `plot_args`, `write_data`, `python_command` and `render`.
-- `lib/Cn/Plot/Gnuplot.pm`, `lib/Cn/Plot/Ggplot2.pm` — the other two engines.
-- `lib/Cn/Plot/Colors.pm` — matplotlib's named colors and 36 colormaps, for the
+- `lib/Matplotlib/Simple/Gnuplot.pm`, `lib/Matplotlib/Simple/Ggplot2.pm` — the other two engines.
+- `lib/Matplotlib/Simple/Colors.pm` — matplotlib's named colors and 36 colormaps, for the
   engines that are not matplotlib. Generated by `make.colors.pl` in the root
   from the python3 on PATH; re-run it with `perl make.colors.pl`, never edit
   the module by hand.
@@ -323,21 +321,21 @@ the other engines are loaded when a figure first asks for one.
   note in an SVG from gnuplot, which Perl adds once gnuplot has run
   (`creator_svg`), and from ggplot2, whose R script adds it itself
   (`creator_code`); both lay it out with `svg_creator_metadata` in
-  `lib/Cn/Plot.pm`, as matplotlib does. `t/18` leaves the R script's part out
+  `lib/Matplotlib/Simple.pm`, as matplotlib does. `t/18` leaves the R script's part out
   of its pinned digests.
 - `t/17.gnuplot.t`, `t/18.ggplot2.t` — each engine: its option contract,
   escaping and every data shape with `execute => 0`, so they run on Windows;
   then, gated on the engine, every type rendered in both styles. `t/18` also
   runs R's parser over every script it writes, and pins the checksums of a
-  dozen matplotlib-style scripts (`CN_PLOT_PRINT_PINS=1` prints the current
+  dozen matplotlib-style scripts (`MATPLOTLIB_SIMPLE_PRINT_PINS=1` prints the current
   ones).
 - `t/19.engines.t` — the front end's part: `engine` and `style`,
   `check_engine`'s refusals, the readers of text, colors, colormaps and axis
-  ranges, and that every module carries Cn::Plot's `$VERSION`. Needs nothing
+  ranges, and that every module carries Matplotlib::Simple's `$VERSION`. Needs nothing
   but Perl.
 - `t/utf8.mojibake.t` — labels arriving as raw utf8 bytes rather than wide
   characters.
-- `Matplotlib-Simple-0.3*/`, from 0.4 `Cn-Plot-*/`, and the matching
+- `Matplotlib-Simple-0.3*/` and the matching
   `.tar.gz` — snapshots of past releases, committed for reference. **Do not edit them and do not include them
   in a repo-wide search-and-replace**; `MANIFEST.SKIP` keeps them out of the
   next tarball.
@@ -354,15 +352,15 @@ works.
 
 ## Releasing
 
-`$VERSION` in `lib/Cn/Plot.pm` is the source of truth — `dist.ini` uses
+`$VERSION` in `lib/Matplotlib/Simple.pm` is the source of truth — `dist.ini` uses
 `[VersionFromModule]`. Bump it there **and in the four modules under
-`lib/Cn/Plot/`** — PAUSE indexes each package by its own version, and
+`lib/Matplotlib/Simple/`** — PAUSE indexes each package by its own version, and
 `t/19.engines.t` fails until they agree — add a `Changes` entry under that
 version, then:
 
     sh dzil.sh    # md2pod.pl, Makefile.PL, dzil release, dzil build
 
-`md2pod.pl` regenerates the POD at the end of `lib/Cn/Plot.pm` from
+`md2pod.pl` regenerates the POD at the end of `lib/Matplotlib/Simple.pm` from
 `README.md`, and the example block of `t/01.all.tests.t` from `mpl.examples.pl`;
 edit those two, not what is generated from them. There is no `README.pod`:
 it was only ever a scratch copy, which the tarball never shipped, and was

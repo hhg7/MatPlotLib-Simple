@@ -6,7 +6,7 @@ use autodie ':all';
 use feature 'say';
 use File::Spec;
 use File::Temp 'tempfile';
-use Cn::Plot;
+use Matplotlib::Simple;
 # Everything from here down is copied into t/01.all.tests.t by md2pod.pl, which
 # rewrites the two spellings of an output file -- "output.images/x.png", the
 # figures the documentation shows, and "/tmp/x.svg", the ones it does not -- into

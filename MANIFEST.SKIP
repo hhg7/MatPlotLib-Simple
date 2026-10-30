@@ -10,8 +10,6 @@
 # Release archives and unpacked distribution directories
 ^Matplotlib-Simple-.*\.tar\.gz$
 ^Matplotlib-Simple-[\d\.]+/?$
-^Cn-Plot-.*\.tar\.gz$
-^Cn-Plot-[\d\.]+/?$
 
 # Test output and artifacts
 ^output\.images/?

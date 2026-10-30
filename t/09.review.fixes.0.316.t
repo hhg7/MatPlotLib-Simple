@@ -26,9 +26,9 @@ use Capture::Tiny 'capture';
 use Storable 'dclone';
 use JSON::MaybeXS;
 use MIME::Base64;
-use Cn::Plot;
+use Matplotlib::Simple;
 # The interpreter the module itself runs; see t/07.review.fixes.t.
-my @PY = Cn::Plot::Matplotlib::python_command();
+my @PY = Matplotlib::Simple::Matplotlib::python_command();
 my $PY = join ' ', @PY;
 use Test::More;
 

@@ -26,12 +26,12 @@ use File::Temp 'tempdir';
 use File::Spec;
 use Capture::Tiny 'capture';
 use Storable 'dclone';
-use Cn::Plot;
+use Matplotlib::Simple;
 # The interpreter the module itself runs: "python3", or on MSWin32 the first of
 # python, py -3 and python3 that is Python 3. Asking the module, rather than
 # naming python3 here, is what lets a Windows smoker that has Python test the
 # module with it instead of skipping; the list is empty when there is none.
-my @PY = Cn::Plot::Matplotlib::python_command();
+my @PY = Matplotlib::Simple::Matplotlib::python_command();
 my $PY = join ' ', @PY;
 use Test::More;
 

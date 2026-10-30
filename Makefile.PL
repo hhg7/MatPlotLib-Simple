@@ -12,10 +12,10 @@ my %WriteMakefileArgs = (
   "CONFIGURE_REQUIRES" => {
     "ExtUtils::MakeMaker" => "6.58"
   },
-  "DISTNAME" => "Cn-Plot",
+  "DISTNAME" => "Matplotlib-Simple",
   "LICENSE" => "perl",
   "MIN_PERL_VERSION" => "5.010",
-  "NAME" => "Cn::Plot",
+  "NAME" => "Matplotlib::Simple",
   "PREREQ_PM" => {
     "Capture::Tiny" => 0,
     "Data::Printer" => 0,
@@ -31,7 +31,7 @@ my %WriteMakefileArgs = (
     "Test::More" => 0,
     "autodie" => 0
   },
-  "VERSION" => "0.4",
+  "VERSION" => "0.33",
   "test" => {
     "TESTS" => "t/*.t"
   }

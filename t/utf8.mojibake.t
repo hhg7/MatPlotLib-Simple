@@ -5,7 +5,7 @@ use File::Temp;
 use Encode qw(encode_utf8);
 
 # Load your module
-use_ok('Cn::Plot') or BAIL_OUT("Could not load Cn::Plot");
+use_ok('Matplotlib::Simple') or BAIL_OUT("Could not load Matplotlib::Simple");
 
 # 1. SETUP: Simulate the bug conditions.
 # By explicitly encoding to utf8 here (and NOT using 'use utf8' in this script),
