@@ -43,7 +43,7 @@ BEGIN {
 	*{$_} = \&{"Cn::Plot::$_"} foreach qw(axis_limits axis_scale bin_counts bool_option
 	 cb_limits check_key_order check_numbers check_scatter_lengths check_scatter_values
 	 check_wide_runs color_hex colormap_colors creator_note decoded_text finite_values
-	 is_finite is_nan logscale_axes nonfinite_name plain_text program_from_env
+	 is_finite is_nan linspace logscale_axes logspace nonfinite_name plain_text program_from_env
 	 run_script script_handle svg_creator_metadata table_cells);
 }
 # The plot types drawn, each with the keywords of Cn::Plot's %opt that are
@@ -111,14 +111,19 @@ sub r_str {
 }
 sub r_num {
 	# A number as an R numeric literal: NA for undef, NaN, Inf and -Inf for
-	# the values Perl and numpy call nan and inf, and a finite value as the
-	# caller wrote it where that is already R, so that no digits are lost.
+	# the values Perl and numpy call nan and inf, and a finite value in 15
+	# significant digits, or 17 where 15 would not read back as the same
+	# double, as gp_num writes them for gnuplot. A value already written as R
+	# would write it was passed through as it stood, but Perl stringifies a
+	# computed number to 15 digits, so 1/3 lost its last two.
 	my ($n) = @_;
 	return 'NA' unless defined $n;
 	my $nonfinite = nonfinite_name($n);
 	return { nan => 'NaN', inf => 'Inf', '-inf' => '-Inf' }->{$nonfinite} if defined $nonfinite;
-	return $1 if $n =~ m/^\s*([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)\s*$/;
-	return sprintf '%.17g', $n;
+	my $v = 0 + $n;
+	my $s = sprintf '%.15g', $v;
+	$s = sprintf '%.17g', $v if 0 + $s != $v;
+	return $s;
 }
 sub r_nums { return 'c(' . join( ', ', map { r_num($_) } @_ ) . ')' }
 sub r_strs { return 'c(' . join( ', ', map { r_str($_) } @_ ) . ')' }
@@ -305,11 +310,13 @@ sub draw_bar {
 		check_numbers( [ $plot->{width} ], '"width"', $sub );
 		die "$sub: \"width\" must be a finite number, not \"$plot->{width}\"" unless is_finite( $plot->{width} );
 	}
-	my $width = $plot->{width} // 0.8;
 	if ( ( $form eq 'grouped' ) && ( defined $plot->{width} ) && ( not $stacked ) ) {
+		# Left out, as the matplotlib engine leaves it; reset only here, the
+		# native style's geom_col and a log axis's bars still drew it.
 		say STDERR 'grouped, non-stacked barplots ignore width settings';    # as matplotlib's engine says
-		$width = 0.8;
+		delete $plot->{width};
 	}
+	my $width = $plot->{width} // 0.8;
 	my @keys = key_order_of( $plot, $data, 'key_order', $sub );
 	if ( ( $form eq 'grouped' ) && ( ref $plot->{color} eq 'HASH' ) && ( not %series_color ) ) {
 		die "$sub: \"color\" is a HASH, but this data is a hash of arrays, whose series have no names to key it by: give one color per series as an array, e.g. color => ['red','blue']";
@@ -671,7 +678,9 @@ sub distribution_colors {
 	}
 	if ( defined $plot->{colors} ) {
 		die "$sub: \"colors\" is a hash of one color per key" unless ref $plot->{colors} eq 'HASH';
-		my @uncolored = grep { not defined $plot->{colors}{$_} } keys %{ $plot->{data} };
+		# The keys sets_of named, not those of "data", which as one array has
+		# none: that died as "Not a HASH reference".
+		my @uncolored = grep { not defined $plot->{colors}{$_} } @{$keys};
 		die "$sub: the data keys " . join( ', ', map { "\"$_\"" } sort @uncolored ) . ' have no defined color' if scalar @uncolored > 0;
 		return map { color_of( $plot->{colors}{$_}, "\"colors\" of \"$_\"", $sub ) } @{$keys};
 	}
@@ -826,9 +835,22 @@ sub draw_violin {
 		$s->{discrete}{$pos_axis} = 1;
 		my $aes = $horizontal ? 'x = v, y = k' : 'x = k, y = v';
 		my $orient = $horizontal ? ', orientation = "y"' : '';
-		my $frame = r_frame( k => 'factor(' . r_strs(@native_k) . ', levels = ' . r_strs( @{$keys} ) . ')', v => r_nums(@native_v) );
-		my $extra = ( defined $native_fill[0] ? ', fill = ' . r_strs(@native_fill) : '' ) . ( defined $plot->{edgecolor} ? ', colour = ' . r_str( color_of( $plot->{edgecolor}, '"edgecolor"', $sub ) ) : '' );
-		push @{ $s->{layers} }, "ggplot2::geom_violin(data = $frame, ggplot2::aes($aes)$extra$orient, na.rm = TRUE)";
+		my @columns = ( k => 'factor(' . r_strs(@native_k) . ', levels = ' . r_strs( @{$keys} ) . ')', v => r_nums(@native_v) );
+		# A given fill is a column of the frame, one color per row, mapped
+		# through I() so that no scale reads it (ggplot2 3.5.0's NEWS: "Plot
+		# scales now ignore AsIs objects"). As a parameter, "fill = c(...)" with
+		# one color per violin, it died in R as "Aesthetics must be either length
+		# 1 or the same as the data (1030)", since stat_ydensity draws each
+		# violin from hundreds of rows; geom_boxplot's one row per box took it.
+		my $fill_aes = '';
+		if ( defined $native_fill[0] ) {
+			my %fill_of = map { $keys->[$_] => $fills[$_] } 0 .. $#{$keys};
+			push @columns, f => r_strs( map { $fill_of{$_} } @native_k );
+			$fill_aes = ', fill = I(f)';
+		}
+		my $frame = r_frame(@columns);
+		my $extra = defined $plot->{edgecolor} ? ', colour = ' . r_str( color_of( $plot->{edgecolor}, '"edgecolor"', $sub ) ) : '';
+		push @{ $s->{layers} }, "ggplot2::geom_violin(data = $frame, ggplot2::aes($aes$fill_aes)$extra$orient, na.rm = TRUE)";
 		if ( ( defined $plot->{whiskers} ) && $whiskers ) {
 			push @{ $s->{layers} }, "ggplot2::geom_boxplot(data = $frame, ggplot2::aes($aes), width = 0.1, outlier.shape = NA$orient, na.rm = TRUE)";
 		}
@@ -880,12 +902,18 @@ sub draw_hist {
 		my @edges;
 		if ( ref $bins eq 'ARRAY' ) {
 			check_numbers( $bins, "\"bins\" of \"$set\"", $sub );
-			die "$sub: \"bins\" of \"$set\" are bin edges, so at least 2, rising" if ( scalar @{$bins} < 2 ) || grep { $bins->[$_] <= $bins->[ $_ - 1 ] } 1 .. $#{$bins};
+			# Two equal edges are a bin of no width, which holds nothing, as numpy
+			# allows them; edges that fall are refused, as numpy refuses them.
+			# R's cut() refuses equal breaks, so the native style does too.
+			die "$sub: \"bins\" of \"$set\" are bin edges, so at least 2, never falling" if ( scalar @{$bins} < 2 ) || grep { $bins->[$_] < $bins->[ $_ - 1 ] } 1 .. $#{$bins};
+			if ( $s->{native} && grep { $bins->[$_] == $bins->[ $_ - 1 ] } 1 .. $#{$bins} ) {
+				die "$sub: \"bins\" of \"$set\" has two equal edges, a bin of no width, which ggplot2's stat_bin refuses under style => 'native'; style => 'matplotlib' draws it";
+			}
 			@edges = @{$bins};
 		} elsif ( ( not ref $bins ) && looks_like_number($bins) && is_finite($bins) && ( $bins == int $bins ) && ( $bins >= 1 ) ) {
 			my ( $lo, $hi ) = scalar @v ? ( min(@v), max(@v) ) : ( 0, 1 );
 			( $lo, $hi ) = ( $lo - 0.5, $hi + 0.5 ) if $lo == $hi;    # numpy's range for data of one value
-			@edges = map { $lo + ( $hi - $lo ) * $_ / $bins } 0 .. $bins;
+			@edges = linspace( $lo, $hi, $bins + 1 );
 		} else {
 			die "$sub: \"bins\" is a whole number of bins, or an array of bin edges, for the $engine engine, not \"" . ( ref $bins || $bins ) . '"; a numpy estimator such as "auto" is matplotlib\'s alone';
 		}
@@ -954,6 +982,7 @@ sub draw_hist_native {
 	my @layers = ( ref $plot->{bins} eq 'HASH' ) ? map { [$_] } @{$sets} : ( $sets );
 	foreach my $layer (@layers) {
 		my @v = map { @{ $_->[1] } } @{$layer};
+		next if scalar @v == 0;    # nothing to bin, as matplotlib bins nothing; c() would be NULL, and no column at all in R
 		my @s = map { ( $_->[0] ) x scalar @{ $_->[1] } } @{$layer};
 		my $frame = r_frame( v => r_nums(@v), s => 'factor(' . r_strs(@s) . ', levels = ' . r_strs( map { $_->[0] } @{$sets} ) . ')' );
 		my $extra = $mapped ? '' : ( defined $layer->[0][3] ? ', fill = ' . r_str( $layer->[0][3] ) : '' );
@@ -1038,14 +1067,18 @@ sub draw_hist2d {
 		my $lo = $plot->{"${axis}min"} // min(@finite);
 		my $hi = $plot->{"${axis}max"} // max(@finite);
 		die "$sub: \"${axis}min\" = $lo is above \"${axis}max\" = $hi" if $lo > $hi;
+		# Refused on a log axis, where widening by 0.5 each way could reach 0 or
+		# below, and died taking its log; matplotlib's np.logspace of one value
+		# has edges that do not rise, and fails too.
+		die "$sub: \"logscale\" puts $axis on a log scale, but every $axis is $lo, a range of nothing; give \"${axis}min\" and \"${axis}max\"" if $log_axis{$axis} && ( $lo == $hi );
 		( $lo, $hi ) = ( $lo - 0.5, $hi + 0.5 ) if $lo == $hi;    # numpy's range for data of one value
 		my $n = $plot->{"${axis}bins"};
 		if ( $log_axis{$axis} ) {
 			die "$sub: \"logscale\" puts $axis on a log scale, which cannot start at $lo: give a \"${axis}min\" above 0" if $lo <= 0;
-			$edges[$i] = [ map { 10**( log10($lo) + ( log10($hi) - log10($lo) ) * $_ / $n ) } 0 .. $n ];
+			$edges[$i] = [ logspace( $lo, $hi, $n + 1 ) ];    # as the matplotlib engine writes them
 			$s->{axis}{$axis}{log} = 1;
 		} else {
-			$edges[$i] = [ map { $lo + ( $hi - $lo ) * $_ / $n } 0 .. $n ];
+			$edges[$i] = [ linspace( $lo, $hi, $n + 1 ) ];
 		}
 		$s->{axis}{$axis}{expand0} = 1;
 	}
@@ -1094,13 +1127,27 @@ sub draw_hist2d_native {
 	# A hist2d as geom_bin_2d bins it, with stat_bin_2d, "xbins" by "ybins"
 	# over the range of the data, or over "xmin" .. "xmax" and "ymin" ..
 	# "ymax" where any is given, as breaks. On a log axis it bins in log units,
-	# as the scale transforms the data before the stat sees it. "density" is
+	# as the scale transforms the data, and the breaks, before the stat sees
+	# them. "density" is
 	# stat_bin_2d's own density, the share of the points in each bin, which is
 	# not matplotlib's (that share divided by the bin's area). "cmin" and
 	# "cmax" leave out of the colors a bin below or above them, as matplotlib
 	# does, by what is colored.
 	my ( $plot, $s, $keys, $xy, $log_axis, $where, $sub ) = @_;
-	my @breaks;
+	my @ok = grep { is_finite( $xy->[0][$_] ) && is_finite( $xy->[1][$_] ) } 0 .. $#{ $xy->[0] };
+	if ( scalar @ok == 0 ) {
+		# Refused as the matplotlib style refuses it, where an axis has no
+		# range to bin over; with every range given, an empty panel. A frame of
+		# no points has NULL columns, and ggplot2 died with "object 'x' not
+		# found".
+		foreach my $i ( 0, 1 ) {
+			my $axis = ( 'x', 'y' )[$i];
+			next if scalar finite_values( @{ $xy->[$i] } );
+			next if ( defined $plot->{"${axis}min"} ) && ( defined $plot->{"${axis}max"} );
+			die "$sub: \"$keys->[$i]\" has no finite value, so hist2d has no range to bin it over; give \"${axis}min\" and \"${axis}max\"";
+		}
+	}
+	my %breaks;    # axis => its breaks, for an axis with "min" or "max" given
 	foreach my $i ( 0, 1 ) {
 		my $axis = ( 'x', 'y' )[$i];
 		$s->{axis}{$axis}{log} = 1 if $log_axis->{$axis};
@@ -1113,11 +1160,17 @@ sub draw_hist2d_native {
 		my $lo = $plot->{"${axis}min"} // min(@finite);
 		my $hi = $plot->{"${axis}max"} // max(@finite);
 		die "$sub: \"${axis}min\" = $lo is above \"${axis}max\" = $hi" if $lo > $hi;
+		my $seq = 'seq(%s, %s, length.out = ' . ( $plot->{"${axis}bins"} + 1 ) . ')';
 		if ( $log_axis->{$axis} ) {
 			die "$sub: \"logscale\" puts $axis on a log scale, which cannot start at $lo: give a \"${axis}min\" above 0" if $lo <= 0;
-			( $lo, $hi ) = ( log10($lo), log10($hi) );    # breaks are in the scale's own units
+			# Even in log units, but given in the data's: stat_bin_2d puts the
+			# breaks through the scale's transform, as it does the data. Given
+			# as log10s, they were taken to run from 10^0 to 10^0.9 and no bin
+			# held a point, under ggplot2 3.5.2 and 4.0.3 alike.
+			$breaks{$axis} = '10^' . sprintf( $seq, r_num( log10($lo) ), r_num( log10($hi) ) );
+		} else {
+			$breaks{$axis} = sprintf( $seq, r_num($lo), r_num($hi) );
 		}
-		push @breaks, "$axis = seq(" . r_num($lo) . ', ' . r_num($hi) . ', length.out = ' . ( $plot->{"${axis}bins"} + 1 ) . ')';
 	}
 	foreach my $opt ( grep { defined $plot->{$_} } ( 'cmin', 'cmax' ) ) {
 		check_numbers( [ $plot->{$opt} ], "\"$opt\"", $sub );
@@ -1130,10 +1183,17 @@ sub draw_hist2d_native {
 	@{ $s->{default_label} }{ 'x', 'y' } = @{$keys};
 	set_gradient( $s, gradient_of({ plot => $plot, values => [], aes => 'fill', sub => $sub, native => 1, default_title => undef }), $where, $sub );
 	$s->{gradient}{na} = 'NA';    # a bin left out by "cmin" or "cmax" is not drawn
-	my @ok = grep { is_finite( $xy->[0][$_] ) && is_finite( $xy->[1][$_] ) } 0 .. $#{ $xy->[0] };
+	return if scalar @ok == 0;
+	# Both axes are named in "breaks", the one without a "min" or "max" as
+	# NULL, which stat_bin_2d bins by "bins" as if no breaks were given. With
+	# that axis left out, "breaks = list(x = ...)" was read as the breaks of
+	# both, and ggplot2 4.0.3 failed with "`breaks` must be a <numeric>
+	# vector, not a list" -- as a warning, so the panel was drawn empty and
+	# the script still succeeded.
+	my $breaks = %breaks ? 'breaks = list(' . join( ', ', map { "$_ = " . ( $breaks{$_} // 'NULL' ) } ( 'x', 'y' ) ) . '), ' : '';
 	push @{ $s->{layers} }, 'ggplot2::geom_bin_2d(data = ' . r_frame( x => r_nums( map { $xy->[0][$_] } @ok ), y => r_nums( map { $xy->[1][$_] } @ok ) )
-	 . ", ggplot2::aes(x = x, y = y, fill = ggplot2::after_stat($fill)), "
-	 . ( @breaks ? 'breaks = list(' . join( ', ', @breaks ) . ')' : 'bins = ' . r_nums( $plot->{xbins}, $plot->{ybins} ) ) . ', na.rm = TRUE)';
+	 . ", ggplot2::aes(x = x, y = y, fill = ggplot2::after_stat($fill)), $breaks"
+	 . 'bins = ' . r_nums( $plot->{xbins}, $plot->{ybins} ) . ', na.rm = TRUE)';
 }
 sub log10 { return log( $_[0] ) / log(10) }
 sub draw_imshow {
@@ -1348,8 +1408,12 @@ sub draw_plot {
 		# a value matplotlib cannot place, NaN or infinite, is a gap in the line
 		my $frame = r_frame( x => r_nums( map { is_finite($_) ? $_ : undef } @{$x} ), y => r_nums( map { is_finite($_) ? $_ : undef } @{$y} ) );
 		my $lw = line_width($s);
+		add_legend( $s->{colour_d}, $name, $color ) if defined $name;
+		# A line of no points is drawn as nothing, as matplotlib draws it, its
+		# color taken from the cycle all the same; R's cbind() cannot add a
+		# column to a frame of no rows, and died as "differing number of rows".
+		next if scalar @{$x} == 0;
 		if ( defined $name ) {
-			add_legend( $s->{colour_d}, $name, $color );
 			push @{ $s->{layers} }, "ggplot2::geom_path(data = cbind($frame, s = " . r_str($name) . "), ggplot2::aes(x = x, y = y, colour = s)$lw, na.rm = TRUE)";
 		} else {
 			push @{ $s->{layers} }, "ggplot2::geom_path(data = $frame, ggplot2::aes(x = x, y = y)" . ( defined $color ? ', colour = ' . r_str($color) : '' ) . "$lw, na.rm = TRUE)";
@@ -1426,6 +1490,10 @@ sub draw_scatter {
 	my $shape_i = 0;
 	foreach my $set (@sets) {
 		my ( $name, $values, $keys, $color_key ) = @{$set};
+		# A set of no points is drawn as nothing, as matplotlib draws it: its
+		# empty columns were written c(), which R reads as NULL and leaves out
+		# of the frame, and ggplot2 died with "object 'x' not found".
+		next if scalar @{ $values->{ $keys->[0] } } == 0;
 		my @cols = ( x => r_nums( @{ $values->{ $keys->[0] } } ), y => r_nums( @{ $values->{ $keys->[1] } } ) );
 		if ( defined $color_key ) {
 			my @z = @{ $values->{$color_key} };
@@ -1466,7 +1534,7 @@ sub wide_summary {
 		$lo = min( $lo, @f );
 		$hi = max( $hi, @f );
 	}
-	my @base = map { $lo + ( $hi - $lo ) * $_ / 100 } 0 .. 100;
+	my @base = linspace( $lo, $hi, 101 );    # as the matplotlib engine's np.linspace(min, max, 101)
 	my @ys;
 	foreach my $run ( @{$runs} ) {
 		my @order = sort { $run->[0][$a] <=> $run->[0][$b] } 0 .. $#{ $run->[0] };    # Perl's sort is stable, as numpy's 'stable' is
@@ -1805,7 +1873,7 @@ sub render {
 	my $device = device_of( $args->{output_file}, $w, $h, $sub );
 	my @panels;
 	foreach my $i ( 0 .. $#plots ) {
-		push @panels, panel_code( $plots[$i], $context->{single_plot} ? '' : " at subplot $i", $sub, ( ( $context->{style} // 'matplotlib' ) eq 'native' ) ? 1 : 0 );
+		push @panels, panel_code( $plots[$i], $context->{single_plot} ? '' : " at subplot $i", $sub, ( ( $context->{style} // 'native' ) eq 'native' ) ? 1 : 0 );
 	}
 	my $suptitle = defined $args->{suptitle} ? plain_text( last_value( $args->{suptitle} ), 'suptitle', $engine, $sub ) : undef;
 	my $fh = script_handle( $args, '.R', $sub );

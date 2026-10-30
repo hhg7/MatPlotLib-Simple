@@ -56,8 +56,11 @@ sub slurp {
 }
 
 # Build one figure with execute => 0 and return the generated script as text.
+# In style "matplotlib" unless the spec names a style, as most blocks check
+# what matplotlib draws; "style => undef" leaves plt to choose its default.
 sub gen {
 	my (%spec) = @_;
+	$spec{style} = 'matplotlib' unless exists $spec{style};
 	$spec{output_file} //= out_file();
 	$spec{execute} = 0;
 	$spec{engine}  = 'gnuplot';
@@ -110,10 +113,11 @@ sub well_formed {
 }
 
 # Render a figure, returning its SVG; the caller has skipped without gnuplot.
+# In style "matplotlib" unless the spec names a style, as gen is.
 sub render {
 	my (%spec) = @_;
 	my $file = out_file();
-	my ( $out, $err, $ok ) = capture { eval { plt( %spec, engine => 'gnuplot', output_file => $file ); 1 } };
+	my ( $out, $err, $ok ) = capture { eval { plt( style => 'matplotlib', %spec, engine => 'gnuplot', output_file => $file ); 1 } };
 	diag( '  died: ' . ( "$@" =~ s/\n\t.*\z//sr ) ) unless $ok;
 	return ( -e $file ) ? slurp($file) : '';
 }
@@ -323,19 +327,18 @@ SKIP: {
 }
 
 # ----------------------------------------------------------------------------
-# 9. style => 'matplotlib' is the default, and has none of 'native's constructs.
+# 9. style => 'native' is the default; 'matplotlib' has none of its constructs.
 # ----------------------------------------------------------------------------
-# The scripts of every figure in 0.4 before "style" was read were compared by
-# hand, byte for byte, with those written after: all were the same but a log
-# bar plot's and a grid's, changed on purpose (blocks 2 and 13). What can be
-# checked here is that the default and an explicit 'matplotlib' agree, and
-# that no native construct leaks into either.
+# The default style matches the engine: a figure given no style is drawn in
+# gnuplot's own. The matplotlib style must still be asked for by name, and no
+# native construct leaks into it.
 foreach my $name ( 'bar, one bar per key', 'boxplot, a hash', 'hist, a hash', 'violin', 'scatter, three keys', 'colored_table', 'hist2d' ) {
-	my ($default) = gen( %{ $figure{$name} }, output_file => '/same.svg' );
-	my ($given)   = gen( %{ $figure{$name} }, output_file => '/same.svg', style => 'matplotlib' );
+	my ($default) = gen( %{ $figure{$name} }, output_file => '/same.svg', style => undef );
+	my ($given)   = gen( %{ $figure{$name} }, output_file => '/same.svg', style => 'native' );
+	my ($matplotlib) = gen( %{ $figure{$name} }, output_file => '/same.svg', style => 'matplotlib' );
 	s/\A#[^\n]*\n// for $default, $given;    # the creator note names the call, which differs
-	is( $given, $default, "$name: style => 'matplotlib' writes the same script as no style" );
-	unlike( $default, qr/with boxplot|\bbins\b(?!=?\S* with boxxyerror)|kdensity|set key default|rgbformulae|set table/, "$name: and nothing of style => 'native'" );
+	is( $given, $default, "$name: style => 'native' writes the same script as no style" );
+	unlike( $matplotlib, qr/with boxplot|\bbins\b(?!=?\S* with boxxyerror)|kdensity|set key default|rgbformulae|set table/, "$name: and style => 'matplotlib' has nothing of style => 'native'" );
 }
 
 # ----------------------------------------------------------------------------
@@ -475,6 +478,57 @@ SKIP: {
 	}
 	my $svg = render( plots => [ $figure{'hist, a hash'}, $figure{'violin'}, $figure{'boxplot, a hash'}, $figure{'colored_table'} ], nrows => 2, ncols => 2, style => 'native' );
 	ok( well_formed($svg), 'native: a grid of the types gnuplot computes for itself' );
+}
+
+# ----------------------------------------------------------------------------
+# 15. Fixes found by review before 0.4 was released: each matched against what
+# matplotlib draws.
+# ----------------------------------------------------------------------------
+# The bin counts are numpy 2.5.2's: np.histogram([0.1, 1, 2, 2.9], 3) is
+# [2, 0, 2], and np.histogram([0, 0.3, 0.6, 0.7, 1], 10) is
+# [1, 0, 1, 0, 0, 1, 1, 0, 0, 1]. The box widths are matplotlib 3.11.2's
+# Axes.bxp, np.clip(0.15 * np.ptp(positions), 0.15, 0.5).
+{
+	my $counts = sub {
+		my ( $v, $bins ) = @_;
+		return [ Cn::Plot::Gnuplot::bin_count( $v, [ Cn::Plot::Gnuplot::bin_edges( $v, $bins, '"bins"' ) ] ) ];
+	};
+	# Edges made as lo + (hi - lo) * i / n left the last at 2.8999999999999995,
+	# below the greatest value, which was then in no bin.
+	is_deeply( $counts->( [ 0.1, 1, 2, 2.9 ], 3 ), [ 2, 0, 2 ], 'hist: the greatest value is in the last bin, as numpy bins it' );
+	is_deeply( $counts->( [ 0, 0.3, 0.6, 0.7, 1 ], 10 ), [ 1, 0, 1, 0, 0, 1, 1, 0, 0, 1 ], 'hist: a value on an edge is in the bin numpy puts it in' );
+	is_deeply( $counts->( [ 0.5, 1, 1.5, 2 ], [ 0, 1, 1, 2 ] ), [ 1, 0, 3 ], 'hist: two equal edges are a bin of no width, as numpy allows' );
+	dies_with( { plot_type => 'hist', data => [ 1, 2 ], bins => [ 0, 2, 1 ] }, qr/"bins" must not fall from edge to edge/, 'hist: edges that fall are refused, as numpy refuses them' );
+	lives( { plot_type => 'hist', data => { A => [], B => [ 1, 2 ] } }, 'hist: a set of no values is binned over 0 .. 1, as numpy bins it' );
+	lives( { plot_type => 'hist', data => { A => [ 'nan', 'nan' ], B => [ 1, 2 ] } }, 'hist: and so is a set of NaN alone' );
+	dies_with( { plot_type => 'hist2d', data => { x => [ 0.3, 0.3 ], y => [ 2, 3 ] }, logscale => ['x'] }, qr/every x is 0\.3, a range of nothing/, 'hist2d: one value on a log axis is refused by name, not taken the log of below 0' );
+
+	my ($gp) = gen( plot_type => 'boxplot', data => { A => [ 1, 2, 3, 4, 5 ] } );
+	like( $gp, qr/^1 3 0\.925 1\.075 2 4 /m, 'boxplot: one box is 0.15 wide, as bxp draws it' );
+	($gp) = gen( plot_type => 'boxplot', data => { map { $_ => [ 1 .. 5 ] } 'A' .. 'C' } );
+	like( $gp, qr/^1 3 0\.85 1\.15 2 4 /m, 'boxplot: and each of three, 0.3' );
+	($gp) = gen( plot_type => 'boxplot', data => { map { $_ => [ 1 .. 5 ] } 'A' .. 'F' } );
+	like( $gp, qr/^1 3 0\.75 1\.25 2 4 /m, 'boxplot: and each of six, 0.5' );
+
+	my %grouped = ( plot_type => 'bar', data => { A => [ 1, 2 ], B => [ 3, 4 ] }, output_file => '/same.svg' );
+	my ($with) = gen( %grouped, width => 0.4 );
+	my ($without) = gen(%grouped);
+	s/\A#[^\n]*\n// for $with, $without;    # the creator note names the call
+	is( $with, $without, 'bar: a grouped bar plot ignores "width", as it says it does' );
+
+	($gp) = gen( plot_type => 'wide', data => [ [ [ 1, 2, 3 ], [ 1, 2, 3 ] ], [ [ 1, 2, 3 ], [ 2, 3, 4 ] ] ], color => '#ff000080' );
+	unlike( $gp, qr/"#ff000080"/, 'wide: a color with alpha is not written as gnuplot would misread it, #aarrggbb' );
+	like( $gp, qr/lc rgb "#7fff0000"/, 'wide: but as gnuplot\'s transparency before the red' );
+	foreach my $native ( [ 'boxplot', { color => '#ff000080' } ], [ 'violin', { edgecolor => '#ff000080' } ] ) {
+		($gp) = gen( plot_type => $native->[0], data => { A => [ 1, 2, 3, 4 ] }, %{ $native->[1] }, style => 'native' );
+		like( $gp, qr/rgb "#7fff0000"/, "$native->[0], native: and so is its color with alpha" );
+	}
+
+	($gp) = gen( plot_type => 'colored_table', data => { A => { A => 1234567, B => 0.123456789 } }, show_numbers => 1 );
+	like( $gp, qr/sprintf\("%\.15g", \$3\)/, 'colored_table: numbers to 15 significant digits, as matplotlib shows them' );
+
+	($gp) = gen( plot_type => 'bar', data => { A => 1 }, output_file => out_file('.png'), scale => 3 );
+	like( $gp, qr/^set terminal pngcairo size 1920,1440 /m, 'scale => 3: 1440 pixels high, rounded, as matplotlib draws it, not 1439' );
 }
 
 done_testing();

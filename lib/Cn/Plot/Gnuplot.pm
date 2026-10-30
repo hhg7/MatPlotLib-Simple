@@ -36,7 +36,7 @@ BEGIN {
 	*{$_} = \&{"Cn::Plot::$_"} foreach qw(axis_limits axis_scale bin_counts bool_option
 	 cb_limits check_key_order check_numbers check_scatter_lengths check_scatter_values
 	 check_wide_runs color_hex colormap_colors creator_note decoded_text finite_values
-	 is_finite is_nan logscale_axes plain_text program_from_env run_script script_handle
+	 is_finite is_nan linspace logscale_axes logspace plain_text program_from_env run_script script_handle
 	 svg_creator_metadata table_cells);
 }
 # What this engine draws: plot type => the keywords of %Cn::Plot::opt it reads
@@ -81,9 +81,15 @@ my ( $px_per_pt, $font_scale );
 # Under style => 'native', each terminal's own font, line width and
 # background; the size, and "noenhanced", which makes text read as given,
 # are kept.
+sub pixels {
+	# A size in inches as whole pixels, rounded as the ggplot2 engine rounds
+	# them. "%d" cut them down, and 4.8 * 3 * 100, which is 1439.9999999999998,
+	# made "scale => 3" a PNG of 1920 by 1439, where matplotlib's is 1440.
+	return map { int( $_ * $png_dpi + 0.5 ) } @_;
+}
 my %terminal_of = (    # output_file's extension => how its terminal is set
-	svg => sub { my ( $w, $h ) = @_; return sprintf 'svg size %d,%d dynamic noenhanced', $w * $png_dpi, $h * $png_dpi if $native; sprintf 'svg size %d,%d dynamic font "sans,%.1f" noenhanced linewidth %.2f background "#ffffff"', $w * $png_dpi, $h * $png_dpi, 10 * $font_scale, $px_per_pt },
-	png => sub { my ( $w, $h ) = @_; return sprintf 'pngcairo size %d,%d noenhanced', $w * $png_dpi, $h * $png_dpi if $native; sprintf 'pngcairo size %d,%d font "sans,%.1f" noenhanced linewidth %.2f background "#ffffff"', $w * $png_dpi, $h * $png_dpi, 10 * $font_scale, $px_per_pt },
+	svg => sub { my ( $w, $h ) = pixels(@_); return "svg size $w,$h dynamic noenhanced" if $native; sprintf 'svg size %d,%d dynamic font "sans,%.1f" noenhanced linewidth %.2f background "#ffffff"', $w, $h, 10 * $font_scale, $px_per_pt },
+	png => sub { my ( $w, $h ) = pixels(@_); return "pngcairo size $w,$h noenhanced" if $native; sprintf 'pngcairo size %d,%d font "sans,%.1f" noenhanced linewidth %.2f background "#ffffff"', $w, $h, 10 * $font_scale, $px_per_pt },
 	pdf => sub { my ( $w, $h ) = @_; return sprintf 'pdfcairo size %.4fin,%.4fin noenhanced', $w, $h if $native; sprintf 'pdfcairo size %.4fin,%.4fin font "sans,10" noenhanced', $w, $h },
 );
 # matplotlib's scatter markers, in the order it cycles through them for sets
@@ -479,7 +485,10 @@ sub draw_bar {
 		die "\"width\" must be a finite number for $current_sub, not \"$plot->{width}\"" unless is_finite( $plot->{width} );
 	}
 	if ( ( $form eq 'grouped' ) && ( defined $plot->{width} ) && ( not $stacked ) ) {
+		# Left out, as the matplotlib engine leaves it: it was said to be
+		# ignored, and then divided among the series all the same.
 		say STDERR 'grouped, non-stacked barplots ignore width settings';
+		delete $plot->{width};
 	}
 	my @keys = key_order_of( $plot, $data );
 	foreach my $key (@keys) {
@@ -643,7 +652,11 @@ sub draw_boxplot {
 	my %g = ( set => [], plot => [] );
 	push @{ $g{set} }, "set logscale $_" foreach logscale_axes( $plot->{logscale}, $current_sub );
 	my ( @boxes, @medians, @whiskers, @caps, @fliers, @means, @labels );
-	my $half = 0.25;    # matplotlib's box is 0.5 wide, its caps half that
+	# Half of bxp's default width, 0.15 of the span of the positions, kept
+	# between 0.15 and 0.5 (Axes.bxp in matplotlib 3.11.2); its caps are half
+	# as wide as the box. It was 0.5 for any number of boxes, where matplotlib
+	# draws one box or two 0.15 wide, and three 0.3 wide.
+	my $half = max( 0.15, min( 0.5, 0.15 * $#keys ) ) / 2;
 	foreach my $i ( 0 .. $#keys ) {
 		my $at = $i + 1;
 		my @v = grep { ( defined ) && ( not is_nan($_) ) } @{ $sets->{ $keys[$i] } };
@@ -669,12 +682,12 @@ sub draw_boxplot {
 	push @{ $g{plot} }, "$block using 1:2:3:4:5:6:7 with boxxyerror fs solid 1.0 border lc rgb \"black\" lc rgb variable notitle" if defined $block;
 	foreach my $lines ( [ \@whiskers, 'black' ], [ \@caps, 'black' ], [ \@medians, cycle_color(1) ] ) {
 		my $b = datablock( $lines->[0] );
-		push @{ $g{plot} }, "$b using 1:2:3:4 with vectors nohead lc rgb " . gp_str( $lines->[1] =~ m/^#/ ? $lines->[1] : hex_of( $lines->[1], 'a line' ) ) . ' lw 1 notitle' if defined $b;
+		push @{ $g{plot} }, "$b using 1:2:3:4 with vectors nohead lc rgb " . gp_color( $lines->[1] =~ m/^#/ ? $lines->[1] : hex_of( $lines->[1], 'a line' ) ) . ' lw 1 notitle' if defined $b;
 	}
 	my $b = datablock( \@fliers );
 	push @{ $g{plot} }, "$b using 1:2 with points pt 6 ps $point_size lc rgb \"black\" notitle" if defined $b;
 	$b = datablock( \@means );
-	push @{ $g{plot} }, "$b using 1:2 with points pt 9 ps $point_size lc rgb " . gp_str( cycle_color(2) ) . ' notitle' if defined $b;
+	push @{ $g{plot} }, "$b using 1:2 with points pt 9 ps $point_size lc rgb " . gp_color( cycle_color(2) ) . ' notitle' if defined $b;
 	push @{ $g{set} }, tics( $horizontal ? 'y' : 'x', \@labels, [ 1 .. scalar @keys ] );
 	$g{categories} = $horizontal ? 'y' : 'x';
 	category_range( \%g, scalar @keys, $horizontal );
@@ -692,7 +705,7 @@ sub kde {
 	my $h    = $sd * $n**( -1 / 5 );
 	my ( $lo, $hi ) = ( $s->[0], $s->[-1] );
 	my $norm = 1 / ( $n * $h * sqrt( 8 * atan2( 1, 1 ) ) );
-	my @at = map { $lo + ( $hi - $lo ) * $_ / 99 } 0 .. 99;
+	my @at = linspace( $lo, $hi, 100 );    # violin_stats's np.linspace(min, max, 100)
 	return ( \@at, [ map { my $y = $_; $norm * sum( map { exp( -0.5 * ( ( $y - $_ ) / $h )**2 ) } @{$s} ) } @at ] );
 }
 sub draw_violin {
@@ -738,7 +751,7 @@ sub draw_violin {
 		my @outline = ( ( map { [ $xy->( $at - $w[$_], $y->[$_] ) ] } 0 .. 99 ), ( map { [ $xy->( $at + $w[$_], $y->[$_] ) ] } reverse 0 .. 99 ) );
 		push @outline, $outline[0];
 		my $body = datablock( \@outline );
-		push @{ $g{plot} }, "$body using 1:2 with filledcurves closed fs transparent solid 0.3 noborder lc rgb " . gp_str( substr( $face[$i], 0, 7 ) ) . ' notitle';
+		push @{ $g{plot} }, "$body using 1:2 with filledcurves closed fs transparent solid 0.3 noborder lc rgb " . gp_color( substr( $face[$i], 0, 7 ) ) . ' notitle';
 		push @{ $g{plot} }, "$body using 1:2 with lines lc rgb " . gp_color( with_alpha( $edge, 0.3 ) ) . ' lw 1 notitle';    # the edge takes the body's alpha, as in matplotlib
 		my $seg = sub { my ( $a1, $v1, $a2, $v2 ) = @_; my @p = $xy->( $a1, $v1 ); my @q = $xy->( $a2, $v2 ); return [ @p, $q[0] - $p[0], $q[1] - $p[1] ] };
 		push @lines, $seg->( $at - 0.125, $s[0], $at + 0.125, $s[0] ), $seg->( $at - 0.125, $s[-1], $at + 0.125, $s[-1] ), $seg->( $at, $s[0], $at, $s[-1] );
@@ -754,7 +767,7 @@ sub draw_violin {
 	}
 	foreach my $set ( [ \@lines, cycle_color(0), 1.5 ], [ \@whisk, '#000000', 1 ], [ \@quartiles, '#000000', 5 ] ) {
 		my $b = datablock( $set->[0] );
-		push @{ $g{plot} }, "$b using 1:2:3:4 with vectors nohead lc rgb " . gp_str( $set->[1] ) . " lw $set->[2] notitle" if defined $b;
+		push @{ $g{plot} }, "$b using 1:2:3:4 with vectors nohead lc rgb " . gp_color( $set->[1] ) . " lw $set->[2] notitle" if defined $b;
 	}
 	my $b = datablock( \@means );
 	push @{ $g{plot} }, "$b using 1:2 with points pt 7 ps $point_size lc rgb \"#ff0000\" notitle";
@@ -820,12 +833,12 @@ sub draw_boxplot_native {
 		next unless defined $block;
 		my $color = $face[$i] // next_color( $axes, 'patches' );
 		my $fill = defined $face[$i] ? 'fs solid 1.0 border lc rgb "black" ' : '';    # a color given fills the box, as matplotlib's does; gnuplot's own is empty
-		push @{ $g{plot} }, "$block using ($at):1 with boxplot ${fill}lc rgb " . gp_str($color) . ' notitle';
+		push @{ $g{plot} }, "$block using ($at):1 with boxplot ${fill}lc rgb " . gp_color($color) . ' notitle';
 		if ( $show{showmeans} ) {
 			# The mean as gnuplot's "stats" works it out, marked as matplotlib
 			# marks it, since gnuplot's boxplot has no mark of its own for it.
 			push @{ $g{set} }, "stats $block using 1 name \"box$at\" nooutput";
-			push @{ $g{plot} }, "$block every ::0::0 using ($at):(box${at}_mean) with points pt 9 lc rgb " . gp_str($color) . ' notitle';
+			push @{ $g{plot} }, "$block every ::0::0 using ($at):(box${at}_mean) with points pt 9 lc rgb " . gp_color($color) . ' notitle';
 		}
 	}
 	push @{ $g{set} }, tics( 'x', \@labels, [ 1 .. scalar @keys ] );
@@ -868,8 +881,8 @@ sub draw_violin_native {
 		my $block = datablock( [ map { [$_] } @v ] );
 		my $density = '$kd' . $n_blocks++;
 		push @{ $g{set} }, "set table $density", "plot $block using 1:(1) smooth kdensity", 'unset table', "stats $density using 2 name \"kd$at\" nooutput";
-		my $color = gp_str( $face[$i] // next_color( $axes, 'patches' ) );
-		my $edge_clause = defined $edge ? 'border lc rgb ' . gp_str($edge) . ' ' : 'noborder ';
+		my $color = gp_color( $face[$i] // next_color( $axes, 'patches' ) );
+		my $edge_clause = defined $edge ? 'border lc rgb ' . gp_color($edge) . ' ' : 'noborder ';
 		foreach my $side ( '+', '-' ) {
 			my $across = "($at $side 0.4 * \$2 / kd${at}_max)";
 			push @{ $g{plot} }, $horizontal
@@ -928,7 +941,7 @@ sub draw_hist_native {
 		push @extent, [ undef, 0 ], [ undef, native_bin_peak( $sets->{$set}, $bins ) ];
 		my $color = defined $given ? hex_of( $given, "\"color\" of \"$set\"" ) : next_color( $axes, 'patches' );
 		my $fill = defined $alpha ? sprintf( 'fs transparent solid %s ', gp_num($alpha) ) : '';
-		push @{ $g{plot} }, "$block using 1 " . native_bins( $bins, $set ) . " with boxes ${fill}lc rgb " . gp_str($color) . ' ' . key_title( $legend ? $set : undef );
+		push @{ $g{plot} }, "$block using 1 " . native_bins( $bins, $set ) . " with boxes ${fill}lc rgb " . gp_color($color) . ' ' . key_title( $legend ? $set : undef );
 		$g{legend} = 1 if $legend;
 	}
 	return \%g;
@@ -990,15 +1003,19 @@ sub bin_edges {
 	if ( ref $bins eq 'ARRAY' ) {
 		check_numbers( $bins, $what, $current_sub );
 		die "$what has fewer than 2 edges in $current_sub" if scalar @{$bins} < 2;
-		die "$what must rise from edge to edge in $current_sub" if grep { $bins->[$_] <= $bins->[ $_ - 1 ] } 1 .. $#{$bins};
+		# Two equal edges are a bin of no width, which holds nothing, as numpy
+		# allows them; edges that fall are refused, as numpy refuses them.
+		die "$what must not fall from edge to edge in $current_sub" if grep { $bins->[$_] < $bins->[ $_ - 1 ] } 1 .. $#{$bins};
 		return @{$bins};
 	}
 	if ( ( ref $bins ) || ( not looks_like_number($bins) ) || ( not is_finite($bins) ) || ( int($bins) != $bins ) || ( $bins < 1 ) ) {
 		die "$what is a whole number of bins, or an array of their edges, for the gnuplot engine, not \"" . ( ref $bins || $bins ) . '"';
 	}
-	my ( $lo, $hi ) = ( min( @{$values} ), max( @{$values} ) );
+	# numpy's range for no values at all, as for a set that was all NaN, is
+	# 0 .. 1; min() of an empty list was undef, and died comparing it.
+	my ( $lo, $hi ) = scalar @{$values} ? ( min( @{$values} ), max( @{$values} ) ) : ( 0, 1 );
 	( $lo, $hi ) = ( $lo - 0.5, $hi + 0.5 ) if $lo == $hi;
-	return map { $lo + ( $hi - $lo ) * $_ / $bins } 0 .. $bins;
+	return linspace( $lo, $hi, $bins + 1 );
 }
 sub bin_count {
 	# How many values fall in each bin; the last bin holds its right edge.
@@ -1095,11 +1112,13 @@ sub draw_hist2d {
 		my $hi = $plot->{"${axis}max"} // max(@finite);
 		die "\"${axis}min\" = $lo is above \"${axis}max\" = $hi in $current_sub" if $lo > $hi;
 		die "\"logscale\" puts $axis on a log scale, which cannot start at $lo in $current_sub: give a \"${axis}min\" above 0" if $log{$axis} && ( $lo <= 0 );
+		# Refused on a log axis, where widening by 0.5 each way could reach 0 or
+		# below, and died taking its log ("Can't take log of -0.2"); matplotlib's
+		# np.logspace of one value has edges that do not rise, and fails too.
+		die "\"logscale\" puts $axis on a log scale, but every $axis is $lo, a range of nothing, in $current_sub; give \"${axis}min\" and \"${axis}max\"" if $log{$axis} && ( $lo == $hi );
 		( $lo, $hi ) = ( $lo - 0.5, $hi + 0.5 ) if $lo == $hi;    # numpy's histogram2d does the same with an empty range
 		my $n = $plot->{"${axis}bins"};
-		$edges{$axis} = $log{$axis}
-		 ? [ map { 10**( log($lo) / log(10) + ( log($hi / $lo) / log(10) ) * $_ / $n ) } 0 .. $n ]
-		 : [ map { $lo + ( $hi - $lo ) * $_ / $n } 0 .. $n ];
+		$edges{$axis} = $log{$axis} ? [ logspace( $lo, $hi, $n + 1 ) ] : [ linspace( $lo, $hi, $n + 1 ) ];    # as the matplotlib engine writes them
 		push @{ $g{set} }, "set ${axis}range [" . gp_num($lo) . ':' . gp_num($hi) . ']';
 	}
 	my @count;
@@ -1255,6 +1274,10 @@ sub draw_colored_table {
 	$g{plot} = [ image_clause( \@matrix, \%g ) ];
 	my $grid = datablock( [ map { my $r = $_; map { [ $_, $r, $_ - 0.5, $_ + 0.5, $r - 0.5, $r + 0.5 ] } 0 .. $nc - 1 } 0 .. $nr - 1 ] );
 	push @{ $g{plot} }, "$grid using 1:2:3:4:5:6 with boxxyerror fs empty lc rgb \"black\" lw 1 notitle";
+	# Each number to 15 significant digits, as Perl writes it into the JSON that
+	# matplotlib's table shows as it stands; gnuplot's "%g" kept 6, and drew
+	# 1234567 as 1.23457e+06.
+	my $number_format = 'sprintf("%.15g", $3)';
 	if ( bool_option( $plot->{show_numbers}, 'show_numbers', $current_sub ) && $native ) {
 		# gnuplot's own palette runs from black, so a number written in black,
 		# as matplotlib writes it, could not be read on the darkest cells: each
@@ -1269,10 +1292,10 @@ sub draw_colored_table {
 			push @{$cell}, ( 0.2126 * $r + 0.7152 * $gr + 0.0722 * $b < 0.5 ) ? 0xffffff : 0;
 		}
 		my $numbers = datablock( \@cells );
-		push @{ $g{plot} }, "$numbers using 1:2:(sprintf(\"%g\", \$3)):4 with labels center tc rgb variable notitle" if defined $numbers;
+		push @{ $g{plot} }, "$numbers using 1:2:($number_format):4 with labels center tc rgb variable notitle" if defined $numbers;
 	} elsif ( bool_option( $plot->{show_numbers}, 'show_numbers', $current_sub ) ) {
 		my $numbers = datablock( [ map { my $r = $_; map { [ $_, $r, $matrix[$r][$_] ] } grep { ( defined $matrix[$r][$_] ) && is_finite( $matrix[$r][$_] ) } 0 .. $nc - 1 } 0 .. $nr - 1 ] );
-		push @{ $g{plot} }, "$numbers using 1:2:(sprintf(\"%g\", \$3)) with labels center notitle" if defined $numbers;
+		push @{ $g{plot} }, "$numbers using 1:2:($number_format) with labels center notitle" if defined $numbers;
 	}
 	return \%g;
 }
@@ -1366,7 +1389,7 @@ sub draw_plot {
 		my $block = datablock( [ map { [ $x->[$_], $y->[$_] ] } 0 .. $#{$x} ] );
 		my $color = next_color( $axes, 'lines' );
 		next unless defined $block;
-		push @{ $g{plot} }, "$block using 1:2 with lines " . lw() . "lc rgb " . gp_str($color) . ' ' . key_title($label);
+		push @{ $g{plot} }, "$block using 1:2 with lines " . lw() . "lc rgb " . gp_color($color) . ' ' . key_title($label);
 		$g{legend} = 1 if defined $label;
 	}
 	return \%g;
@@ -1440,7 +1463,7 @@ sub draw_scatter {
 		} else {
 			my $block = datablock( [ map { [ $x->[$_], $y->[$_] ] } 0 .. $#{$x} ] );
 			my $color = next_color( $axes, 'patches' );
-			push @{ $g{plot} }, "$block using 1:2 with points " . ( $native ? '' : 'pt 7 ' ) . ps() . "lc rgb " . gp_str($color) . ' ' . key_title($label) if defined $block;
+			push @{ $g{plot} }, "$block using 1:2 with points " . ( $native ? '' : 'pt 7 ' ) . ps() . "lc rgb " . gp_color($color) . ' ' . key_title($label) if defined $block;
 		}
 		$g{legend} = 1 if defined $label;
 	}
@@ -1491,7 +1514,7 @@ sub draw_wide {
 		my ( $runs, $color, $label ) = @{$group};
 		my @xs = map { finite_values( @{ $_->[0] } ) } @{$runs};
 		my ( $lo, $hi ) = ( min(@xs), max(@xs) );
-		my @at = map { $lo + ( $hi - $lo ) * $_ / 100 } 0 .. 100;    # 101 points, as np.linspace(min, max, 101)
+		my @at = linspace( $lo, $hi, 101 );    # as the matplotlib engine's np.linspace(min, max, 101)
 		my @ys;
 		foreach my $run ( @{$runs} ) {
 			my @order = sort { $run->[0][$a] <=> $run->[0][$b] } 0 .. $#{ $run->[0] };    # Perl's sort is stable, as argsort(kind = 'stable')
@@ -1515,9 +1538,9 @@ sub draw_wide {
 			push @band_rows, [ $at[$k], $mean - $sd, $mean + $sd ];
 		}
 		my $band = datablock( \@band_rows );
-		push @{ $g{plot} }, "$band using 1:2:3 with filledcurves fs transparent solid 0.3 noborder lc rgb " . gp_str($color) . ' notitle' if defined $band;
+		push @{ $g{plot} }, "$band using 1:2:3 with filledcurves fs transparent solid 0.3 noborder lc rgb " . gp_color($color) . ' notitle' if defined $band;
 		my $mean = datablock( \@mean_rows );
-		push @{ $g{plot} }, "$mean using 1:2 with lines " . lw() . "lc rgb " . gp_str($color) . ' ' . key_title($label) if defined $mean;
+		push @{ $g{plot} }, "$mean using 1:2 with lines " . lw() . "lc rgb " . gp_color($color) . ' ' . key_title($label) if defined $mean;
 		$g{legend} = 1 if defined $label;
 	}
 	return \%g;
@@ -1722,7 +1745,7 @@ sub render {
 	# Returns the script's path. Takes what Cn::Plot::Matplotlib::render does.
 	my ( $args, $context ) = @_;
 	$current_sub = $context->{sub};
-	$native = ( ( $context->{style} // 'matplotlib' ) eq 'native' ) ? 1 : 0;
+	$native = ( ( $context->{style} // 'native' ) eq 'native' ) ? 1 : 0;
 	( $n_blocks, @blocks ) = (0);
 	my $file = $args->{output_file};
 	my ($ext) = ( $file =~ m/\.([^.\/\\]+)\z/ );

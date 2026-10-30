@@ -15,6 +15,7 @@ require 5.010;
 our $VERSION = 0.4;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
+use POSIX ();
 use Cwd 'getcwd';
 use File::Spec;
 use File::Temp;
@@ -822,6 +823,25 @@ sub bin_counts {
 		}
 		$plot->{$bins} = int $n;
 	}
+}
+sub linspace {
+	# numpy.linspace(start, stop, num): num points from start to stop, each
+	# i * step + start and the last exactly stop, as numpy 2.5.2's
+	# function_base.linspace makes them; for an engine to bin or sample
+	# where numpy does. Written as start + (stop - start) * i / n, the points
+	# rounded differently: a value on an edge fell into the next bin, and the
+	# last edge could come out below stop, so that the maximum was in no bin.
+	my ( $start, $stop, $num ) = @_;
+	return ($start) if $num == 1;
+	my $step = ( $stop - $start ) / ( $num - 1 );
+	return ( ( map { $_ * $step + $start } 0 .. $num - 2 ), $stop );
+}
+sub logspace {
+	# numpy.logspace(np.log10(lo), np.log10(hi), num), as the matplotlib engine
+	# writes a hist2d's edges on a log axis: 10 to the power of each point of
+	# linspace, so that, unlike linspace, the last need not be exactly hi.
+	my ( $lo, $hi, $num ) = @_;
+	return map { 10**$_ } linspace( POSIX::log10($lo), POSIX::log10($hi), $num );
 }
 sub check_twinx_args {
 	# Die naming any keyword of a "twinx_args" hash that no axes, figure or
@@ -1790,22 +1810,22 @@ sub engine_name {
 	return $engine;
 }
 # How the figure looks: the value of "style" => what it means. The default,
-# "matplotlib", has every engine draw what matplotlib draws -- its colors and
-# colormaps, its binning, quartiles and densities, computed in Perl as numpy
-# and scipy compute them, and its layout -- so that changing "engine" changes
-# the renderer and not the figure. "native" lets the engine choose all of
-# that for itself: its own palette and default colormap, its own statistics
-# where it has a function for them, its own theme and legend placement. What
+# "native", matches the engine: it lets the engine choose for itself its own
+# palette and default colormap, its own statistics where it has a function for
+# them, its own theme and legend placement. "matplotlib" has every engine draw
+# what matplotlib draws -- its colors and colormaps, its binning, quartiles and
+# densities, computed in Perl as numpy and scipy compute them, and its layout
+# -- so that changing "engine" changes the renderer and not the figure. What
 # the caller gave is drawn either way: the data, the key order, a "color" or a
 # "cmap", the labels, limits, log scales and the size. matplotlib draws the
-# same figure for both, its native look being the default.
+# same figure for both, its native look being matplotlib's.
 our %styles = (
 	matplotlib => 'what matplotlib draws, whichever engine draws it',
 	native     => "the engine's own palette, statistics and theme",
 );
-my $default_style = 'matplotlib';
+my $default_style = 'native';
 sub style_name {
-	# The style a figure asked for, "matplotlib" if it asked for none; "style"
+	# The style a figure asked for, "native" if it asked for none; "style"
 	# is taken out of the arguments, as "engine" is by engine_name.
 	my ( $args, $current_sub ) = @_;
 	my $style = delete $args->{style};
@@ -1853,6 +1873,11 @@ sub check_engine {
 	my %plot_kw   = map { $_ => 1 } @{"${module}::plot_keywords"};
 	my %figure_kw = map { $_ => 1 } ( @{"${module}::figure_keywords"}, 'execute', 'fh', 'output_file' );
 	my %grid_kw   = map { $_ => 1 } ( 'ncol', 'ncols', 'nrow', 'nrows', 'plots' );
+	# Keywords given with the value that asks for nothing, which no engine has
+	# to draw, and which are left out of the list of what it draws: "show =>
+	# 0", which a program for matplotlib may pass, was refused, so that it
+	# could not change "engine" without dropping it.
+	my %asks_nothing = ( show => !$args->{show} );
 	my ( @lines, %listed );
 	my $refuse_keys = sub {
 		my ( $bad, $what ) = @_;
@@ -1860,7 +1885,7 @@ sub check_engine {
 		push @lines, join( ', ', map { "\"$_\"" } @{$bad} ) . $what;
 	};
 	if ( $single_plot == 0 ) {
-		$refuse_keys->( [ grep { ( not $figure_kw{$_} ) && ( not $grid_kw{$_} ) } sort keys %{$args} ], ' for the figure' );
+		$refuse_keys->( [ grep { ( not $figure_kw{$_} ) && ( not $grid_kw{$_} ) && ( not $asks_nothing{$_} ) } sort keys %{$args} ], ' for the figure' );
 	}
 	my @drawn = ( $single_plot == 1 ) ? ( [ $args, '' ] ) : map { [ $args->{plots}[$_], " at subplot $_" ] } 0 .. $#{ $args->{plots} };
 	foreach my $drawn (@drawn) {
@@ -1877,7 +1902,7 @@ sub check_engine {
 				$ok{add} = 1;
 				%ok = ( %ok, %figure_kw, %grid_kw ) if $single_plot == 1;    # plt sets "nrows" and "ncols" to 1 for a single plot
 			}
-			my @bad = grep { not $ok{$_} } sort keys %{$graph};
+			my @bad = grep { ( not $ok{$_} ) && ( ( $graph != $args ) || ( not $asks_nothing{$_} ) ) } sort keys %{$graph};
 			next if scalar @bad == 0;
 			$refuse_keys->( \@bad, " for plot_type \"$type\"$where" );
 			$listed{$type} = 1;
@@ -2053,16 +2078,24 @@ sub plain_text {
 	return $text if $text =~ m/^([^\"\',]+)$/;
 	if ( $text =~ m/^\s*([rRbBuUfF]{0,2})(['"])((?:\\.|(?!\2)[^\\])*)\2\s*(,.*)?$/s ) {
 		my ( $prefix, $body, $rest ) = ( lc $1, $3, $4 );
-		if ( ( defined $rest ) && ( $rest =~ m/\S/ ) && ( $rest ne ',' ) ) {
+		if ( ( defined $rest ) && ( $rest !~ m/^,\s*$/ ) ) {    # a trailing comma alone is still one argument to Python
 			die "$current_sub: \"$option\" is given matplotlib's arguments$rest after its text; the $engine engine takes the text alone";
 		}
 		if ( $prefix =~ m/f/ ) {
 			die "$current_sub: \"$option\" is a Python f-string, which only matplotlib's Python can fill in; give the $engine engine the text as it should read";
 		}
 		return $body if $prefix =~ m/r/;    # a raw string keeps its backslashes
-		my %escape = ( n => "\n", t => "\t", r => "\r", a => "\a", b => "\b", f => "\f", v => "\x0b", '0' => "\0", "\\" => "\\", "'" => "'", '"' => '"', "\n" => '' );
-		$body =~ s{\\(?:x([0-9a-fA-F]{2})|u([0-9a-fA-F]{4})|U([0-9a-fA-F]{8})|(.))}{
-			defined $1 ? chr hex $1 : defined $2 ? chr hex $2 : defined $3 ? chr hex $3 : exists $escape{$4} ? $escape{$4} : "\\$4"
+		# Python's escapes, as its lexical analysis lists them: octal of one to
+		# three digits, which "\0" alone stood for, so that "\012" was a NUL
+		# and "12"; and a character by its Unicode name, \N{...}, which Python
+		# matches without regard to case. One Python does not know is left as
+		# written, as Python leaves an unknown escape.
+		my %escape = ( n => "\n", t => "\t", r => "\r", a => "\a", b => "\b", f => "\f", v => "\x0b", "\\" => "\\", "'" => "'", '"' => '"', "\n" => '' );
+		require charnames;
+		$body =~ s{\\(?:x([0-9a-fA-F]{2})|u([0-9a-fA-F]{4})|U([0-9a-fA-F]{8})|([0-7]{1,3})|N\{([^{}]+)\}|(.))}{
+			defined $1 ? chr hex $1 : defined $2 ? chr hex $2 : defined $3 ? chr hex $3 : defined $4 ? chr oct $4
+			: defined $5 ? ( defined charnames::vianame( uc $5 ) ? chr charnames::vianame( uc $5 ) : "\\N{$5}" )
+			: exists $escape{$6} ? $escape{$6} : "\\$6"
 		}gse;
 		return $body;
 	}

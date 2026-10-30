@@ -83,7 +83,8 @@ sub script_of {
 }
 
 # ----------------------------------------------------------------------------
-# 3. "style" is "matplotlib" or "native"; matplotlib draws the same for both.
+# 3. "style" is "native", the default, or "matplotlib"; matplotlib draws the
+# same for both.
 # ----------------------------------------------------------------------------
 # "style" was on the list of pyplot methods until 0.4, and wrote plt.style(...),
 # which raised "TypeError: 'module' object is not callable": plt.style is a
@@ -96,6 +97,14 @@ sub script_of {
 	is( $native, $default, 'matplotlib: style => "native" writes the script the default does' );
 	is( $named,  $default, 'and so does style => "matplotlib", named' );
 	unlike( $default, qr/plt\.style\(/, 'no plt.style() call is written' );
+	# Every other engine's default is its own style, "native", as matplotlib's
+	# is. A hist is drawn differently in the two styles by both engines.
+	my %hist = ( plot_type => 'hist', data => { A => [ 1, 2, 2, 3 ] }, output_file => outfile('h.svg') );
+	foreach my $engine ( 'gnuplot', 'ggplot2' ) {
+		my ( $none, $own, $mpl ) = map { script_of( %hist, engine => $engine, @{$_} ) =~ s/\A[^\n]*\n//r } ( [], [ style => 'native' ], [ style => 'matplotlib' ] );    # line 1 is the creator note
+		is( $none, $own, "$engine: no style writes what style => \"native\" writes" );
+		isnt( $none, $mpl, "$engine: and not what style => \"matplotlib\" writes" );
+	}
 	like( error_of( sub { bar( output_file => outfile('m.svg'), data => { A => 1 }, style => 'ggplot', execute => 0 ) } ),
 		qr/^plt: "style" is one of "matplotlib", .*; "native", .*; not "ggplot"/, 'any other style is refused, saying what each one is' );
 }
@@ -118,6 +127,15 @@ sub script_of {
 	$err = error_of( sub { plt( engine => 'gnuplot', output_file => outfile('c.svg'), execute => 0, plot_type => 'bar', data => { A => 1 }, add => [ { plot_type => 'hexbin', data => { x => [1], y => [2] } } ] ) } );
 	like( $err, qr/plot_type "hexbin" for an "add" graph/, 'and an "add" graph as an "add" graph' );
 	is( error_of( sub { bar( engine => 'gnuplot', output_file => outfile('c.svg'), execute => 0, data => { A => 1 } ) } ), '', 'a plot the engine draws whole is not refused, nrows and ncols included' );
+	# "show" is refused, but not when it asks for nothing: a program written
+	# for matplotlib that passes "show => 0" was refused under any other engine.
+	foreach my $engine ( 'gnuplot', 'ggplot2' ) {
+		foreach my $no ( 0, "'False'" ) {
+			is( error_of( sub { bar( engine => $engine, output_file => outfile('c.svg'), execute => 0, data => { A => 1 }, show => eval $no ) } ), '', "$engine: show => $no is not refused" );
+		}
+		is( error_of( sub { plt( engine => $engine, output_file => outfile('c.svg'), execute => 0, show => 0, plots => [ { plot_type => 'bar', data => { A => 1 } } ] ) } ), '', "$engine: nor beside \"plots\"" );
+		like( error_of( sub { bar( engine => $engine, output_file => outfile('c.svg'), execute => 0, data => { A => 1 }, show => 1 ) } ), qr/does not draw "show"/, "$engine: show => 1 is" );
+	}
 }
 
 # ----------------------------------------------------------------------------
@@ -137,6 +155,16 @@ sub script_of {
 		q{'Tis the season}          => q{'Tis the season},
 		q{"A" vs "B"}               => q{"A" vs "B"},
 		q{$\alpha$}                 => q{$\alpha$},
+		# Python 3.14's own readings of the same literals: octal escapes of
+		# one to three digits, a character by its name in any case, and a
+		# name it does not know left as written.
+		q{"line\012two"}           => "line\ntwo",
+		q{"\101\x42\u0043"}         => 'ABC',
+		q{"a\0b"}                  => "a\0b",
+		q{"\N{GREEK SMALL LETTER ALPHA}"} => "\x{3b1}",
+		q{"\N{greek small letter beta}"}  => "\x{3b2}",
+		q{"\N{NO SUCH NAME}"}       => q{\N{NO SUCH NAME}},
+		q{"one argument", }         => 'one argument',    # Python takes the trailing comma
 	);
 	foreach my $text ( sort keys %shown ) {
 		is( Cn::Plot::plain_text( $text, 'title', 'gnuplot', 'plt' ), $shown{$text}, "plain_text: $text" );

@@ -5,7 +5,7 @@
 #
 # Blocks 1 to 14 read the generated R as text and need no R at all, so they run
 # on a Windows smoker, which is where escaping and paths break; 9 to 13 are
-# about "style", the default "matplotlib" against "native". Block 15 parses
+# about "style", "matplotlib" against "native", the default. Block 15 parses
 # every script written here with R's own parser, as t/05.generated.python.t
 # does with Python's, and needs Rscript. Blocks 16 and 17 render, one in each
 # style, and need Rscript with ggplot2 3.5.0 or newer -- the version the script
@@ -43,17 +43,19 @@ sub slurp {
 	return $text;
 }
 my @scripts;    # every script written, for R's parser in block 10
-# The script plt writes, with execute => 0, as text.
+# The script plt writes, with execute => 0, as text. In style "matplotlib"
+# unless %args names a style, as most blocks check what matplotlib draws.
 sub script_of {
 	my (%args) = @_;
-	my ( undef, undef, $file ) = capture { plt( engine => 'ggplot2', execute => 0, output_file => out_file(), %args ) };
+	my ( undef, undef, $file ) = capture { plt( engine => 'ggplot2', execute => 0, output_file => out_file(), style => 'matplotlib', %args ) };
 	push @scripts, $file;
 	return slurp($file);
 }
-# The message plt dies with, without its stack trace.
+# The message plt dies with, without its stack trace; in style "matplotlib"
+# unless %args names one, as script_of.
 sub refusal {
 	my (%args) = @_;
-	my ( undef, undef ) = capture { eval { plt( engine => 'ggplot2', execute => 0, output_file => out_file(), %args ) } };
+	my ( undef, undef ) = capture { eval { plt( engine => 'ggplot2', execute => 0, output_file => out_file(), style => 'matplotlib', %args ) } };
 	return ( "$@" =~ s/ at \S+ line \d+.*//sr );
 }
 
@@ -258,16 +260,23 @@ like( refusal( plot_type => 'plot', data => { A => [ \@x, \@y ] }, set_xlim => '
 }
 
 # ----------------------------------------------------------------------------
-# 9. style => 'matplotlib' is the default, and its scripts are as they were.
+# 9. style => 'matplotlib' writes the scripts it did; 'native' is the default.
 # ----------------------------------------------------------------------------
 # The native constructs are absent from every matplotlib-style script, and
-# naming the style writes what leaving it out writes. The digests are of
+# leaving the style out writes what naming "native" writes. The digests are of
 # scripts the engine wrote before "style" was added in 0.4 (SHA-256, line 1 --
 # the note naming where and by whom it was written -- left out, and the
 # local() that copies that note into the SVG, which came later). They pin the
 # figures "native" must not disturb; overlay, logbar and wide are not among
-# them, as their matplotlib style was fixed in the same change (block 13). To
-# see the digests the engine writes now, run
+# them, as their matplotlib style was fixed in the same change (block 13).
+#
+# Six were taken again since: boxplot, grouped, pie and violin when r_num came
+# to write every digit of a computed number (each changed in its 16th or 17th
+# significant digit, by 5e-15 at most), and hist and hist2d when their edges
+# came to be numpy's linspace -- their old scripts had lost the greatest
+# value of each hist set and two points of the hist2d, and the new counts
+# were checked against np.histogram and np.histogram2d. To see the digests
+# the engine writes now, run
 #
 #	CN_PLOT_PRINT_PINS=1 prove -Ilib t/18.ggplot2.t
 use Digest::SHA 'sha256_hex';
@@ -282,16 +291,16 @@ my %native_only = (
 );
 my @pin_v = map { sin($_) * 3 + $_ / 10 } 1 .. 40;
 my %pinned = (
-	grouped => [ '702054ed51109ad8c85948142501e12d3e75cd16b73dcdda006c7524183b67ab', { plot_type => 'bar', data => { '2023' => { A => 3, B => 5 }, '2024' => { A => 4, B => 3 } }, title => 'g' } ],
+	grouped => [ '5f5812a8daec84f7c474082280e6d946ba284b6c80a20e61439ba7b26e8a7ff2', { plot_type => 'bar', data => { '2023' => { A => 3, B => 5 }, '2024' => { A => 4, B => 3 } }, title => 'g' } ],
 	simple  => [ '9c703af457597a515eba21472d3c47e070bda25fa4bbccf18103974c0cb50da5', { plot_type => 'bar', data => { a => 1, b => 2 }, yerr => { a => 0.1, b => 0.2 } } ],
-	boxplot => [ 'e1aa1678a3ba050b2e59e17c408c382ebe73a37d374db4cc71c2ddd213e68988', { plot_type => 'boxplot', data => { A => [@pin_v], B => [ map { $_ * 2 } @pin_v ] }, showmeans => 1 } ],
-	violin  => [ '2d3625ca40d103bffd9fbf42261ca01bc1e8e2eebd32ed50b1374405755bb834', { plot_type => 'violin', data => { A => [@pin_v], B => [ map { $_ * 2 } @pin_v ] } } ],
-	hist    => [ '42e6e261696eacfbac5f7a14d44a87fee4f7f77f39b4d930d4843e5c732c9a4f', { plot_type => 'hist', data => { A => [@pin_v], B => [ map { $_ + 1 } @pin_v ] }, bins => 7 } ],
-	hist2d  => [ '7100485ffc0adede2f1683704c25415b0bea14017416b2015a357745eaa82038', { plot_type => 'hist2d', data => { x => [@pin_v], y => [ reverse @pin_v ] }, xbins => 5, ybins => 4 } ],
+	boxplot => [ '5800aab6df02dd372a27dcd06c2ed3c14aef80d21551c79d77e97c8f206cc8d0', { plot_type => 'boxplot', data => { A => [@pin_v], B => [ map { $_ * 2 } @pin_v ] }, showmeans => 1 } ],
+	violin  => [ '4b953761cc3fb103fc52d48cbd2056bc5ac5f9d3873b8e945800f7dbcd32b772', { plot_type => 'violin', data => { A => [@pin_v], B => [ map { $_ * 2 } @pin_v ] } } ],
+	hist    => [ 'cdf78200a90670b417945648ab76872bc185a5dadb4994534953c078ddb83dd6', { plot_type => 'hist', data => { A => [@pin_v], B => [ map { $_ + 1 } @pin_v ] }, bins => 7 } ],
+	hist2d  => [ '13eca3a0e8274d8318380b77e2051e5b51be0cd8c1ff40adcc353fd7d508b1d4', { plot_type => 'hist2d', data => { x => [@pin_v], y => [ reverse @pin_v ] }, xbins => 5, ybins => 4 } ],
 	scatter => [ '01d65bb949f875b9539ffc9193ddf50e821bf4fd6d2702ffac4c854145ec61e3', { plot_type => 'scatter', data => { x => [ 1 .. 5 ], y => [ 2, 4, 1, 3, 5 ], z => [ 5, 4, 3, 2, 1 ] } } ],
 	sets    => [ 'c714ad1bc36799cffae5c17060e3d4e621e30bad2b8f520fce9f92cc77c98713', { plot_type => 'scatter', data => { P => { x => [ 1, 2 ], y => [ 3, 4 ] }, Q => { x => [ 2, 3 ], y => [ 1, 2 ] } } } ],
 	table   => [ '1b49dd5ef9d4d5102ef374065835a067909802dc80412581c0f5f559cf48793c', { plot_type => 'colored_table', data => { H => { H => 1, C => 2 }, C => { C => 3 } }, mirror => 1, show_numbers => 1 } ],
-	pie     => [ '3da0cba46d91efaeef5da16eef8939bc9913b0dff2026cd4f1621b0222c7a87a', { plot_type => 'pie', data => { a => 1, b => 2, c => 3 }, autopct => '%1.1f%%' } ],
+	pie     => [ '05671e8742b8e3c36f3a4f6fd68f99496938798f83be2c45f81c446de96a194a', { plot_type => 'pie', data => { a => 1, b => 2, c => 3 }, autopct => '%1.1f%%' } ],
 	imshow  => [ '872563916ae435d00ead733a2579e1591ca4cabcdc96b2cd4a9a774a42c87bc4', { plot_type => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ], cmap => 'viridis' } ],
 	plot    => [ 'ddde7e170241b716a3f8d1392a8d4822a61874bf51eb73038577a7e87115f8c4', { plot_type => 'plot', data => { s => [ [ 1, 2, 3 ], [ 1, 4, 9 ] ], t => [ 3, 2, 1 ] } } ],
 );
@@ -306,10 +315,10 @@ sub pinned_script {
 {
 	foreach my $name ( sort keys %pinned ) {
 		my ( $digest, $args ) = @{ $pinned{$name} };
-		my $script = pinned_script($args);
+		my $script = pinned_script( $args, style => 'matplotlib' );
 		diag("$name => '" . sha256_hex($script) . "'") if $ENV{CN_PLOT_PRINT_PINS};
 		is( sha256_hex($script), $digest, "$name: the matplotlib-style script is the one written before \"style\" was added" );
-		is( pinned_script( $args, style => 'matplotlib' ), $script, "$name: style => 'matplotlib' writes what no style writes" );
+		is( pinned_script($args), pinned_script( $args, style => 'native' ), "$name: no style writes what style => 'native' writes" );
 	}
 	foreach my $type ( sort keys %every_type ) {
 		my $r = script_of( plot_type => $type, %{ $every_type{$type} }, style => 'matplotlib' );
@@ -359,6 +368,13 @@ sub pinned_script {
 	like( $r, qr/scale_colour_gradientn\(name = "z", colours = c\("#440154"/, 'scatter: the colormap given' );
 	$r = script_of( plot_type => 'boxplot', data => { A => [ 1, 2, 3 ], B => [ 2, 3, 4 ] }, colors => { A => 'red', B => 'green' }, style => 'native' );
 	like( $r, qr/geom_boxplot\(.*fill = c\("#ff0000", "#008000"\)/, 'boxplot: each box in the color given' );
+	# A violin's fill is a column of its frame, mapped through I(): as a
+	# parameter, one color per violin, it died in R with "Aesthetics must be
+	# either length 1 or the same as the data" for more than one violin.
+	$r = script_of( plot_type => 'violin', data => { A => [ 1, 2, 3 ], B => [ 2, 3, 5 ] }, colors => { A => 'red', B => 'green' }, style => 'native' );
+	like( $r, qr/geom_violin\(data = data\.frame\(.*f = c\("#ff0000", "#ff0000", "#ff0000", "#008000", "#008000", "#008000"\).*aes\(x = k, y = v, fill = I\(f\)\)/, 'violin: each violin in the color given, one per row' );
+	unlike( $r, qr/fill = c\(/, 'violin: and not as a parameter' );
+	like( script_of( plot_type => 'violin', data => { A => [ 1, 2, 3 ], B => [ 2, 3, 5 ] }, color => 'red', style => 'native' ), qr/f = c\(("#ff0000", ){5}"#ff0000"\).*fill = I\(f\)/, 'violin: and "color" is every violin\'s' );
 	$r = script_of( plot_type => 'colored_table', data => { A => { A => 1, B => 2 } }, undef_color => 'black', style => 'native' );
 	like( $r, qr/na\.value = "#000000"/, 'colored_table: "undef_color" is the color of a missing cell' );
 }
@@ -374,8 +390,13 @@ sub pinned_script {
 	like( script_of( %vio, medians => 1, whiskers => 1, edgecolor => 'red' ), qr/geom_violin\(.*colour = "#ff0000".*geom_boxplot\(.*width = 0\.1.*stat_summary\(.*fun = stats::median/s, 'violin: whiskers as a narrow box, medians as a line, edgecolor' );
 	my %h2 = ( plot_type => 'hist2d', data => { x => \@x, y => \@y }, style => 'native' );
 	like( script_of( %h2, density => 1, cmin => 2, cmax => 9 ), qr/after_stat\(ifelse\(density < 2 \| density > 9, NA, density\)\)/, 'hist2d: density, cmin and cmax' );
-	like( script_of( %h2, xmin => 0, xbins => 4 ), qr/breaks = list\(x = seq\(0, 6, length\.out = 5\)\)/, 'hist2d: a range given is the bins\' breaks' );
-	like( script_of( %h2, logscale => ['x'], xmin => 1, xmax => 100, xbins => 2 ), qr/x = seq\(0, 2, length\.out = 3\)/, 'hist2d: on a log axis, the breaks are in log units' );
+	# The axis given no range is named too, as NULL: "breaks = list(x = ...)"
+	# alone was read as the breaks of both axes, and ggplot2 drew no bins.
+	like( script_of( %h2, xmin => 0, xbins => 4 ), qr/breaks = list\(x = seq\(0, 6, length\.out = 5\), y = NULL\), bins = c\(4, /, 'hist2d: a range given is the bins\' breaks, the other axis binned by "bins"' );
+	like( script_of( %h2, ymax => 9, ybins => 3 ), qr/breaks = list\(x = NULL, y = seq\(2, 9, length\.out = 4\)\)/, 'hist2d: and so is a range of y alone' );
+	# stat_bin_2d puts breaks through the scale's transform, so they are given
+	# in the data's units; as log10s, no bin held a point.
+	like( script_of( %h2, logscale => ['x'], xmin => 1, xmax => 100, xbins => 2 ), qr/x = 10\^seq\(0, 2, length\.out = 3\)/, 'hist2d: on a log axis, the breaks are even in log units, given in the data\'s' );
 	my %hi = ( plot_type => 'hist', data => { A => [ 1, 2, 3 ] }, style => 'native' );
 	like( script_of( %hi, bins => [ 0, 2, 4 ] ), qr/breaks = c\(0, 2, 4\)/, 'hist: bin edges are its breaks' );
 	like( script_of( %hi, bins => 4, orientation => 'horizontal' ), qr/aes\(y = v\), bins = 4, position = "identity", orientation = "y"/, 'hist: a count of bins, and the horizontal orientation' );
@@ -465,7 +486,8 @@ SKIP: {
 }
 
 # ----------------------------------------------------------------------------
-# 16. Rendered: every type, and both figures of the shared script.
+# 16. Rendered in style "matplotlib": every type, and both figures of the
+# shared script.
 # ----------------------------------------------------------------------------
 # Well-formed XML, checked by balancing the tags, since no XML parser is a
 # prerequisite; svg() writes text as glyph paths, so the labels are not in it
@@ -489,7 +511,7 @@ SKIP: {
 	skip( "no ggplot2 >= $Cn::Plot::Ggplot2::min_ggplot2", 2 * scalar( keys %every_type ) + 3 ) unless $gg_available;
 	foreach my $type ( sort keys %every_type ) {
 		my $file = out_file();
-		my ( $out, $err, $ok ) = capture { eval { plt( engine => 'ggplot2', plot_type => $type, %{ $every_type{$type} }, output_file => $file ); 1 } };
+		my ( $out, $err, $ok ) = capture { eval { plt( engine => 'ggplot2', style => 'matplotlib', plot_type => $type, %{ $every_type{$type} }, output_file => $file ); 1 } };
 		ok( $ok && -s $file, "$type: the SVG is written" ) or diag("$@$err");
 		ok( -s $file && well_formed( slurp($file) ), "$type: and is well-formed" );
 	}
@@ -500,15 +522,43 @@ SKIP: {
 }
 
 # ----------------------------------------------------------------------------
-# 17. Rendered in style "native": every type.
+# 17. Rendered in style "native": every type, and figures that once failed.
 # ----------------------------------------------------------------------------
+# Each of the second kind is drawn with fills of at least two colors that are
+# not grey -- the violins, or the bins of a gradient -- since one of them
+# failed in R and the others drew an empty panel and still succeeded. ggplot2's
+# frame, grid and background are all grey or white, so they do not count.
+# One point given three times, one twice and three once, so that whatever the
+# binning some bin holds more than another, and the gradient has more than
+# one color: with points spread evenly, every bin held as many as the next,
+# under ggplot2 3.5.2 or on a log axis, and the bins were drawn in one color.
+my %spread = ( x => [ 1, 1, 1, 2, 4, 6, 8, 8 ], y => [ 0, 0, 0, 1, 2, 2, 3, 3 ] );
+my %native_drawn = (
+	'violin, two keys in given colors' => { plot_type => 'violin', data => { A => [ 1 .. 8 ], B => [ 2 .. 9 ] }, colors => { A => 'red', B => 'blue' } },
+	'violin, horizontal, given colors' => { plot_type => 'violin', data => { A => [ 1 .. 8 ], B => [ 2 .. 9 ] }, colors => { A => 'red', B => 'blue' }, orientation => 'horizontal', whiskers => 1, medians => 1 },
+	'hist2d, "xmin" alone'             => { plot_type => 'hist2d', data => {%spread}, xbins => 5, ybins => 7, xmin => 0 },
+	'hist2d, "ymax" alone'             => { plot_type => 'hist2d', data => {%spread}, xbins => 5, ybins => 7, ymax => 20 },
+	'hist2d, a range on a log axis'    => { plot_type => 'hist2d', data => {%spread}, xbins => 5, ybins => 7, logscale => ['x'], xmin => 1, xmax => 8 },
+);
+sub colored_fills {
+	# The fill colors of an SVG from svg(), as "rgb(r%, g%, b%)", but grey.
+	my ($svg) = @_;
+	my %fill = map { $_ => 1 } grep { m/^rgb\(([\d.]+)%, ([\d.]+)%, ([\d.]+)%\)$/ && !( ( $1 == $2 ) && ( $2 == $3 ) ) } $svg =~ m/fill="([^"]*)"/g;
+	return scalar keys %fill;
+}
 SKIP: {
-	skip( "no ggplot2 >= $Cn::Plot::Ggplot2::min_ggplot2", 2 * scalar( keys %every_type ) ) unless $gg_available;
+	skip( "no ggplot2 >= $Cn::Plot::Ggplot2::min_ggplot2", 2 * scalar( keys %every_type ) + 2 * scalar( keys %native_drawn ) ) unless $gg_available;
 	foreach my $type ( sort keys %every_type ) {
 		my $file = out_file();
 		my ( $out, $err, $ok ) = capture { eval { plt( engine => 'ggplot2', style => 'native', plot_type => $type, %{ $every_type{$type} }, output_file => $file ); 1 } };
 		ok( $ok && -s $file, "$type, native: the SVG is written" ) or diag("$@$err");
 		ok( -s $file && well_formed( slurp($file) ), "$type, native: and is well-formed" );
+	}
+	foreach my $name ( sort keys %native_drawn ) {
+		my $file = out_file();
+		my ( $out, $err, $ok ) = capture { eval { plt( engine => 'ggplot2', style => 'native', %{ $native_drawn{$name} }, output_file => $file ); 1 } };
+		ok( $ok && -s $file, "$name, native: the SVG is written" ) or diag("$@$err");
+		cmp_ok( ( -s $file ) ? colored_fills( slurp($file) ) : 0, '>=', 2, "$name, native: and has fills of two colors or more" );
 	}
 }
 
@@ -519,5 +569,56 @@ SKIP: {
 	local $ENV{CN_PLOT_RSCRIPT} = File::Spec->catfile( $TMP, 'no such Rscript' );
 	my ( undef, undef ) = capture { eval { plt( engine => 'ggplot2', plot_type => 'bar', data => { A => 1 }, output_file => out_file() ) } };
 	like( "$@", qr/no such Rscript\S* .* failed to start/, 'a missing interpreter named by CN_PLOT_RSCRIPT is reported as failing to start' );
+}
+# ----------------------------------------------------------------------------
+# 19. Fixes found by review before 0.4 was released.
+# ----------------------------------------------------------------------------
+# The counts are numpy 2.5.2's: np.histogram([0.1, 1, 2, 2.9], 3) is
+# [2, 0, 2] over the edges 0.1, 1.0333333333333332, 1.9666666666666666 and
+# 2.9, and np.histogram([0.5, 1, 1.5, 2], [0, 1, 1, 2]) is [1, 0, 3].
+{
+	# Edges made as lo + (hi - lo) * i / n left the last at 2.8999999999999995,
+	# below the greatest value, which was then in no bin.
+	like( script_of( plot_type => 'hist', data => [ 0.1, 1, 2, 2.9 ], bins => 3 ),
+		qr/xmin = c\(0\.1, 1\.0333333333333332, 1\.9666666666666666\), xmax = c\(1\.0333333333333332, 1\.9666666666666666, 2\.9\), ymin = c\(0, 0, 0\), ymax = c\(2, 0, 2\)/,
+		'hist: numpy\'s edges, and the greatest value in the last bin' );
+	like( script_of( plot_type => 'hist', data => [ 0.5, 1, 1.5, 2 ], bins => [ 0, 1, 1, 2 ] ), qr/ymax = c\(1, 0, 3\)/, 'hist: two equal edges are a bin of no width, as numpy allows' );
+	like( refusal( plot_type => 'hist', data => [ 0.5, 1 ], bins => [ 0, 1, 1, 2 ], style => 'native' ), qr/two equal edges, a bin of no width, which ggplot2's stat_bin refuses/, 'hist, native: which R\'s cut() refuses, so it is refused by name' );
+	like( refusal( plot_type => 'hist', data => [ 0.5, 1 ], bins => [ 0, 2, 1 ] ), qr/never falling/, 'hist: edges that fall are refused, as numpy refuses them' );
+	is( Cn::Plot::Ggplot2::r_num( 1 / 3 ), '0.33333333333333331', 'r_num: a computed number keeps every digit' );
+	is( Cn::Plot::Ggplot2::r_num('0.1'), '0.1', 'r_num: and one that needs no more than 15 is written in 15' );
+	like( refusal( plot_type => 'hist2d', data => { x => [ 0.3, 0.3 ], y => [ 2, 3 ] }, logscale => ['x'] ), qr/every x is 0\.3, a range of nothing/, 'hist2d: one value on a log axis is refused by name, not taken the log of below 0' );
+
+	# "data" as one array names its one set "", and "colors" keyed by it died
+	# as "Not a HASH reference".
+	foreach my $type ( 'boxplot', 'violin' ) {
+		like( script_of( plot_type => $type, data => [ 1, 2, 3, 4 ], colors => { '' => 'red' } ), qr/"#ff0000"/, "$type: \"colors\" for the one set of an array" );
+	}
+	unlike( script_of( plot_type => 'bar', data => { A => [ 1, 2 ], B => [ 3, 4 ] }, width => 0.4, style => 'native' ), qr/width = 0\.4/, 'bar, native: a grouped bar plot ignores "width", as it says it does' );
+
+	# A set of no points is drawn as nothing, as matplotlib draws it; empty
+	# columns had been written c(), which R reads as NULL.
+	my %empty = (
+		'plot, one line empty' => { plot_type => 'plot', data => { A => [ [], [] ], B => [ [ 1, 2 ], [ 3, 4 ] ] } },
+		'scatter, empty'       => { plot_type => 'scatter', data => { x => [], y => [] } },
+		'scatter, one set empty' => { plot_type => 'scatter', data => { P => { x => [], y => [] }, Q => { x => [ 1, 2 ], y => [ 3, 4 ] } } },
+		'hist, NaN alone'      => { plot_type => 'hist', data => { A => ['nan'], B => [ 1, 2, 3 ] } },
+	);
+	foreach my $name ( sort keys %empty ) {
+		foreach my $style ( 'matplotlib', 'native' ) {
+			unlike( script_of( %{ $empty{$name} }, style => $style ), qr/= c\(\)/, "$name, $style: no empty column is written" );
+		}
+	}
+	like( refusal( plot_type => 'hist2d', data => { x => [], y => [] }, style => 'native' ), qr/"x" has no finite value, so hist2d has no range to bin it over/, 'hist2d, native: no points is refused as the matplotlib style refuses it' );
+	SKIP: {
+		skip( "no ggplot2 >= $Cn::Plot::Ggplot2::min_ggplot2", 2 * scalar( keys %empty ) ) unless $gg_available;
+		foreach my $name ( sort keys %empty ) {
+			foreach my $style ( 'matplotlib', 'native' ) {
+				my $file = out_file();
+				my ( $out, $err, $ok ) = capture { eval { plt( engine => 'ggplot2', style => $style, %{ $empty{$name} }, output_file => $file ); 1 } };
+				ok( $ok && -s $file, "$name, $style: drawn" ) or diag("$@$err");
+			}
+		}
+	}
 }
 done_testing();

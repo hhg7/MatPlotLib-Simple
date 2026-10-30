@@ -395,19 +395,21 @@ which gnuplot and ggplot2 read as matplotlib would:
   left where the engine puts it.  Keyword forms such as `'right = 180'` are
   refused.  `xscale` and the rest are `'log'` or `'linear'`.
 
-## `style`: matplotlib's look, or the engine's own
+## `style`: the engine's own look, or matplotlib's
 
-By default gnuplot and ggplot2 draw what matplotlib draws: its colors and
-colormaps, its figure size, and its statistics -- a hist's bins, a boxplot's
-quartiles and whiskers, a violin's density -- worked out in Perl as numpy and
-scipy work them out, and only drawn by the engine.  Changing `engine` changes
-how the figure is rendered, and not what it shows.
+By default the style matches the engine: gnuplot and ggplot2 each draw in
+their own style, `style => 'native'`, with their own palette, statistics and
+theme.
 
-`style => 'native'` lets the engine choose all of that for itself:
+`style => 'matplotlib'` has gnuplot or ggplot2 draw what matplotlib draws: its
+colors and colormaps, its figure size, and its statistics -- a hist's bins, a
+boxplot's quartiles and whiskers, a violin's density -- worked out in Perl as
+numpy and scipy work them out, and only drawn by the engine.  Changing
+`engine` then changes how the figure is rendered, and not what it shows:
 
-    plt( ..., engine => 'ggplot2', style => 'native' );
+    plt( ..., engine => 'ggplot2', style => 'matplotlib' );
 
-| | `style => 'matplotlib'` (the default) | `style => 'native'` |
+| | `style => 'matplotlib'` | `style => 'native'` (the default) |
 | -------- | ------- | ------- |
 |colors not given|matplotlib's `C0`, `C1`, ...|gnuplot's linetype colors; ggplot2's hue scale|
 |colormap not given|matplotlib's default for the type|gnuplot's default palette; ggplot2's blue gradient|
@@ -423,7 +425,7 @@ has 10 under either style, matplotlib's default: gnuplot's own count is the
 number of points it samples a curve at, 100, and ggplot2's 30 comes with a
 warning that it should be chosen.  `pie` and `wide` are worked out in Perl
 under both styles, since neither engine has a statistic of its own for them.
-Under matplotlib, `style => 'native'` draws what the default does.
+Under matplotlib, `style => 'matplotlib'` draws what the default does.
 
 A few things only the matplotlib style draws, and `native` refuses by name,
 saying so:

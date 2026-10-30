@@ -252,9 +252,11 @@ decides the rest:
   `color_hex` (matplotlib's color names, from `Colors.pm`, never the engine's
   own, which differ), `colormap_colors`, `axis_limits` and `axis_scale`. An
   engine never writes a caller's value without one of them.
-- **`style`** is `'matplotlib'` (the default: the engine draws what matplotlib
-  draws, its statistics computed in Perl as numpy and scipy compute them) or
-  `'native'` (the engine's own palette, statistics and theme). What the caller
+- **`style`** is `'native'` (the default, matching the engine: its own
+  palette, statistics and theme) or `'matplotlib'` (the engine draws what
+  matplotlib draws, its statistics computed in Perl as numpy and scipy compute
+  them). The tests of an engine's matplotlib style name it, since 0.4's
+  default changed from it before release. What the caller
   gave -- data, key order, a `color` or `cmap`, labels, ranges, log scales,
   size -- is drawn the same under both. Under matplotlib the two styles must
   write the same script, byte for byte; `t/19` checks it. A change to an
