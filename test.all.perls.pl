@@ -6,14 +6,29 @@
 # makes habitual (`each @array`, postfix deref, /r, %h{...}, signatures, ...).
 # CPAN Testers finds those regressions days after upload; this finds them now:
 #
-#     ./test.all.perls.pl                # full build + test, oldest perl first
+#     ./test.all.perls.pl                # full build + test, 4 perls at a time
 #     ./test.all.perls.pl --syntax       # seconds, not minutes: compile only
 #     ./test.all.perls.pl -p 5.10.1      # just the perl that broke
+#     ./test.all.perls.pl -P 1           # one at a time, in this directory
 #
 # Each version runs in its own environment (no `perlbrew use` needed: the perl
-# binary is invoked directly and PATH is rewritten for the child), the tree is
-# cleaned between versions, and a pass/fail summary is printed at the end.
-# Exit status is non-zero if any version failed.
+# binary is invoked directly and PATH is rewritten for the child), and a
+# pass/fail summary is printed at the end.  Exit status is non-zero if any
+# version failed.
+#
+# By default four perls are tested at once (-P 4).  They cannot share the
+# distribution root: there is one Makefile, one blib and one pm_to_blib, and a
+# `make clean` from one perl pulls the tree out from under another's `make
+# test`.  So each parallel child builds in a private copy of the tree under the
+# log directory and reports its result back to the parent, which leaves the
+# root's Makefile and blib exactly as they were.  The test suite also writes
+# fixed names into File::Spec->tmpdir (t/01.all.tests.t's dies_ok.svg and
+# outfile(), among others), so each child gets its own TMPDIR inside its tree as
+# well.  --syntax only reads the tree, so its children all run in the root.
+# The fork/throttle/reap loop is the one in ~/Scripts/stats/test.all.perls.pl.
+#
+# -P 1 is the old behaviour: one perl at a time, oldest first, in the
+# distribution root, which is left built against the newest perl.
 #
 # Unlike a dist with XS, this one is pure perl: there is no OPTIMIZE/-Wall
 # knob, `make` is nearly free, and the interesting failures are compile-time
@@ -28,9 +43,17 @@ use strict;
 use warnings FATAL => 'all';
 use feature 'say';
 use Getopt::Long 'GetOptions';
+# -P (how many perls at once) and -p (which perl) are different options, so the
+# default case-folding of single-letter aliases has to go.
+Getopt::Long::Configure('no_ignore_case');
 use File::Spec;
+use File::Copy 'copy';
+# rmtree, not remove_tree: remove_tree arrived in File::Path 2.07, and perl
+# 5.10.0 ships 2.04.
+use File::Path 'rmtree';
 use IO::Handle;
 use Cwd 'getcwd';
+use Data::Dumper;
 use File::Find 'find';
 use POSIX 'strftime';
 use Time::HiRes 'time';
@@ -41,10 +64,39 @@ use Time::HiRes 'time';
 
 my $PERLBREW_ROOT = $ENV{PERLBREW_ROOT} || File::Spec->catdir($ENV{HOME}, 'perl5', 'perlbrew');
 
-my ($help, $list, $install, $deps, $stop, $quiet, $jobs, $syntax, $all, @only);
+# How many cores this machine has, or 0 when that cannot be determined.
+sub cpu_count {
+	if (open my $fh, '<', '/proc/cpuinfo') {           # linux
+		my $n = grep { /^processor\s*:/ } <$fh>;
+		close $fh;
+		return $n if $n;
+	}
+	for my $probe (['getconf', '_NPROCESSORS_ONLN'],   # glibc, solaris, aix
+		['sysctl', '-n', 'hw.ncpu']) {             # *bsd, darwin
+		my $out = `@$probe 2>/dev/null`;
+		return $1 if defined $out && $out =~ /(\d+)/ && $1 > 0;
+	}
+	return 0;
+}
+
+my ($help, $list, $install, $deps, $stop, $quiet, $jobs, $syntax, $all, $keep_work, @only);
 my $clean   = 1;
 my $minver  = 1;
 my $log_dir = File::Spec->catdir('.build', 'multiperl');
+my $ncpu    = cpu_count();
+# Leave 4 cores for the rest of the machine, as the stats helper does.
+my $budget  = $ncpu > 5 ? $ncpu - 4 : 1;
+# Four perls at once, each with its own make -j and harness.  -P and -j
+# multiply, so -j follows from -P rather than claiming the budget twice.
+my $par          = 4;
+my $par_default  = $par;
+my $jobs_default = jobs_for($par);
+
+sub jobs_for {
+	my $p = shift;
+	my $j = int($budget / ($p || 1));
+	return $j > 1 ? $j : 1;
+}
 
 GetOptions(
 	'perl|p=s@'     => \@only,
@@ -56,6 +108,8 @@ GetOptions(
 	'all|a'         => \$all,
 	'stop-on-fail!' => \$stop,
 	'jobs|j=i'      => \$jobs,
+	'parallel|P:i'  => \$par,
+	'keep-work!'    => \$keep_work,
 	'log-dir=s'     => \$log_dir,
 	'quiet|q'       => \$quiet,
 	'list|l'        => \$list,
@@ -65,6 +119,7 @@ usage(0) if $help;
 
 sub usage {
 	my $rc = shift;
+	my $cpus = $ncpu ? "$ncpu CPUs - 4" : 'CPU count unknown';
 	print STDERR <<"END";
 usage: $0 [options]
 
@@ -86,10 +141,22 @@ options:
       --no-clean       skip "make clean" before each version
       --deps           cpanm any missing PREREQ_PM for that perl first
       --no-minver      skip the Perl::MinimumVersion advisory pass
-      --stop-on-fail   abort at the first version that fails
-  -j, --jobs N         parallel make, and HARNESS_OPTIONS=j<N> for the tests
+      --stop-on-fail   abort at the first version that fails (with -P: launch
+                       no more perls; the running ones finish)
+  -P, --parallel [N]   test N perls at once, each in a private copy of the tree
+                       under --log-dir/work with its own TMPDIR, leaving the
+                       distribution root untouched.  bare -P, or -P 0, uses one
+                       child per perl, capped at the CPU count; -P 1 builds
+                       serially in the distribution root.  default: $par_default
+      --keep-work      keep the private tree of a perl that passed (the tree of
+                       one that failed is always kept, for inspection)
+  -j, --jobs N         parallel make, and HARNESS_OPTIONS=j<N> for the tests;
+                       0 builds and tests serially.  -P and -j multiply, so the
+                       default is the CPU budget ($cpus) divided by -P
+                       (default: $jobs_default at -P $par_default, $budget at -P 1)
       --log-dir DIR    where per-version logs go (default: $log_dir)
-  -q, --quiet          only write logs; do not echo build output
+  -q, --quiet          only write logs; do not echo build output.  implied by
+                       -P > 1, where interleaved output would be unreadable
   -h, --help           this message
 
 exit status: 0 if every perl tested cleanly, else 1.
@@ -107,8 +174,8 @@ my @installed = grep { -x File::Spec->catfile($perls_dir, $_, 'bin', 'perl') }
                 grep { !/^\.\.?$/ } readdir $dh;
 closedir $dh;
 
-# numeric sort so the oldest perl is exercised first and the tree is left
-# built against the newest one.
+# numeric sort so the oldest perl is exercised first and, in a serial run, the
+# tree is left built against the newest one.
 sub vkey {
 	my $v = shift;
 	$v =~ s/^perl-//;
@@ -167,19 +234,47 @@ die "$0: no modules found under lib/\n" unless @lib_pm;
 
 if ($list) {
 	for my $t (@targets) {
-		printf "%-14s %s%s\n", $t, File::Spec->catfile($perls_dir, $t, 'bin', 'perl'),
+		printf "%-16s %s%s\n", $t, File::Spec->catfile($perls_dir, $t, 'bin', 'perl'),
 			(too_old($t) ? "  (< MIN_PERL_VERSION $min_perl" . ($all ? ', tested anyway)' : ', skipped)') : '');
 	}
 	exit 0;
+}
+
+my @skipped = grep { too_old($_) && !$all } @targets;
+my @run     = grep { !too_old($_) || $all } @targets;
+
+# ------------------------------------------------------------- parallelism --
+
+# bare -P (or -P 0) means "all of them", within reason: more perls than cores
+# only makes every perl slower.
+$par = 0 if $par < 0;
+$par ||= do {
+	my $cap = $ncpu || 4;   # an unknown CPU count stays conservative rather
+	                        # than fanning out over however many perls exist
+	@run < $cap ? scalar @run : $cap;
+};
+$par = @run if $par > @run;
+$par = 1 if $par < 1;    # every perl was too old: nothing will run anyway
+$jobs = jobs_for($par) unless defined $jobs;   # -j follows -P unless asked for
+
+my $in_parallel = $par > 1 && @run > 1;
+my $work_root   = File::Spec->catdir($log_dir, 'work');
+if ($in_parallel) {
+	# children chdir into their own tree, so these paths must not be relative
+	$log_dir   = File::Spec->rel2abs($log_dir);
+	$work_root = File::Spec->rel2abs($work_root);
+	$quiet     = 1;   # N interleaved build logs on one terminal is noise
 }
 
 # ------------------------------------------------------------------ logging --
 
 sub mkdirp {
 	my @parts = File::Spec->splitdir(shift);
-	my $path = '';
+	my $path;   # undef, not '': splitdir gives an absolute path a leading '',
+	            # and catdir('', 'home') is '/home' where 'home' would be a
+	            # directory of that name in the cwd.
 	for my $p (@parts) {
-		$path = length($path) ? File::Spec->catdir($path, $p) : $p;
+		$path = defined $path ? File::Spec->catdir($path, $p) : $p;
 		next if !length($path) || -d $path;
 		mkdir $path or die "$0: mkdir $path: $!\n";
 	}
@@ -312,30 +407,34 @@ END_PROBE
 	}
 }
 
-# --------------------------------------------------------------- main loop --
+say "-- $_: SKIP (older than MIN_PERL_VERSION $min_perl; --all to test anyway)" for @skipped;
 
-my (@results, @skipped);
-my $t_all = time;
+# ------------------------------------------------------------ build one perl --
 
-for my $version (@targets) {
-	if (too_old($version) && !$all) {
-		push @skipped, $version;
-		say "-- $version: SKIP (older than MIN_PERL_VERSION $min_perl; --all to test anyway)";
-		next;
-	}
-
+# Build and test the distribution in the current directory with one perl.
+# Returns the result hashref, and prints its own progress unless $silent: a
+# parallel child is silent and the parent reports for it.  $tmpdir, when given,
+# becomes the children's TMPDIR.
+sub build_one {
+	my ($version, $silent, $tmpdir) = @_;
 	my $root = File::Spec->catdir($perls_dir, $version);
 	my $bin  = File::Spec->catdir($root, 'bin');
 	my $perl = File::Spec->catfile($bin, 'perl');
 
 	my $log = File::Spec->catfile($log_dir, "$version.$stamp.log");
+	# Re-create the log directory rather than trusting that it survived a
+	# matrix run that takes minutes.
+	mkdirp($log_dir);
 	open my $logfh, '>', $log or die "$0: cannot write $log: $!\n";
 	$logfh->autoflush(1);
 
-	print "\n", '=' x 72, "\n";
-	printf "== %s   (log: %s)\n", $version, $log;
-	print '=' x 72, "\n";
-	print $logfh "== $version at " . strftime('%F %T', localtime) . "\n";
+	unless ($silent) {
+		print "\n", '=' x 72, "\n";
+		printf "== %s   (log: %s)\n", $version, $log;
+		print '=' x 72, "\n";
+	}
+	print $logfh "== $version at " . strftime('%F %T', localtime)
+		. ' in ' . getcwd() . "\n";
 
 	# Emulate `perlbrew use $version` for the children: this perl's bin first,
 	# every other perlbrew perl stripped out, and local::lib / PERL5LIB
@@ -351,6 +450,7 @@ for my $version (@targets) {
 	delete @ENV{qw(PERL5LIB PERL_LOCAL_LIB_ROOT PERL_MM_OPT PERL_MB_OPT
 	               PERLBREW_LIB PERL_MM_USE_DEFAULT)};
 	$ENV{HARNESS_OPTIONS} = "j$jobs" if $jobs;
+	$ENV{TMPDIR} = $tmpdir if defined $tmpdir;
 
 	my $t0 = time;
 	my %r = (version => $version, log => $log, steps => [], warnings => 0);
@@ -414,9 +514,11 @@ for my $version (@targets) {
 		last;
 	}
 
-	if ($clean && !$syntax && !$failed) {
-		# leave a clean tree behind before the next perl takes over
-		run_cmd(['make', 'clean'], $logfh) unless $version eq $targets[-1];
+	if ($clean && !$syntax && !$failed && !$in_parallel) {
+		# leave a clean tree behind before the next perl takes over.  in
+		# parallel mode the whole private tree goes instead, so this would
+		# only be a `make clean` nobody reads.
+		run_cmd(['make', 'clean'], $logfh) unless $version eq $run[-1];
 	}
 
 	$r{seconds} = time - $t0;
@@ -424,43 +526,246 @@ for my $version (@targets) {
 	$r{status}  = $failed ? $status : 'PASS';
 	close $logfh;
 
-	printf "-- %s: %s in %.1fs%s\n", $version,
-		($failed ? "$status at '$failed'" : 'ok'),
-		$r{seconds},
-		(defined $r{files} ? " ($r{files})" : '');
-	print '-- ', $r{error}, "\n" if defined $r{error};
-	print '-- ', join('  ', map { sprintf '%s %.1fs', $_->{label}, $_->{seconds} }
-	                        @{ $r{steps} }), "\n";
-	push @results, \%r;
+	report_one(\%r) unless $silent;
+	return \%r;
+}
 
-	if ($failed && $stop) {
-		my %done = map { $_->{version} => 1 } @results;
-		$done{$_} = 1 for @skipped;
-		my @rest = grep { !$done{$_} } @targets;
+# the progress lines a finished perl prints, from the parent in either mode
+sub report_one {
+	my $r = shift;
+	printf "-- %s: %s in %.1fs%s\n", $r->{version},
+		($r->{failed} ? "$r->{status} at '$r->{failed}'" : 'ok'),
+		$r->{seconds},
+		(defined $r->{files} ? " ($r->{files})" : '');
+	print '-- ', $r->{error}, "\n" if defined $r->{error};
+	print '-- ', join('  ', map { sprintf '%s %.1fs', $_->{label}, $_->{seconds} }
+	                        @{ $r->{steps} }), "\n" if @{ $r->{steps} };
+}
+
+# ------------------------------------------------------------ private trees --
+
+# What must not be copied into a private build tree: the build products of
+# whichever perl last used the source tree (a blib built by another perl is
+# exactly what the private trees exist to avoid), the repository, the coverage
+# database, the release snapshots and their tarballs, the log/work tree itself,
+# and output.images, which t/01.all.tests.t creates for itself.  The file
+# patterns are MANIFEST.SKIP's.
+my %SKIP_DIR  = map { $_ => 1 } qw(.git .build blib cover_db output.images);
+my @SKIP_FILE = (qr/^Makefile(?:\.old)?$/, qr/^pm_to_blib$/, qr/^blibdirs$/,
+	qr/^MYMETA\./, qr/^Matplotlib-Simple-.*\.tar\.gz$/);
+
+sub copy_tree {
+	my ($src, $dst) = @_;
+	mkdirp($dst);
+	opendir my $dh, $src or die "$0: cannot read $src: $!\n";
+	my @entries = grep { !/^\.\.?$/ } readdir $dh;
+	closedir $dh;
+	for my $e (@entries) {
+		my $s = File::Spec->catfile($src, $e);
+		my $d = File::Spec->catfile($dst, $e);
+		if (-d $s) {
+			next if $SKIP_DIR{$e} || $e =~ /^Matplotlib-Simple-[\d.]+$/;
+			# a --log-dir inside the tree would copy itself forever
+			my $abs = File::Spec->rel2abs($s);
+			next if $abs eq $work_root || $abs eq $log_dir;
+			copy_tree($s, $d);
+			next;
+		}
+		next if grep { $e =~ $_ } @SKIP_FILE;
+		copy($s, $d) or die "$0: copy $s -> $d: $!\n";
+		chmod((stat $s)[2] & 07777, $d);
+	}
+}
+
+# The child's result has to cross a fork, and %r is plain data, so Dumper out /
+# eval in beats any IPC here: it also leaves the numbers next to the log when
+# something needs explaining afterwards.
+sub write_result {
+	my ($file, $r) = @_;
+	mkdirp($log_dir);
+	open my $fh, '>', $file or die "$0: cannot write $file: $!\n";
+	local $Data::Dumper::Indent   = 0;
+	local $Data::Dumper::Sortkeys = 1;
+	print $fh Data::Dumper->Dump([$r], ['R']);
+	close $fh or die "$0: close $file: $!\n";
+}
+
+sub read_result {
+	my $file = shift;
+	open my $fh, '<', $file or return undef;
+	local $/;
+	my $src = <$fh>;
+	close $fh;
+	my $R;
+	eval $src;                      # our own Dumper output, nobody else's
+	return ref $R eq 'HASH' ? $R : undef;
+}
+
+# ------------------------------------------------------------------ drivers --
+
+sub run_serial {
+	my @queue = @_;
+	my @out;
+	for my $version (@queue) {
+		my $r = build_one($version);
+		push @out, $r;
+		next unless $r->{failed} && $stop;
+		my %done = map { $_->{version} => 1 } @out;
+		my @rest = grep { !$done{$_} } @queue;
 		print "-- --stop-on-fail: skipping @rest\n" if @rest;
 		last;
 	}
+	return @out;
+}
+
+# Fork up to $par children, each in its own copy of the tree (or, for
+# --syntax, in the root, which perl -c only reads), reaping them as they finish
+# and starting the next perl in the freed slot.
+sub run_parallel {
+	my @order = @_;
+	my @queue = @order;
+	my $src   = getcwd();
+	my %kid;                        # pid => { version, work, result, log }
+	my (@out, $halt);
+
+	my $reaper = sub {
+		my ($pid, $status) = @_;
+		my $kid = delete $kid{$pid} or return;
+		my $r   = read_result($kid->{result});
+		if (!$r) {
+			# The child died without reporting: exec failure, signal, OOM, or
+			# a log directory that disappeared under it.  Naming a log file
+			# that was never created sends the reader looking for evidence
+			# that is not there, so distinguish the two.
+			my $log = -e $kid->{log} ? $kid->{log}
+				: "$kid->{log} (never written)";
+			$r = { version => $kid->{version}, log => $log, status => 'FAIL',
+				reported => '?', steps => [], warnings => 0, seconds => 0,
+				failed => sprintf('child exited %d%s', $status >> 8,
+					($status & 127) ? ' on signal ' . ($status & 127) : '') };
+		}
+		push @out, $r;
+		report_one($r);
+		$halt = 1 if $r->{failed} && $stop;
+		if (defined $kid->{work}) {
+			if ($r->{failed} || $keep_work) {
+				print "-- $kid->{version}: build tree kept at $kid->{work}\n";
+			}
+			else {
+				rmtree($kid->{work});
+			}
+		}
+	};
+
+	local $SIG{INT} = local $SIG{TERM} = sub {
+		my $sig = shift;
+		print "\n-- $sig: stopping " . keys(%kid) . " running build(s)\n";
+		# each child leads its own process group (see the fork below), so one
+		# signal per group takes its make, its harness and its python3s with
+		# it; signalling the child perl alone would orphan those.
+		kill 'TERM', map { -$_ } keys %kid;
+		sleep 1;
+		kill 'KILL', map { -$_ } keys %kid;
+		exit 130;
+	};
+
+	while (@queue || %kid) {
+		while (@queue && keys(%kid) < $par && !$halt) {
+			my $version = shift @queue;
+			my $result  = File::Spec->catfile($log_dir, "$version.$stamp.result");
+			my $log     = File::Spec->catfile($log_dir, "$version.$stamp.log");
+			my ($work, $tmpdir);   # both undef = run in the root, with the caller's TMPDIR
+			unless ($syntax) {
+				$work   = File::Spec->catdir($work_root, "$version.$stamp");
+				$tmpdir = File::Spec->catdir($work, '.tmp');
+				rmtree($work) if -d $work;
+				printf "-- %-16s starting (tree: %s)\n", $version, $work;
+				copy_tree($src, $work);
+				mkdirp($tmpdir);
+			}
+			else {
+				printf "-- %-16s starting\n", $version;
+			}
+
+			my $pid = fork;
+			die "$0: fork failed: $!\n" unless defined $pid;
+			if (!$pid) {                              # child
+				$SIG{$_} = 'DEFAULT' for qw(INT TERM);
+				setpgrp 0, 0;   # so ^C reaches this whole build, once, via
+						# the parent's handler and not the terminal
+				# Catch a die in here and put the reason where the parent
+				# actually looks, which is the result file; otherwise it
+				# reaches the parent as nothing but an exit status.
+				my $r = eval {
+					if (defined $work) { chdir $work or die "chdir $work: $!\n" }
+					build_one($version, 1, $tmpdir);
+				};
+				unless ($r) {
+					my $why = $@ || 'build_one returned nothing';
+					chomp $why;   # $r->{failed} is printed inside quotes
+					$r = { version => $version, log => $log, status => 'FAIL',
+						reported => '?', steps => [], warnings => 0,
+						seconds => 0, failed => $why };
+				}
+				# last resort: the result file is unwritable, so the only
+				# place left to say why is the terminal.
+				eval { write_result($result, $r); 1 }
+					or print STDERR "$0: $version: $@";
+				exit 0;
+			}
+			$kid{$pid} = { version => $version, work => $work,
+				result => $result, log => $log };
+		}
+		last unless %kid;
+		my $pid = waitpid -1, 0;
+		last if $pid <= 0;
+		$reaper->($pid, $?);
+	}
+
+	print "-- --stop-on-fail: skipping @queue\n" if $halt && @queue;
+	# report in version order, not in the order they happened to finish
+	my %by = map { $_->{version} => $_ } @out;
+	return map { $by{$_} } grep { $by{$_} } @order;
+}
+
+# --------------------------------------------------------------- main loop --
+
+my @results;
+my $t_all = time;
+
+if ($in_parallel) {
+	printf "-- %d perl(s), %d at a time%s; per-version output goes to the logs\n",
+		scalar @run, $par, ($jobs && !$syntax ? " with make -j$jobs each" : '');
+	print "-- note: --deps has the children sharing one ~/.cpanm; if a "
+		. "prerequisite install misbehaves, run once with -P 1 --deps first\n"
+		if $deps;
+	@results = run_parallel(@run);
+}
+else {
+	@results = run_serial(@run);
 }
 
 # ----------------------------------------------------------------- summary --
 
 my $bad = grep { $_->{failed} } @results;
 print "\n", '=' x 72, "\n";
-printf "%-14s %-9s %-8s %-8s %-5s %s\n", qw(PERL REPORTED STATUS TIME WARN DETAIL);
+printf "%-16s %-9s %-8s %-8s %-5s %s\n", qw(PERL REPORTED STATUS TIME WARN DETAIL);
 print '-' x 72, "\n";
 for my $r (@results) {
-	printf "%-14s %-9s %-8s %7.1fs %-5s %s\n",
+	printf "%-16s %-9s %-8s %7.1fs %-5s %s\n",
 		$r->{version},
 		$r->{reported},
 		$r->{status},
 		$r->{seconds},
 		($r->{warnings} || 0),
+		# Send the reader to the log only when there is one to read.
 		($r->{failed}
-			? ($r->{error} || "failed at '$r->{failed}'") . " - see $r->{log}"
+			? ($r->{error} || "failed at '$r->{failed}'") . ' - '
+				. (-e $r->{log} ? "see $r->{log}" : "log gone: $r->{log}")
 			: ($syntax ? 'compiles' : ($r->{result} ? "Result: $r->{result}" : 'no test summary'))),
 		;
 }
-printf "%-14s %-9s %-8s\n", $_, '-', 'SKIP' for @skipped;
+printf "%-16s %-9s %-8s\n", $_, '-', 'SKIP' for @skipped;
 print '-' x 72, "\n";
 my $not_run = @targets - @results - @skipped;
 my @unusable = grep { $_->{status} eq 'DEPS' } @results;
@@ -474,5 +779,7 @@ printf "%d perl(s) could not be tested for missing prerequisites, not for anythi
 	. "wrong here; re-run with --deps to cpanm them: %s\n",
 	scalar @unusable, join ' ', map { $_->{version} } @unusable
 	if @unusable;
+print "-- built in private trees; this directory is untouched (-P 1 to build here)\n"
+	if $in_parallel && !$syntax;
 
 exit($bad || $not_run ? 1 : 0);

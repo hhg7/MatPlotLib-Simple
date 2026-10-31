@@ -118,7 +118,10 @@ sub render {
 	my (%spec) = @_;
 	my $file = out_file();
 	my ( $out, $err, $ok ) = capture { eval { plt( style => 'matplotlib', %spec, engine => 'gnuplot', output_file => $file ); 1 } };
-	diag( '  died: ' . ( "$@" =~ s/\n\t.*\z//sr ) ) unless $ok;
+	if ( not $ok ) {
+		( my $died = "$@" ) =~ s/\n\t.*\z//s;
+		diag("  died: $died");
+	}
 	return ( -e $file ) ? slurp($file) : '';
 }
 

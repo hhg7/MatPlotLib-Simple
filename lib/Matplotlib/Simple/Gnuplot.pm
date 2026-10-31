@@ -24,7 +24,7 @@ package Matplotlib::Simple::Gnuplot;
 # 4.8 inch figure (rcParams figure.figsize) and 100 dots per inch for a PNG
 # (rcParams figure.dpi).
 require 5.010;
-our $VERSION = 0.33;
+our $VERSION = 0.331;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max min sum);
 use POSIX ();
@@ -33,9 +33,9 @@ use Sys::Hostname ();
 BEGIN { require Matplotlib::Simple }
 BEGIN {
 	no strict 'refs';
-	*{$_} = \&{"Matplotlib::Simple::$_"} foreach qw(axis_limits axis_scale bin_counts bool_option
+	*{$_} = \&{"Matplotlib::Simple::$_"} foreach qw(as_double axis_limits axis_scale bin_counts bool_option
 	 cb_limits check_key_order check_numbers check_scatter_lengths check_scatter_values
-	 check_wide_runs color_hex colormap_colors creator_note decoded_text finite_values
+	 check_wide_runs color_hex colormap_colors creator_note decoded_text double_literal finite_values
 	 is_finite is_nan linspace logscale_axes logspace plain_text program_from_env run_script script_handle
 	 svg_creator_metadata table_cells);
 }
@@ -138,13 +138,10 @@ sub gp_str {
 sub gp_num {
 	# A number as gnuplot reads it, with NaN for anything not finite: gnuplot
 	# draws an infinite value no better than a missing one, and matplotlib
-	# leaves both out. "%.17g" where fewer digits would not read back the same.
+	# leaves both out. A finite one as double_literal writes it.
 	my ($n) = @_;
 	return 'NaN' if ( not defined $n ) || ( not looks_like_number($n) ) || ( not is_finite($n) );
-	my $v = 0 + $n;
-	my $s = sprintf '%.15g', $v;
-	$s = sprintf '%.17g', $v if 0 + $s != $v;
-	return $s;
+	return double_literal($n);
 }
 sub gp_color {
 	# A color from color_hex as a gnuplot rgb string. gnuplot's alpha is a
@@ -1006,7 +1003,7 @@ sub bin_edges {
 		# Two equal edges are a bin of no width, which holds nothing, as numpy
 		# allows them; edges that fall are refused, as numpy refuses them.
 		die "$what must not fall from edge to edge in $current_sub" if grep { $bins->[$_] < $bins->[ $_ - 1 ] } 1 .. $#{$bins};
-		return @{$bins};
+		return map { as_double($_) } @{$bins};    # see bin_count
 	}
 	if ( ( ref $bins ) || ( not looks_like_number($bins) ) || ( not is_finite($bins) ) || ( int($bins) != $bins ) || ( $bins < 1 ) ) {
 		die "$what is a whole number of bins, or an array of their edges, for the gnuplot engine, not \"" . ( ref $bins || $bins ) . '"';
@@ -1019,9 +1016,11 @@ sub bin_edges {
 }
 sub bin_count {
 	# How many values fall in each bin; the last bin holds its right edge.
+	# The edges are doubles, and each value is rounded to one before it is
+	# compared with them, as numpy compares them; see as_double.
 	my ( $values, $edges ) = @_;
 	my @n = (0) x ( scalar @{$edges} - 1 );
-	foreach my $v ( @{$values} ) {
+	foreach my $v ( map { as_double($_) } @{$values} ) {
 		next if ( $v < $edges->[0] ) || ( $v > $edges->[-1] );
 		my ( $l, $r ) = ( 0, $#n );
 		while ( $l < $r ) {    # the last edge at or below $v
@@ -1158,8 +1157,9 @@ sub draw_hist2d {
 }
 sub bin_index {
 	# The bin of a value among edges, the last holding its right edge; undef
-	# outside them.
+	# outside them. $v is rounded to a double, as the edges are; see bin_count.
 	my ( $v, $edges ) = @_;
+	$v = as_double($v);
 	return undef if ( $v < $edges->[0] ) || ( $v > $edges->[-1] );
 	my ( $l, $r ) = ( 0, $#{$edges} - 1 );
 	while ( $l < $r ) {
@@ -1752,7 +1752,8 @@ sub render {
 	$ext = lc( $ext // '' );
 	$px_per_pt  = ( $ext eq 'pdf' ) ? 1 : 100 / 72;
 	$font_scale = ( $ext eq 'pdf' ) ? 1 : 1.1;
-	$point_size = 1.1 * $px_per_pt;
+	# In 15 digits, as a double perl stringifies it; a quadmath perl wrote all 36.
+	$point_size = sprintf '%.15g', 1.1 * $px_per_pt;
 	if ( not defined $terminal_of{$ext} ) {
 		die "$current_sub: the gnuplot engine writes " . join( ', ', map { ".$_" } sort keys %terminal_of ) . " files, and \"$file\" is none of them; engine => 'matplotlib' writes the rest";
 	}

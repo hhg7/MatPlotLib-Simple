@@ -20,6 +20,10 @@ Revision history for Matplotlib-Simple
 
  - A program that seeds `rand` with a fixed value, such as `srand 7`, no longer dies after enough runs with "Error in tempfile() using template /tmp/XXXXXXXXXX.py: Have exceeded the maximum number of attempts (1000) to open temp file". The scripts are kept in the temporary directory, and their names came from `rand` alone, so every run asked for the same ones and had to step past all those the runs before it had left. A script is now named `matplotlib-simple-<process>-<time>-<count>-XXXXXX.py` (or `.gp`, or `.R`), and the caller's random numbers are as they were.
 
+ - `t/15.tooltips.t` no longer fails on perls whose numbers are not plain doubles, nor on Strawberry Perl 5.24. Test 68 gave the number `1e21` as a label and expected it to be written as `1e+21`. A quadmath or long-double perl prints it as `1000000000000000000000`, and Strawberry Perl 5.24.4 on Windows prints it as `1e+021`. Fifteen CPAN Testers reports against 0.321 and 0.322 failed on that one test: thirteen from quadmath builds on x86_64 and i686 Linux, one from `aarch64-linux-ld`, and one from Strawberry 5.24.4 under Windows 10. The module wrote each label as that perl prints it, as it should; the test now expects the same.
+
+ - `t/08.python.interpreter.t` no longer fails test 11 on perls whose File::Spec keeps the first temporary directory it finds, such as File::Spec 3.3, 3.3101 and 3.39_02 in perls 5.10.1, 5.12.5 and 5.16.3. The test sets `TMPDIR` to a directory with a space in its name and expected the script to be written there, but such a File::Spec never reads `TMPDIR` again. The test now skips that one check where File::Spec does not follow `TMPDIR`.
+
 0.322 2026-10-21 CDT (Claude Opus 5.5 helped)
 
  [Changed]

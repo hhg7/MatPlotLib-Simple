@@ -12,7 +12,7 @@ package Matplotlib::Simple::Matplotlib;
 # The helpers keep checking their own keywords, against the same lists Matplotlib::Simple
 # checks them with, which are shared below rather than copied.
 require 5.010;
-our $VERSION = 0.33;
+our $VERSION = 0.331;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use File::Spec;
@@ -23,9 +23,14 @@ use JSON::MaybeXS;
 use MIME::Base64;
 use Encode ();
 # Loaded first, even when this module is the one asked for, so that the names
-# below have something to alias. Matplotlib::Simple requires this module at its end; by
-# then this one is already in %INC, and is not loaded twice.
-BEGIN { require Matplotlib::Simple }
+# below have something to alias. Matplotlib::Simple requires this module at its end, and
+# must find it already in %INC, or it compiles it a second time and dies on
+# "Subroutine py_list redefined". require puts it there, but "perl -c" on this
+# file does not, so it is put there here.
+BEGIN {
+	$INC{'Matplotlib/Simple/Matplotlib.pm'} //= __FILE__;
+	require Matplotlib::Simple;
+}
 # The parts of Matplotlib::Simple the helpers use under their old names: the checks that
 # do not depend on the engine, and the keyword lists. Aliases, not copies, so
 # a list Matplotlib::Simple changes is the list checked here.

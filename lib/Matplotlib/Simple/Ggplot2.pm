@@ -34,15 +34,15 @@ package Matplotlib::Simple::Ggplot2;
 # with grid's own layouts, not patchwork or cowplot, which ggplot2 does not
 # depend on.
 require 5.010;
-our $VERSION = 0.33;
+our $VERSION = 0.331;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max min sum);
 BEGIN { require Matplotlib::Simple }
 BEGIN {
 	no strict 'refs';
-	*{$_} = \&{"Matplotlib::Simple::$_"} foreach qw(axis_limits axis_scale bin_counts bool_option
+	*{$_} = \&{"Matplotlib::Simple::$_"} foreach qw(as_double axis_limits axis_scale bin_counts bool_option
 	 cb_limits check_key_order check_numbers check_scatter_lengths check_scatter_values
-	 check_wide_runs color_hex colormap_colors creator_note decoded_text finite_values
+	 check_wide_runs color_hex colormap_colors creator_note decoded_text double_literal finite_values
 	 is_finite is_nan linspace logscale_axes logspace nonfinite_name plain_text program_from_env
 	 run_script script_handle svg_creator_metadata table_cells);
 }
@@ -111,19 +111,15 @@ sub r_str {
 }
 sub r_num {
 	# A number as an R numeric literal: NA for undef, NaN, Inf and -Inf for
-	# the values Perl and numpy call nan and inf, and a finite value in 15
-	# significant digits, or 17 where 15 would not read back as the same
-	# double, as gp_num writes them for gnuplot. A value already written as R
-	# would write it was passed through as it stood, but Perl stringifies a
-	# computed number to 15 digits, so 1/3 lost its last two.
+	# the values Perl and numpy call nan and inf, and a finite value as
+	# double_literal writes it, as gp_num does for gnuplot. A value already
+	# written as R would write it was passed through as it stood, but Perl
+	# stringifies a computed number to 15 digits, so 1/3 lost its last two.
 	my ($n) = @_;
 	return 'NA' unless defined $n;
 	my $nonfinite = nonfinite_name($n);
 	return { nan => 'NaN', inf => 'Inf', '-inf' => '-Inf' }->{$nonfinite} if defined $nonfinite;
-	my $v = 0 + $n;
-	my $s = sprintf '%.15g', $v;
-	$s = sprintf '%.17g', $v if 0 + $s != $v;
-	return $s;
+	return double_literal($n);
 }
 sub r_nums { return 'c(' . join( ', ', map { r_num($_) } @_ ) . ')' }
 sub r_strs { return 'c(' . join( ', ', map { r_str($_) } @_ ) . ')' }
@@ -182,8 +178,10 @@ sub colormap_at {
 sub bin_index {
 	# The bin of $v among ascending $edges, numpy.histogram's way: each bin
 	# holds its left edge, the last holds its right edge too, and a value
-	# outside them all is in none (undef).
+	# outside them all is in none (undef). The edges are doubles, and $v is
+	# rounded to one before it is compared with them; see as_double.
 	my ( $edges, $v ) = @_;
+	$v = as_double($v);
 	return undef if ( $v < $edges->[0] ) || ( $v > $edges->[-1] );
 	return $#{$edges} - 1 if $v == $edges->[-1];
 	my ( $lo, $hi ) = ( 0, $#{$edges} );
@@ -819,8 +817,11 @@ sub draw_violin {
 			# data.
 			my $upper = min( max( $q3 + ( $q3 - $q1 ) * 1.5, $q3 ), $sorted[-1] );
 			my $lower = max( min( $q1 - ( $q3 - $q1 ) * 1.5, $q1 ), $sorted[0] );
-			push @{ $s->{layers} }, segment_layer( [ [ $p, $p, $q1, $q3 ] ], $horizontal, '"#000000"', 5 / 2.845 );
-			push @{ $s->{layers} }, segment_layer( [ [ $p, $p, $lower, $upper ] ], $horizontal, '"#000000"', 1 / 2.845 );
+			# 5 pt and 1 pt at 2.845 pt per mm, as 5000 / 2845 rather than
+			# 5 / 2.845: perl 5.10.1 reads the literal 2.845 a double low, and
+			# wrote the width with a different last digit.
+			push @{ $s->{layers} }, segment_layer( [ [ $p, $p, $q1, $q3 ] ], $horizontal, '"#000000"', 5000 / 2845 );
+			push @{ $s->{layers} }, segment_layer( [ [ $p, $p, $lower, $upper ] ], $horizontal, '"#000000"', 1000 / 2845 );
 		}
 		my @xy = $horizontal ? ( x => r_num($mean), y => r_num($p) ) : ( x => r_num($p), y => r_num($mean) );
 		push @{ $s->{layers} }, 'ggplot2::geom_point(data = ' . r_frame(@xy) . ", ggplot2::aes(x = x, y = y), shape = 16, colour = \"#ff0000\", size = $marker_mm)";    # "ro", the red mean
@@ -864,12 +865,14 @@ sub draw_violin {
 sub segment_layer {
 	# Line segments given as [ p0, p1, v0, v1 ] along the position and value
 	# axes, swapped for a horizontal plot.
+	# The width is written in 15 digits, as a double perl stringifies it; a
+	# quadmath perl wrote all 36 of its own.
 	my ( $segs, $horizontal, $colour, $width ) = @_;
 	my ( $px, $vx ) = $horizontal ? ( 'y', 'x' ) : ( 'x', 'y' );
 	return 'ggplot2::geom_segment(data = ' . r_frame(
 		$px => r_nums( map { $_->[0] } @{$segs} ), "${px}end" => r_nums( map { $_->[1] } @{$segs} ),
 		$vx => r_nums( map { $_->[2] } @{$segs} ), "${vx}end" => r_nums( map { $_->[3] } @{$segs} ),
-	) . ", ggplot2::aes(x = x, xend = xend, y = y, yend = yend), colour = $colour, linewidth = $width)";
+	) . ", ggplot2::aes(x = x, xend = xend, y = y, yend = yend), colour = $colour, linewidth = " . sprintf( '%.15g', $width ) . ')';
 }
 sub draw_hist {
 	my ( $plot, $s, $where, $sub ) = @_;
@@ -909,7 +912,7 @@ sub draw_hist {
 			if ( $s->{native} && grep { $bins->[$_] == $bins->[ $_ - 1 ] } 1 .. $#{$bins} ) {
 				die "$sub: \"bins\" of \"$set\" has two equal edges, a bin of no width, which ggplot2's stat_bin refuses under style => 'native'; style => 'matplotlib' draws it";
 			}
-			@edges = @{$bins};
+			@edges = map { as_double($_) } @{$bins};    # see bin_index
 		} elsif ( ( not ref $bins ) && looks_like_number($bins) && is_finite($bins) && ( $bins == int $bins ) && ( $bins >= 1 ) ) {
 			my ( $lo, $hi ) = scalar @v ? ( min(@v), max(@v) ) : ( 0, 1 );
 			( $lo, $hi ) = ( $lo - 0.5, $hi + 0.5 ) if $lo == $hi;    # numpy's range for data of one value

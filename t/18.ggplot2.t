@@ -56,7 +56,8 @@ sub script_of {
 sub refusal {
 	my (%args) = @_;
 	my ( undef, undef ) = capture { eval { plt( engine => 'ggplot2', execute => 0, output_file => out_file(), style => 'matplotlib', %args ) } };
-	return ( "$@" =~ s/ at \S+ line \d+.*//sr );
+	( my $message = "$@" ) =~ s/ at \S+ line \d+.*//s;
+	return $message;
 }
 
 my @x = ( 1, 2, 3, 4, 5, 6 );
@@ -283,6 +284,7 @@ like( refusal( plot_type => 'plot', data => { A => [ \@x, \@y ] }, set_xlim => '
 #
 #	MATPLOTLIB_SIMPLE_PRINT_PINS=1 prove -Ilib t/18.ggplot2.t
 use Digest::SHA 'sha256_hex';
+use Config;
 my %native_only = (
 	'geom_col'       => qr/geom_col\(/,
 	'geom_histogram' => qr/geom_histogram\(/,
@@ -313,14 +315,24 @@ sub pinned_script {
 	my ( $args, @style ) = @_;
 	my ( undef, undef, $file ) = capture { plt( %{$args}, engine => 'ggplot2', execute => 0, output_file => 'x.svg', @style ) };
 	push @scripts, $file;
-	return slurp($file) =~ s/\A[^\n]*\n//r =~ s/^\tlocal\(\{\n(?:\t\t.*\n|\n)*?\t\}\)\n//mr;
+	my $script = slurp($file);
+	$script =~ s/\A[^\n]*\n//;
+	$script =~ s/^\tlocal\(\{\n(?:\t\t.*\n|\n)*?\t\}\)\n//m;
+	return $script;
 }
 {
 	foreach my $name ( sort keys %pinned ) {
 		my ( $digest, $args ) = @{ $pinned{$name} };
 		my $script = pinned_script( $args, style => 'matplotlib' );
 		diag("$name => '" . sha256_hex($script) . "'") if $ENV{MATPLOTLIB_SIMPLE_PRINT_PINS};
-		is( sha256_hex($script), $digest, "$name: the matplotlib-style script is the one written before \"style\" was added" );
+		SKIP: {
+			# The digests were taken on a perl whose NV is a double. On a long-double
+			# or quadmath perl the pinned data, sin($_) * 3 + $_ / 10, and a pie's
+			# sin() and cos() come out a last digit away: 5.16.3-thr-ld and
+			# 5.44.0-quadmath differed in boxplot, hist, hist2d, pie and violin.
+			skip "$name: the digests were taken where perl's NV is a double, and here it is a $Config{nvtype}", 1 if $Config{nvtype} ne 'double';
+			is( sha256_hex($script), $digest, "$name: the matplotlib-style script is the one written before \"style\" was added" );
+		}
 		is( pinned_script($args), pinned_script( $args, style => 'native' ), "$name: no style writes what style => 'native' writes" );
 	}
 	foreach my $type ( sort keys %every_type ) {

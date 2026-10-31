@@ -11,7 +11,7 @@ package Matplotlib::Simple;
 # alone, so the keywords are matplotlib's names throughout, and an engine that
 # has no counterpart for one refuses it by name rather than leaving it out (check_engine).
 require 5.010;
-our $VERSION = 0.33;
+our $VERSION = 0.331;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use POSIX ();
@@ -619,6 +619,25 @@ sub is_finite {
 	my $v = 0 + $_[0];
 	return ( ( $v == $v ) && ( $v != 9**9**9 ) && ( $v != -9**9**9 ) ) ? 1 : 0;
 }
+sub as_double {
+	# A number rounded to a C double, which numpy, R and gnuplot all compute in.
+	# A perl whose NV is a long double or a __float128 (quadmath) computes more
+	# precisely, so a statistic worked out here as numpy works it out came out
+	# a digit or two away from numpy's on those perls, and in a different bin.
+	return unpack 'd', pack 'd', $_[0];
+}
+sub double_literal {
+	# A finite number as a literal that reads back as the same double: in 15
+	# significant digits, or 17 where 15 would not. Perl stringifies a computed
+	# number to 15 digits on a double perl, so 1/3 lost its last two, and on a
+	# quadmath perl to 36, which no double has. Whether 15 read back is asked
+	# of C's strtod, which R and gnuplot read with: perl 5.10.1 read
+	# "-6.06404429188014e-15" a double away from it, and so wrote 17 digits
+	# where 15 were enough.
+	my $v = as_double( $_[0] );
+	my $s = sprintf '%.15g', $v;
+	return ( as_double( scalar POSIX::strtod($s) ) == $v ) ? $s : sprintf '%.17g', $v;
+}
 sub is_nan {
 	# Whether a value is a number that is NaN: a missing value, for the helpers
 	# that drop missing values rather than draw them.
@@ -830,17 +849,18 @@ sub linspace {
 	# where numpy does. Written as start + (stop - start) * i / n, the points
 	# rounded differently: a value on an edge fell into the next bin, and the
 	# last edge could come out below stop, so that the maximum was in no bin.
-	my ( $start, $stop, $num ) = @_;
+	my ( $start, $stop, $num ) = map { as_double($_) } @_;
 	return ($start) if $num == 1;
-	my $step = ( $stop - $start ) / ( $num - 1 );
-	return ( ( map { $_ * $step + $start } 0 .. $num - 2 ), $stop );
+	# Each step is rounded to a double, as numpy's are; see as_double.
+	my $step = as_double( as_double( $stop - $start ) / ( $num - 1 ) );
+	return ( ( map { as_double( as_double( $_ * $step ) + $start ) } 0 .. $num - 2 ), $stop );
 }
 sub logspace {
 	# numpy.logspace(np.log10(lo), np.log10(hi), num), as the matplotlib engine
 	# writes a hist2d's edges on a log axis: 10 to the power of each point of
 	# linspace, so that, unlike linspace, the last need not be exactly hi.
 	my ( $lo, $hi, $num ) = @_;
-	return map { 10**$_ } linspace( POSIX::log10($lo), POSIX::log10($hi), $num );
+	return map { as_double( 10**$_ ) } linspace( POSIX::log10($lo), POSIX::log10($hi), $num );
 }
 sub check_twinx_args {
 	# Die naming any keyword of a "twinx_args" hash that no axes, figure or
@@ -2113,7 +2133,7 @@ sub axis_limits {
 		@ends = @{$value};
 	} elsif ( not ref $value ) {
 		( my $inner = $value // '' ) =~ s/^\s*[\(\[]\s*(.*?)\s*[\)\]]\s*$/$1/s;
-		@ends = map { s/^\s+|\s+$//gr } split /,/, $inner, -1;
+		@ends = map { ( my $end = $_ ) =~ s/^\s+|\s+$//g; $end } split /,/, $inner, -1;
 	}
 	if ( ( scalar @ends == 2 ) && ( not grep { ( defined $_ ) && ( $_ ne 'None' ) && ( ( not looks_like_number($_) ) || ( not is_finite($_) ) ) } @ends ) ) {
 		return map { ( ( not defined $_ ) || ( $_ eq 'None' ) ) ? undef : 0 + $_ } @ends;
@@ -2125,7 +2145,8 @@ sub axis_scale {
 	# "log" or "linear" from an "xscale", "yscale", "set_xscale" or
 	# "set_yscale", quoted or not.
 	my ( $value, $option, $engine, $current_sub ) = @_;
-	my $scale = ( ref $value ) ? '' : ( $value // '' ) =~ s/^\s*(['"]?)(\w+)\1\s*$/$2/r;
+	my $scale = ( ref $value ) ? '' : ( $value // '' );
+	$scale =~ s/^\s*(['"]?)(\w+)\1\s*$/$2/;
 	return $scale if ( $scale eq 'log' ) || ( $scale eq 'linear' );
 	die "$current_sub: \"$option\" is \"log\" or \"linear\" for the $engine engine, not \"" . ( ref $value ? ref $value : $value // 'undef' ) . '"';
 }
@@ -2142,7 +2163,7 @@ sub color_hex {
 	if ( ref $color eq 'ARRAY' ) {
 		@channels = @{$color};
 	} elsif ( ( defined $color ) && ( not ref $color ) ) {
-		my $name = $color =~ s/^\s*(['"]?)(.*?)\1\s*$/$2/sr;
+		( my $name = $color ) =~ s/^\s*(['"]?)(.*?)\1\s*$/$2/s;
 		return $named->{$name} if defined $named->{$name};
 		return $named->{ lc $name } if defined $named->{ lc $name };
 		if ( $name =~ m/^#([0-9a-fA-F]{3,4})$/ ) {
@@ -2156,7 +2177,7 @@ sub color_hex {
 		if ( ( looks_like_number($name) ) && ( $name >= 0 ) && ( $name <= 1 ) ) {
 			@channels = ( $name, $name, $name );
 		} elsif ( $name =~ m/^\s*[\(\[](.*)[\)\]]\s*$/s ) {
-			@channels = map { s/^\s+|\s+$//gr } split /,/, $1;
+			@channels = map { ( my $channel = $_ ) =~ s/^\s+|\s+$//g; $channel } split /,/, $1;
 		}
 	}
 	if ( ( ( scalar @channels == 3 ) || ( scalar @channels == 4 ) )
@@ -2174,7 +2195,8 @@ sub colormap_colors {
 	my ( $name, $engine, $current_sub ) = @_;
 	require Matplotlib::Simple::Colors;
 	my $maps = do { no warnings 'once'; \%Matplotlib::Simple::Colors::colormap };
-	my $text = ( ref $name ) ? '' : ( $name // '' ) =~ s/^\s*(['"]?)(.*?)\1\s*$/$2/sr;
+	my $text = ( ref $name ) ? '' : ( $name // '' );
+	$text =~ s/^\s*(['"]?)(.*?)\1\s*$/$2/s;
 	my $reversed = ( $text =~ s/_r$// ) ? 1 : 0;
 	if ( not defined $maps->{$text} ) {
 		die "$current_sub: \"cmap\" \"" . ( ref $name ? ref $name : $name // 'undef' ) . "\" is not a colormap the $engine engine has; it has "
@@ -2555,10 +2577,9 @@ Matplotlib::Simple - Plots from Perl data structures, drawn by matplotlib, gnupl
 
 =head1 Synopsis
 
-Take a data structure in Perl, and automatically write a script that draws it: a Python 3 script using matplotlib by default, or with C<< engine =E<gt> 'gnuplot' >> or C<< engine =E<gt> 'ggplot2' >> a gnuplot or R script.  The script is saved in the system's temporary directory (C<< File::Spec-E<gt>tmpdir >>, which is C</tmp> on unix), to be edited at the user's discretion.
-The default engine depends on Python 3 and matplotlib.  The script is run with C<python3>; on Windows, where a standard install has no C<python3>, it is run with the first of C<python>, C<py -3> and C<python3> that reports itself as Python 3 (as of version 0.315 -- before that, the module could not run its script on Windows at all).  To run a different interpreter -- a venv, or a newer Python on a cluster whose system C<python3> is too old -- set the environment variable C<MATPLOTLIB_SIMPLE_PYTHON> to its path, such as C<export MATPLOTLIB_SIMPLE_PYTHON=~/mpl/bin/python3> (as of version 0.317).  The generated scripts cannot run with a matplotlib older than 3.5, which does not accept the constrained layout they ask for; the test suite is written against 3.10 and newer, and skips its drawing checks with anything older.  Pass C<< execute =E<gt> 0 >> to write the script without running it.
+Use python3/matplotlib, gnuplot, and/or R/ggplot2 to make figures, using the exact same language syntax. Learning this one module gives easy creation of figures using 3 different common plotting libraries.
 
-My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib itself.
+My aim is to simplify the most common tasks as much as possible.  In my opinion, using this module is much easier than matplotlib/gnuplot/ggplot themselves.
 
 =head1 Single Plots
 
@@ -2981,22 +3002,24 @@ refused.  C<xscale> and the rest are C<'log'> or C<'linear'>.
 
 =back
 
-=head2 C<style>: matplotlib's look, or the engine's own
+=head2 C<style>: the engine's own look, or matplotlib's
 
-By default gnuplot and ggplot2 draw what matplotlib draws: its colors and
-colormaps, its figure size, and its statistics -- a hist's bins, a boxplot's
-quartiles and whiskers, a violin's density -- worked out in Perl as numpy and
-scipy work them out, and only drawn by the engine.  Changing C<engine> changes
-how the figure is rendered, and not what it shows.
+By default the style matches the engine: gnuplot and ggplot2 each draw in
+their own style, C<< style =E<gt> 'native' >>, with their own palette, statistics and
+theme.
 
-C<< style =E<gt> 'native' >> lets the engine choose all of that for itself:
+C<< style =E<gt> 'matplotlib' >> has gnuplot or ggplot2 draw what matplotlib draws: its
+colors and colormaps, its figure size, and its statistics -- a hist's bins, a
+boxplot's quartiles and whiskers, a violin's density -- worked out in Perl as
+numpy and scipy work them out, and only drawn by the engine.  Changing
+C<engine> then changes how the figure is rendered, and not what it shows:
 
- plt( ..., engine => 'ggplot2', style => 'native' );
+ plt( ..., engine => 'ggplot2', style => 'matplotlib' );
 
 =for html
 <table>
 <tbody>
-<tr><td></td><td><code>style => 'matplotlib'</code> (the default)</td><td><code>style => 'native'</code></td></tr>
+<tr><td></td><td><code>style => 'matplotlib'</code></td><td><code>style => 'native'</code> (the default)</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
 <tr><td>colors not given</td><td>matplotlib's <code>C0</code>, <code>C1</code>, ...</td><td>gnuplot's linetype colors; ggplot2's hue scale</td></tr>
 <tr><td>colormap not given</td><td>matplotlib's default for the type</td><td>gnuplot's default palette; ggplot2's blue gradient</td></tr>
@@ -3014,7 +3037,7 @@ has 10 under either style, matplotlib's default: gnuplot's own count is the
 number of points it samples a curve at, 100, and ggplot2's 30 comes with a
 warning that it should be chosen.  C<pie> and C<wide> are worked out in Perl
 under both styles, since neither engine has a statistic of its own for them.
-Under matplotlib, C<< style =E<gt> 'native' >> draws what the default does.
+Under matplotlib, C<< style =E<gt> 'matplotlib' >> draws what the default does.
 
 A few things only the matplotlib style draws, and C<native> refuses by name,
 saying so:

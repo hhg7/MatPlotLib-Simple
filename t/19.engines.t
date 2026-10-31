@@ -101,7 +101,7 @@ sub script_of {
 	# is. A hist is drawn differently in the two styles by both engines.
 	my %hist = ( plot_type => 'hist', data => { A => [ 1, 2, 2, 3 ] }, output_file => outfile('h.svg') );
 	foreach my $engine ( 'gnuplot', 'ggplot2' ) {
-		my ( $none, $own, $mpl ) = map { script_of( %hist, engine => $engine, @{$_} ) =~ s/\A[^\n]*\n//r } ( [], [ style => 'native' ], [ style => 'matplotlib' ] );    # line 1 is the creator note
+		my ( $none, $own, $mpl ) = map { ( my $script = script_of( %hist, engine => $engine, @{$_} ) ) =~ s/\A[^\n]*\n//; $script } ( [], [ style => 'native' ], [ style => 'matplotlib' ] );    # line 1 is the creator note
 		is( $none, $own, "$engine: no style writes what style => \"native\" writes" );
 		isnt( $none, $mpl, "$engine: and not what style => \"matplotlib\" writes" );
 	}

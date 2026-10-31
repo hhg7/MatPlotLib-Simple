@@ -375,10 +375,12 @@ my @awkward = (
 {
 	my @empty;
 	my $dualvar = scalar @empty;    # a 0 that is also the string "0"; see CLAUDE.md
-	my @labels = ( @awkward, $dualvar, 1e21 );
+	my $big = 1e21;
+	my @labels = ( @awkward, $dualvar, $big );
 	my %data = ( X => [ 1 .. @labels ], Y => [ 1 .. @labels ] );
 	my ( $py, $file ) = lives( { plot_type => 'scatter', data => \%data, tooltips => \@labels }, 'awkward text: accepted' );
-	is_deeply( written( $py, 'tooltip_text' ), [ @awkward, '0', '1e+21' ], 'awkward text: each label is written as the text it is, numbers as Perl prints them' );
+	# "$big" and not '1e+21': quadmath and long-double perls print 1000000000000000000000, and Strawberry 5.24 prints 1e+021 (CPAN Testers, 0.321 and 0.322)
+	is_deeply( written( $py, 'tooltip_text' ), [ @awkward, '0', "$big" ],'awkward text: each label is written as the text it is, numbers as Perl prints them' );
 	is( scalar( grep { defined } @{ written( $py, 'tooltip_urls' ) } ), scalar @labels, 'awkward text: "0" and "" are labels, each with a url' );
 	unlike( $py, qr/it's|C:\\build/, 'awkward text: no label is pasted into the python' );
 	parses_ok( $file, 'awkward text: the script parses' );

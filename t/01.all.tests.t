@@ -42,7 +42,7 @@ unless ($python_available) {
     plan skip_all => 'SKIP: no Python 3 interpreter found (python3, or on MSWin32 python, py -3 or python3). Matplotlib::Simple requires Python 3.';
 }
 
-# --- Dependency Check 2: Matplotlib ---
+# Dependency Check 2: Matplotlib
 
 # Command to import matplotlib and print its version.
 my $mpl_command = "$PY -c \"import matplotlib; print(matplotlib.__version__)\" 2>&1";

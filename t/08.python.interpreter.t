@@ -164,7 +164,13 @@ SKIP: {
 		chomp( my @argv = <$in> );
 		close $in;
 		is_deeply( \@argv, [ 1, $pyfile ], 'plt: the chosen interpreter gets the script path as one argument, space and all' );
-		like( $pyfile, qr/Temp Dir/, 'plt: and the script really was in the directory with the space' );
+		SKIP: {
+			# File::Spec 3.3, 3.3101 and 3.39_02 (perls 5.10.1, 5.12.5 and 5.16.3)
+			# keep the first tmpdir they find and never read TMPDIR again; 3.78 does.
+			skip "File::Spec $File::Spec::VERSION does not read TMPDIR again once it has found a tmpdir", 1
+			 unless File::Spec->tmpdir eq $spaced;
+			like( $pyfile, qr/Temp Dir/, 'plt: and the script really was in the directory with the space' );
+		}
 	}
 	{
 		my $env_record = File::Spec->catfile( $TMP, 'env argv.txt' );
