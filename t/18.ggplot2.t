@@ -309,6 +309,7 @@ my %pinned = (
 	imshow  => [ 'aa70df9251989fc0d9b43b32e851faf995e62747e66d60c6e7c1ed9ad1f8af28', { plot_type => 'imshow', data => [ [ 1, 2 ], [ 3, 4 ] ], cmap => 'viridis' } ],
 	plot    => [ '4becca4b6667ba46f6ac82c0a6c3019fd73e54250ed40362984d65b17cbc010c', { plot_type => 'plot', data => { s => [ [ 1, 2, 3 ], [ 1, 4, 9 ] ], t => [ 3, 2, 1 ] } } ],
 );
+my %libm_dependent = map { $_ => 1 } qw(boxplot hist hist2d pie violin);    # whose scripts hold a result of sin, cos or **
 sub pinned_script {
 	# The script of a pinned figure, as the digests were taken: written to
 	# "x.svg", with its first line and the creator note's local() left out.
@@ -331,6 +332,13 @@ sub pinned_script {
 			# sin() and cos() come out a last digit away: 5.16.3-thr-ld and
 			# 5.44.0-quadmath differed in boxplot, hist, hist2d, pie and violin.
 			skip "$name: the digests were taken where perl's NV is a double, and here it is a $Config{nvtype}", 1 if $Config{nvtype} ne 'double';
+			# They were also taken against glibc's libm, and boxplot, violin, hist and
+			# hist2d hold sin() in their data, violin takes a power for its bandwidth,
+			# and pie draws its wedges with sin() and cos(). Another libm may round
+			# those a last bit away: under musl, on the Alpine smoker of a CPAN
+			# Testers report against 0.331 (perl 5.22.3), boxplot, pie and violin
+			# each wrote a different script.
+			skip "$name: the digest was taken against glibc's libm, and this perl was not built with glibc", 1 if $libm_dependent{$name} && !$Config{gnulibc_version};
 			is( sha256_hex($script), $digest, "$name: the matplotlib-style script is the one written before \"style\" was added" );
 		}
 		is( pinned_script($args), pinned_script( $args, style => 'native' ), "$name: no style writes what style => 'native' writes" );
@@ -580,10 +588,20 @@ SKIP: {
 # ----------------------------------------------------------------------------
 # 18. An Rscript that is not there is reported as failing to start.
 # ----------------------------------------------------------------------------
+# Except on MSWin32, where perl's list-form system() never reports that a
+# program failed to start: when spawning it fails with ENOENT or ENOEXEC,
+# Perl_do_aspawn (win32/win32.c, lines 705-721 in perl 5.42.3) runs it again
+# through cmd.exe as a possible shell builtin, and cmd.exe says it is "not
+# recognized" and exits 1. Both Strawberry Perl reports against 0.331, 5.24.4
+# and 5.42.3, came out as "unexpectedly returned exit value 1".
 {
 	local $ENV{MATPLOTLIB_SIMPLE_RSCRIPT} = File::Spec->catfile( $TMP, 'no such Rscript' );
 	my ( undef, undef ) = capture { eval { plt( engine => 'ggplot2', plot_type => 'bar', data => { A => 1 }, output_file => out_file() ) } };
-	like( "$@", qr/no such Rscript\S* .* failed to start/, 'a missing interpreter named by MATPLOTLIB_SIMPLE_RSCRIPT is reported as failing to start' );
+	if ( $^O eq 'MSWin32' ) {
+		like( "$@", qr/no such Rscript\S* .* unexpectedly returned exit value 1/, 'a missing interpreter named by MATPLOTLIB_SIMPLE_RSCRIPT is reported as cmd.exe\'s exit value' );
+	} else {
+		like( "$@", qr/no such Rscript\S* .* failed to start/, 'a missing interpreter named by MATPLOTLIB_SIMPLE_RSCRIPT is reported as failing to start' );
+	}
 }
 # ----------------------------------------------------------------------------
 # 19. Fixes found by review before 0.33 was released.

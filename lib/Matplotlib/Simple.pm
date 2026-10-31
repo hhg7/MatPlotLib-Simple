@@ -11,7 +11,7 @@ package Matplotlib::Simple;
 # alone, so the keywords are matplotlib's names throughout, and an engine that
 # has no counterpart for one refuses it by name rather than leaving it out (check_engine).
 require 5.010;
-our $VERSION = 0.331;
+our $VERSION = 0.332;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use POSIX ();

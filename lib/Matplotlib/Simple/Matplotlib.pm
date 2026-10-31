@@ -12,7 +12,7 @@ package Matplotlib::Simple::Matplotlib;
 # The helpers keep checking their own keywords, against the same lists Matplotlib::Simple
 # checks them with, which are shared below rather than copied.
 require 5.010;
-our $VERSION = 0.331;
+our $VERSION = 0.332;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use File::Spec;

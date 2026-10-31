@@ -34,7 +34,7 @@ package Matplotlib::Simple::Ggplot2;
 # with grid's own layouts, not patchwork or cowplot, which ggplot2 does not
 # depend on.
 require 5.010;
-our $VERSION = 0.331;
+our $VERSION = 0.332;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max min sum);
 BEGIN { require Matplotlib::Simple }

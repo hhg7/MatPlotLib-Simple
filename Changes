@@ -1,5 +1,13 @@
 Revision history for Matplotlib-Simple
 
+0.332 2026-10-31 CDT (Claude Opus 5.5 helped)
+
+ [Fixed]
+
+ - `t/18.ggplot2.t` no longer fails tests 116, 126 and 138 where perl is built against a C library other than glibc. Two CPAN Testers reports against 0.331 failed there: perl 5.22.3 on Alpine Linux, whose libm is musl's, in the digests of the boxplot, pie and violin scripts, and perl 5.44.0 on DragonFly BSD 6.4 in those of pie and violin. Those scripts hold results of `sin`, `cos` and `**`, which those libms round a last bit away from glibc's. The module wrote each number exactly as that perl computed it; the test now checks the digests of the five scripts that hold such results -- boxplot, hist, hist2d, pie and violin -- only where the C library is glibc. Twenty-one more reports against 0.331 failed the same way, from FreeBSD, OpenBSD, NetBSD, MidnightBSD, DragonFly BSD under perl 5.24.4, Solaris, Cygwin, Haiku and Strawberry Perl under Windows, none of them on glibc.
+
+ - `t/18.ggplot2.t` no longer fails test 291 under Strawberry Perl on Windows. The test names an Rscript that does not exist in `MATPLOTLIB_SIMPLE_RSCRIPT` and expected the module to report that it "failed to start". On MSWin32 perl's `system` never says so: when it cannot find a program it runs it again through `cmd.exe`, which says the name "is not recognized" and exits 1, so the module reports "unexpectedly returned exit value 1", with `cmd.exe`'s message in the STDERR it prints. The test now expects that on MSWin32. Two reports against 0.331 found it, from Strawberry Perl 5.24.4 and 5.42.3 under Windows 10.
+
 0.33 2026-10-30 CDT (Claude Opus 5.5 helped)
 
  [New]
