@@ -180,10 +180,14 @@ my ( $gp_out, undef, $gp_status ) = capture {
 	no warnings 'exec';    # a missing gnuplot is a skip, not a failure
 	system( $GP, '--version' );
 };
-my $gp_available = ( ( $gp_status == 0 ) && ( $gp_out =~ m/^gnuplot\s+(\d+)\.(\d+)/ ) && ( $1 > 5 || ( $1 == 5 && $2 >= 2 ) ) ) ? 1 : 0;
+# Only "gnuplot" and a major.minor are relied on: a smoker's gnuplot (Fedora 43,
+# 0.333) passed this gate but did not print " patchlevel " after the version, and
+# the version left undef died under FATAL warnings.
+my ($gp_version) = ( $gp_status == 0 ) ? $gp_out =~ m/^gnuplot\s+(\d+\.\d+)/ : ();
+my $gp_available = ( defined $gp_version && $gp_version =~ m/^(\d+)\.(\d+)\z/ && ( $1 > 5 || ( $1 == 5 && $2 >= 2 ) ) ) ? 1 : 0;
 SKIP: {
 	skip( 'no gnuplot >= 5.2', 4 ) unless $gp_available;
-	my ($version) = $gp_out =~ m/^gnuplot\s+(\d+\.\d+) patchlevel (\S+)/;
+	my $version = $gp_version;    # the script prints GPVAL_VERSION as %.1f, then the patch level
 	my $file = out_file();
 	capture { plt( {%bar, engine => 'gnuplot', output_file => $file} ) };
 	like( creator( slurp($file) ), qr/ called using "plt" in .* with Perl [\d.]+, gnuplot \Q$version.\E\S+, by \Q${\ Matplotlib::Simple::Gnuplot::creator_user() }\E on .+\z/, 'the SVG names gnuplot, its version and who ran it' );

@@ -11,7 +11,7 @@ package Matplotlib::Simple;
 # alone, so the keywords are matplotlib's names throughout, and an engine that
 # has no counterpart for one refuses it by name rather than leaving it out (check_engine).
 require 5.010;
-our $VERSION = 0.332;
+our $VERSION = 0.334;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use POSIX ();
@@ -2108,10 +2108,13 @@ sub plain_text {
 		# three digits, which "\0" alone stood for, so that "\012" was a NUL
 		# and "12"; and a character by its Unicode name, \N{...}, which Python
 		# matches without regard to case. One Python does not know is left as
-		# written, as Python leaves an unknown escape.
+		# written, as Python leaves an unknown escape. The braces of \N{...}
+		# are written [{] and [}], not \{ and \}: inside s{}{} perl 5.18 reads
+		# \{ as a useless escape and warns, which FATAL warnings made a failure
+		# to compile.
 		my %escape = ( n => "\n", t => "\t", r => "\r", a => "\a", b => "\b", f => "\f", v => "\x0b", "\\" => "\\", "'" => "'", '"' => '"', "\n" => '' );
 		require charnames;
-		$body =~ s{\\(?:x([0-9a-fA-F]{2})|u([0-9a-fA-F]{4})|U([0-9a-fA-F]{8})|([0-7]{1,3})|N\{([^{}]+)\}|(.))}{
+		$body =~ s{\\(?:x([0-9a-fA-F]{2})|u([0-9a-fA-F]{4})|U([0-9a-fA-F]{8})|([0-7]{1,3})|N[{]([^{}]+)[}]|(.))}{
 			defined $1 ? chr hex $1 : defined $2 ? chr hex $2 : defined $3 ? chr hex $3 : defined $4 ? chr oct $4
 			: defined $5 ? ( defined charnames::vianame( uc $5 ) ? chr charnames::vianame( uc $5 ) : "\\N{$5}" )
 			: exists $escape{$6} ? $escape{$6} : "\\$6"

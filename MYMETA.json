@@ -52,6 +52,6 @@
       }
    },
    "release_status" : "stable",
-   "version" : "0.332",
+   "version" : "0.334",
    "x_serialization_backend" : "JSON::PP version 4.16"
 }

@@ -1,5 +1,17 @@
 Revision history for Matplotlib-Simple
 
+0.334 2026-11-01 CST (Claude Opus 5.5 helped)
+
+ [Fixed]
+
+ - `t/16.creator.t` no longer dies after test 31 where `gnuplot --version` does not print "patchlevel" after the version. The test read the version with a pattern that required that word, so on such a gnuplot the version came out undefined, and the warning about it stopped the test under its fatal warnings, with exit status 25, although no test had failed. It now reads only gnuplot's major and minor version, as its gate for gnuplot 5.2 already did. Four CPAN Testers reports against 0.333 found it, from perl 5.36.3, 5.38.5, 5.40.3 and 5.44.0 on Fedora 43 Linux.
+
+0.333 2026-11-01 CST (Claude Opus 5.5 helped)
+
+ [Fixed]
+
+ - Matplotlib::Simple loads again under perl 5.18. In 0.332 it could not be loaded there at all, so every test file failed before running a test. The pattern that reads Python's `\N{...}` escape wrote its braces as `\{` and `\}` inside an `s{}{}` substitution, which perl 5.18 warns is a useless escape, and under the module's `warnings FATAL => 'all'` that warning stopped it compiling. The braces are now written `[{]` and `[}]`, which match the same characters without a backslash. A CPAN Testers report against 0.332 from perl 5.18.4 on Debian Linux found it; perl 5.10.1, 5.12.5, 5.16.3, 5.32.1 and 5.44.0 loaded it.
+
 0.332 2026-10-31 CDT (Claude Opus 5.5 helped)
 
  [Fixed]

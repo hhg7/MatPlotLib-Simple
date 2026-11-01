@@ -27,8 +27,12 @@
 # well.  --syntax only reads the tree, so its children all run in the root.
 # The fork/throttle/reap loop is the one in ~/Scripts/stats/test.all.perls.pl.
 #
-# -P 1 is the old behaviour: one perl at a time, oldest first, in the
-# distribution root, which is left built against the newest perl.
+# -P 1 is the old behaviour: one perl at a time, in the distribution root,
+# which is left built against the last perl run.
+#
+# Perls built with -Dusequadmath run first, then the rest, each group oldest
+# first.  Which perls those are is asked of each perl's %Config, not read from
+# its directory name, which perlbrew lets the installer choose.
 #
 # Unlike a dist with XS, this one is pure perl: there is no OPTIMIZE/-Wall
 # knob, `make` is nearly free, and the interesting failures are compile-time
@@ -124,7 +128,8 @@ sub usage {
 usage: $0 [options]
 
 Builds and tests the distribution in the current directory against each perl
-installed under $PERLBREW_ROOT (oldest first).
+installed under $PERLBREW_ROOT: those built with quadmath first, then the rest,
+each oldest first.
 
 options:
   -p, --perl VERSION   only this perl (repeatable); accepts "5.10.1" or
@@ -174,8 +179,8 @@ my @installed = grep { -x File::Spec->catfile($perls_dir, $_, 'bin', 'perl') }
                 grep { !/^\.\.?$/ } readdir $dh;
 closedir $dh;
 
-# numeric sort so the oldest perl is exercised first and, in a serial run, the
-# tree is left built against the newest one.
+# numeric sort so that, within the quadmath perls and within the rest, the
+# oldest perl is exercised first.
 sub vkey {
 	my $v = shift;
 	$v =~ s/^perl-//;
@@ -194,6 +199,15 @@ if (@only) {
 	@targets = sort { vkey($a) cmp vkey($b) } @want;
 }
 die "$0: no perls found in $perls_dir\n" unless @targets;
+
+# 1 = built with -Dusequadmath (NV is __float128), 0 = not, or not answering.
+# A perl older than 5.22 has no usequadmath key, which reads as undef.
+my %quadmath = map {
+	my $perl = File::Spec->catfile($perls_dir, $_, 'bin', 'perl');
+	my ($code, $lines) = run_cmd([$perl, '-MConfig', '-e', 'print $Config{usequadmath} ? 1 : 0'], undef, 1);
+	($_ => ($code == 0 && @$lines && $lines->[0] eq '1') ? 1 : 0);
+} @targets;
+@targets = ((grep { $quadmath{$_} } @targets), (grep { !$quadmath{$_} } @targets));
 
 die "$0: no Makefile.PL in " . getcwd() . " - run this from the distribution root\n"
 	unless -f 'Makefile.PL';
@@ -234,7 +248,8 @@ die "$0: no modules found under lib/\n" unless @lib_pm;
 
 if ($list) {
 	for my $t (@targets) {
-		printf "%-16s %s%s\n", $t, File::Spec->catfile($perls_dir, $t, 'bin', 'perl'),
+		printf "%-16s %s%s%s\n", $t, File::Spec->catfile($perls_dir, $t, 'bin', 'perl'),
+			($quadmath{$t} ? '  (quadmath)' : ''),
 			(too_old($t) ? "  (< MIN_PERL_VERSION $min_perl" . ($all ? ', tested anyway)' : ', skipped)') : '');
 	}
 	exit 0;
