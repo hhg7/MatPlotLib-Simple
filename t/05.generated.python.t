@@ -43,7 +43,7 @@ our $TODO;
 # ----------------------------------------------------------------------------
 # python3 discovery.  Without it there is nothing here to check.
 # ----------------------------------------------------------------------------
-my $python_raw = ( scalar @PY ? qx/$PY --version 2>&1/ : '' );
+my $python_raw = ( scalar @PY ? do { no warnings 'exec'; qx/$PY --version 2>&1/ } // '' : '' );    # 'exec': see t/16.creator.t
 my $python_available = ( $? == 0 && $python_raw =~ m/Python\s+3\.\d+/i ) ? 1 : 0;
 if ($python_available) {
 	( my $v = $python_raw ) =~ s/^\s+|\s+$//g;

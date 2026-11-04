@@ -1,5 +1,11 @@
 Revision history for Matplotlib-Simple
 
+0.3341 2026-11-04 CST (Claude Opus 5.5 helped)
+
+ [Fixed]
+
+ - `t/16.creator.t` no longer dies after test 26 with "can't write .../gen5.svg: No such file or directory" on perls whose File::Temp is 0.22, those up to 5.16, where no Python is installed. Each test file looks for Python with `qx/$PY --version 2>&1/`, and where there is none, the forked child's "Can't exec" warning was fatal under the tests' `warnings FATAL => 'all'`. The child therefore died instead of exiting quietly and ran the `END` blocks, and File::Temp 0.22 removes every temporary directory in `END` without checking that the process exiting is the one that made it. The child removed the test's directory from under it. File::Temp 0.23, from perl 5.18, checks. The check for Python in all 14 test files that make it now turns off the `exec` warning for that one statement. A CPAN Testers report against 0.334 from perl 5.14.4 on FreeBSD 15.0 found it, as did one against 0.333 from the same smoker; it was reproduced with perl 5.12.5, and perl 5.12.5 and 5.16.3 now pass every test without Python, gnuplot or R.
+
 0.334 2026-11-01 CST (Claude Opus 5.5 helped)
 
  [Fixed]

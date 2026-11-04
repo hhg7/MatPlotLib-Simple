@@ -25,6 +25,12 @@ set -e
 # anything is built out of those files.
 perl md2pod.pl
 
+# [Git::GatherDir] gathers what "git ls-files --cached" lists -- the index, not
+# the working tree -- so a new file that was never "git add"ed is left out of
+# the tarball without a word.  Stage everything before building.  This comes
+# after md2pod.pl, which rewrites lib/Matplotlib/Simple.pm and t/01.all.tests.t.
+git add -A
+
 # Builds, runs the test suite (TestRelease), asks for confirmation, uploads.
 dzil release
 
@@ -51,3 +57,19 @@ fi
 # rest of the release.
 cp "Matplotlib-Simple-$version/Makefile.PL" Makefile.PL
 perl Makefile.PL
+
+# Commit the release and push it, so that GitHub matches what CPAN has.  This
+# waits until now because the snapshot, its tarball and the root Makefile.PL do
+# not exist until the build, and because "set -e" has stopped the script by now
+# if the tests failed or the upload was declined, so no commit is named for a
+# version that was never released.  This second "-A" picks up those files;
+# .gitignore keeps the build output (Makefile, blib/, .build/) out.  The message is the bare version,
+# as every release commit before this script did it has been.  A re-run with
+# nothing new to commit still pushes, in case the earlier push failed.
+git add -A
+if git diff --cached --quiet; then
+	echo "dzil.sh: nothing to commit for $version"
+else
+	git commit -m "$version"
+fi
+git push

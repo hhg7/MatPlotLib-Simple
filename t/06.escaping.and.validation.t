@@ -45,7 +45,7 @@ use Test::More;
 my $TMP = tempdir( CLEANUP => 1 );
 my $seq = 0;
 
-my $python_raw = ( scalar @PY ? qx/$PY --version 2>&1/ : '' );
+my $python_raw = ( scalar @PY ? do { no warnings 'exec'; qx/$PY --version 2>&1/ } // '' : '' );    # 'exec': see t/16.creator.t
 my $python_available = ( $? == 0 && $python_raw =~ m/Python\s+3\.\d+/i ) ? 1 : 0;
 diag( $python_available ? "Python 3 found as \"$PY\" (parser gate ON)" : 'no Python 3 (parser gate skipped)' );
 

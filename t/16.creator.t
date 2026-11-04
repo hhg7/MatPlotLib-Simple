@@ -37,7 +37,17 @@ use Test::More;
 my $TMP = tempdir( CLEANUP => 1 );
 my $seq = 0;
 
-my $python_raw = ( scalar @PY ? qx/$PY --version 2>&1/ : '' );
+# "no warnings 'exec'" departs from this file's FATAL warnings on purpose. qx
+# forks, and when python3 is absent the child's "Can't exec" warning is fatal:
+# the child dies instead of _exit()ing, so it runs END blocks, and File::Temp
+# 0.22 (shipped with perls up to 5.16) cleans up every tempdir in END without
+# checking that the process which made it is the one exiting; 0.23 (perl
+# 5.18) checks, and keeps the directory. The child removed $TMP from under the
+# parent, and block 5 died with "can't write .../gen5.svg: No such file or
+# directory" (CPAN Testers FAIL for 0.334, perl 5.14.4 on FreeBSD 15.0, no
+# python). Every test's probe of @PY does the same; qx then returns undef,
+# hence the "// ''".
+my $python_raw = ( scalar @PY ? do { no warnings 'exec'; qx/$PY --version 2>&1/ } // '' : '' );    # 'exec': see t/16.creator.t
 my $python_available = ( $? == 0 && $python_raw =~ m/Python\s+3\.\d+/i ) ? 1 : 0;
 my $mpl_available = 0;
 if ($python_available) {

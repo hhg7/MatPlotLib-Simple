@@ -358,7 +358,7 @@ works.
 `t/19.engines.t` fails until they agree — add a `Changes` entry under that
 version, then:
 
-    sh dzil.sh    # md2pod.pl, Makefile.PL, dzil release, dzil build
+    sh dzil.sh    # md2pod.pl, dzil release, dzil build, Makefile.PL, git commit and push
 
 `md2pod.pl` regenerates the POD at the end of `lib/Matplotlib/Simple.pm` from
 `README.md`, and the example block of `t/01.all.tests.t` from `mpl.examples.pl`;

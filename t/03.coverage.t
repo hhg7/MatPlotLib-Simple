@@ -26,7 +26,7 @@ use Test::More;
 # ----------------------------------------------------------------------------
 # Dependency discovery.
 # ----------------------------------------------------------------------------
-my $python_version_raw = ( scalar @PY ? qx/$PY --version 2>&1/ : '' );
+my $python_version_raw = ( scalar @PY ? do { no warnings 'exec'; qx/$PY --version 2>&1/ } // '' : '' );    # 'exec': see t/16.creator.t
 my $python_available = ( $? == 0 && $python_version_raw =~ m/Python\s+3\.\d+/i ) ? 1 : 0;
 my $mpl_available = 0;
 my $mpl_version   = '';
