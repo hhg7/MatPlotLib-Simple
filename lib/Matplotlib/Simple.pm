@@ -11,7 +11,7 @@ package Matplotlib::Simple;
 # alone, so the keywords are matplotlib's names throughout, and an engine that
 # has no counterpart for one refuses it by name rather than leaving it out (check_engine).
 require 5.010;
-our $VERSION = 0.3341;
+our $VERSION = 0.3342;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use POSIX ();
@@ -2815,6 +2815,18 @@ alone.
 Every other option is passed through as written, so text inside C<legend>, C<text>
 and friends is Python syntax throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
 
+B<Never pass untrusted text to an option.>  Text that reads as Python is
+written into the script as Python, so text from a web form, a file you did not
+write, or anyone else is a way to run code as you.  In a C<title>, a label or
+C<suptitle>, C<'"t", fontsize = __import__("os").getpid()'> reads as a literal
+followed by a keyword argument, and lands in the script whole.  Only text with
+no quote character in it, C<'> or C<">, is certain to be quoted, so a label built
+from untrusted text must have its quotes removed first.  C<legend>, C<text> and
+the other options passed through as written are never quoted at all:
+C<< legend =E<gt> 'x = exec(...)' >> runs, quotes or no quotes, so untrusted text must
+never reach them.  The keys of C<data> are always escaped, and are
+the place for text you did not write.
+
 The exception is an option written as a C<plt.> call, such as C<xscale>, C<ylim>
 or C<axhline>, at a single plot and at a subplot alike.  A word is quoted for
 you, so C<< xscale =E<gt> 'log' >> becomes C<plt.xscale('log')>.  A value that is already
@@ -2888,6 +2900,51 @@ another.  The rest of the call stays as it is:
     title       => 'Gospel word counts',
     engine      => 'gnuplot',    # or 'ggplot2', or 'matplotlib', the default
  );
+
+Here is one call, a C<bar>, a C<boxplot>, a C<hist> and a C<plot> in four subplots,
+drawn by each engine in its own default style.  Only C<engine> differs between
+them; C<engine.examples.pl> in the repository draws all three.
+
+ plt(
+    output_file => 'engines.png',
+    engine      => $engine,    # 'matplotlib', 'gnuplot' or 'ggplot2'
+    ncols       => 2,
+    nrows       => 2,
+    suptitle    => "engine: $engine",
+    plots       => [
+       { plot_type => 'bar',     title => 'bar',
+         data => { Matthew => 18345, Mark => 11304, Luke => 19482, John => 15635 } },
+       { plot_type => 'boxplot', title => 'boxplot', data => \%groups },
+       { plot_type => 'hist',    title => 'hist',    data => \%groups },
+       { plot_type => 'plot',    title => 'plot',
+         data => { sin => [ \@x, [ map { sin } @x ] ],
+                   cos => [ \@x, [ map { cos } @x ] ] } },
+    ],
+ );
+
+where C<%groups> holds two samples of 200 normal deviates, C<A> and C<B>, and C<@x>
+runs from 0 to 10.
+
+
+=for html
+<p>
+<img width="651" height="491" alt="four subplots drawn by matplotlib" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/engine.matplotlib.png" />
+<p>
+
+
+
+=for html
+<p>
+<img width="640" height="480" alt="four subplots drawn by gnuplot" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/engine.gnuplot.png" />
+<p>
+
+
+
+=for html
+<p>
+<img width="640" height="480" alt="four subplots drawn by ggplot2" src="https://raw.githubusercontent.com/hhg7/MatPlotLib-Simple/main/output.images/engine.ggplot2.png" />
+<p>
+
 
 =for html
 <table>
@@ -3066,7 +3123,7 @@ Colarbar args attempt to match matplotlib closely
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
 <tr><td><code>cbdrawedges</code></td><td>Whether to draw lines at color boundaries</td><td><code>cbdrawedges => 1</code></td></tr>
-<tr><td><code>cblabel</code></td><td>The label on the colorbar's long axis</td><td><code>cblabel => 1</code></td></tr>
+<tr><td><code>cblabel</code></td><td>The label on the colorbar's long axis</td><td><code>cblabel => 'kJ/mol'</code></td></tr>
 <tr><td><code>cblocation</code></td><td>of the colorbar None or {'left', 'right', 'top', 'bottom'}</td><td></td></tr>
 <tr><td><code>cborientation</code></td><td># None or {<code>vertical</code>, <code>horizontal</code>}</td><td></td></tr>
 <tr><td><code>cbpad</code></td><td>pad : float, default: 0.05 if vertical, 0.15 if horizontal; Fraction of original Axes between colorbar and new image Axes</td><td></td></tr>

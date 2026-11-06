@@ -1,5 +1,13 @@
 Revision history for Matplotlib-Simple
 
+0.3342 2026-11-06 CST (Claude Opus 5.5 helped)
+
+ [Documentation]
+
+ - The POD and README now warn, under the options that are passed through as Python, never to pass untrusted text to an option. Text that reads as Python is written into the script as Python, so a `title` or label built from someone else's text can run code, and `legend`, `text` and the other options passed through as written are never quoted at all. The keys of `data` are always escaped and are the place for such text.
+ - The "Engines" section now shows the same figure, a `bar`, a `boxplot`, a `hist` and a `plot` in four subplots, drawn by matplotlib, gnuplot and ggplot2, with the call that draws it, so that the look of each engine's default style can be seen before choosing one.
+ - The example for `cblabel` in the colorbar table is now `cblabel => 'kJ/mol'`; it was `cblabel => 1`, which is not a label.
+
 0.3341 2026-11-04 CST (Claude Opus 5.5 helped)
 
  [Fixed]

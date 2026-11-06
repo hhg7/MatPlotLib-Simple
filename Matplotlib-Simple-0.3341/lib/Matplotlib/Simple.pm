@@ -2815,6 +2815,18 @@ alone.
 Every other option is passed through as written, so text inside C<legend>, C<text>
 and friends is Python syntax throughout: C<< legend =E<gt> 'loc = "upper left"' >>.
 
+B<Never pass untrusted text to an option.>  Text that reads as Python is
+written into the script as Python, so text from a web form, a file you did not
+write, or anyone else is a way to run code as you.  In a C<title>, a label or
+C<suptitle>, C<'"t", fontsize = __import__("os").getpid()'> reads as a literal
+followed by a keyword argument, and lands in the script whole.  Only text with
+no quote character in it, C<'> or C<">, is certain to be quoted, so a label built
+from untrusted text must have its quotes removed first.  C<legend>, C<text> and
+the other options passed through as written are never quoted at all:
+C<< legend =E<gt> 'x = exec(...)' >> runs, quotes or no quotes, so untrusted text must
+never reach them.  The keys of C<data> are always escaped, and are
+the place for text you did not write.
+
 The exception is an option written as a C<plt.> call, such as C<xscale>, C<ylim>
 or C<axhline>, at a single plot and at a subplot alike.  A word is quoted for
 you, so C<< xscale =E<gt> 'log' >> becomes C<plt.xscale('log')>.  A value that is already
@@ -3066,7 +3078,7 @@ Colarbar args attempt to match matplotlib closely
 <tr><td>Option</td><td>Description</td><td>Example</td></tr>
 <tr><td>--------</td><td>-------</td><td>-------</td></tr>
 <tr><td><code>cbdrawedges</code></td><td>Whether to draw lines at color boundaries</td><td><code>cbdrawedges => 1</code></td></tr>
-<tr><td><code>cblabel</code></td><td>The label on the colorbar's long axis</td><td><code>cblabel => 1</code></td></tr>
+<tr><td><code>cblabel</code></td><td>The label on the colorbar's long axis</td><td><code>cblabel => 'kJ/mol'</code></td></tr>
 <tr><td><code>cblocation</code></td><td>of the colorbar None or {'left', 'right', 'top', 'bottom'}</td><td></td></tr>
 <tr><td><code>cborientation</code></td><td># None or {<code>vertical</code>, <code>horizontal</code>}</td><td></td></tr>
 <tr><td><code>cbpad</code></td><td>pad : float, default: 0.05 if vertical, 0.15 if horizontal; Fraction of original Axes between colorbar and new image Axes</td><td></td></tr>
