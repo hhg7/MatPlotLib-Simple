@@ -509,6 +509,7 @@ Anything else, such as `'yes'`, is refused by name, since it could mean either.
 |`scale`  | scale/multiply the size of the output figure; this and the two below must be finite and above 0 | `scale => 2.4`|
 |`scalex` | scale/multiply the x-axis only | `scalex => 2.4` |
 |`scaley` | scale/multiply the y-axis only | `scaley => 1.4` |
+|`dpi` | dots per inch of the saved file, a finite number above 0; matplotlib's own default if left out. Given beside `plots` or `p`, not in a subplot. The matplotlib engine only, as of version 0.3343 | `dpi => 300` |
 
 # Examples/Plot Types
 

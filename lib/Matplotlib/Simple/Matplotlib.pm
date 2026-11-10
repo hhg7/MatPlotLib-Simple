@@ -3041,6 +3041,8 @@ sub render {
 	#                         0 = "plots", one hash per subplot
 	#          style       => "matplotlib" or "native" (%Matplotlib::Simple::styles), which
 	#                         draw the same figure here
+	#          dpi         => the dots per inch to save "output_file" at, a
+	#                         finite number above 0, or undef for matplotlib's own
 	my ( $args, $context ) = @_;
 	my $current_sub = $context->{sub};
 	my $single_plot = $context->{single_plot};
@@ -3308,13 +3310,17 @@ sub render {
 		# .pgf could be written at all (matplotlib 3.11.2). Those are saved
 		# without a note. matplotlib picks the format by the extension, in any
 		# case, and a name with none is the PNG it has always been.
+		# "dpi" is plt's own keyword for the resolution, checked there to be a
+		# finite number above 0. Without it savefig is called as it always
+		# was, at matplotlib's own "savefig.dpi".
+		my $dpi = defined $context->{dpi} ? ', dpi = ' . py_num( $context->{dpi} ) : '';
 		if ( savefig_takes_metadata( $args->{output_file} ) ) {
-			say $fh "plt.savefig(output_file, bbox_inches = 'tight', metadata={'Creator': $creator"
+			say $fh "plt.savefig(output_file, bbox_inches = 'tight'$dpi, metadata={'Creator': $creator"
 			 . " + ', Python ' + platform.python_version() + ', matplotlib ' + matplotlib.__version__"
 			 . " + ', by ' + creator_user + ' on ' + creator_host"
 			 . ( $tooltips_drawn ? ", 'Date': None, 'Format': None, 'Type': None" : '' ) . '})';
 		} else {
-			say $fh "plt.savefig(output_file, bbox_inches = 'tight') # no metadata: this format keeps none";
+			say $fh "plt.savefig(output_file, bbox_inches = 'tight'$dpi) # no metadata: this format keeps none";
 		}
 		# $tooltips_drawn is 1 exactly when output_file is an SVG. matplotlib
 		# writes <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" ...> from a fixed

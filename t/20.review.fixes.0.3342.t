@@ -13,7 +13,8 @@
 # stand-in interpreter, which is this perl, so it needs no python either.
 # parses_ok needs python3, and the blocks that draw need python3 and matplotlib
 # >= 3.10, and each skips without them. The gnuplot and ggplot2 checks read
-# what those engines refuse and write, and run neither program.
+# what those engines refuse and write, and run neither program. Block 8 is the
+# one thing here that is new rather than mended: "dpi" as a keyword of plt.
 #
 require 5.010;
 use strict;
@@ -183,7 +184,7 @@ my %bars = ( A => 1, B => 2 );
 # ----------------------------------------------------------------------------
 # 2. The keyword lists held attributes, modules and constants beside the
 #    methods, and each is written as a call: "dpi => 300" was fig.dpi(300),
-#    "TypeError: 'float' object is not callable".
+#    "TypeError: 'float' object is not callable". "dpi" itself is block 8.
 # ----------------------------------------------------------------------------
 {
 	my %listed = (
@@ -207,12 +208,12 @@ my %bars = ( A => 1, B => 2 );
 		is( scalar @still, 0, "no attribute or module is left among the $object methods" ) or diag("  still listed: @still");
 	}
 	# one of each list, as a single plot and inside a subplot
-	foreach my $keyword ( [ dpi => 300 ], [ zorder => 2 ], [ spines => '"top"' ], [ xaxis => 1 ], [ rcParams => '"font.size"' ], [ np => 1 ] ) {
+	foreach my $keyword ( [ frameon => 'True' ], [ zorder => 2 ], [ spines => '"top"' ], [ xaxis => 1 ], [ rcParams => '"font.size"' ], [ np => 1 ] ) {
 		my ( $name, $value ) = @{$keyword};
 		dies_with( { plot_type => 'bar', data => \%bars, $name => $value }, qr/^"\Q$name\E" isn't defined/, "\"$name\" is refused in a single plot" );
 		dies_with( { plots => [ { plot_type => 'bar', data => \%bars, $name => $value } ] }, qr/"\Q$name\E" isn't defined/, "\"$name\" is refused in a subplot" );
 	}
-	dies_with( { plot_type => 'bar', data => \%bars, dpi => 300 }, qr/perhaps you meant.*\bset_dpi\b/s, '"dpi" is answered with "set_dpi"' );
+	dies_with( { plot_type => 'bar', data => \%bars, frameon => 'True' }, qr/perhaps you meant.*\bset_frameon\b/s, '"frameon" is answered with the method "set_frameon"' );
 	# kept: the methods beside them are still keywords, and still written
 	my ( $py, $file ) = lives( { plot_type => 'bar', data => \%bars, set_dpi => 50, set_facecolor => '"0.9"', set_axisbelow => 'True', grid => 'True' }, 'set_dpi, set_facecolor, set_axisbelow and grid are still accepted' );
 	like( $py, qr/^fig\.set_dpi\(50\)/m,          'set_dpi is written as a figure method' );
@@ -407,6 +408,76 @@ my %bars = ( A => 1, B => 2 );
 	parses_ok( $file, 'the script parses' );
 	( $py, $file ) = lives( { plot_type => 'scatter', data => { S => {%three}, T => {%three} }, color_key => 'B' }, 'several sets: a "color_key" that is in each is accepted' );
 	parses_ok( $file, 'several sets: the script parses' );
+}
+
+# ----------------------------------------------------------------------------
+# 8. "dpi" is the resolution "output_file" is saved at. It was one of the
+#    attributes of block 2, a TypeError in the script, and "set_dpi", the
+#    method beside it, does not change the file savefig writes (matplotlib
+#    3.11.2), so there was no keyword that did.
+# ----------------------------------------------------------------------------
+{
+	my ( $py, $file ) = lives( { plot_type => 'bar', data => \%bars, dpi => 300, output_file => out_file('.png') }, 'dpi => 300 is accepted' );
+	like( $py, qr/^plt\.savefig\(output_file, bbox_inches = 'tight', dpi = 300, metadata=\{'Creator': /m, 'and handed to savefig, ahead of the Creator note' );
+	unlike( $py, qr/\.dpi\(/, 'and is not written as a method' );
+	parses_ok( $file, 'the script parses' );
+	($py) = gen( plot_type => 'bar', data => \%bars, dpi => 150, output_file => out_file('.jpg') );
+	like( $py, qr/^plt\.savefig\(output_file, bbox_inches = 'tight', dpi = 150\)/m, 'a format that keeps no metadata is given "dpi" alone' );
+	# a number as perl reads one, written as python reads one
+	foreach my $given ( [ '0300', '300' ], [ ' 72 ', '72' ], [ '1e2', '100' ], [ 72.5, '72.5' ] ) {
+		my ( $dpi, $written ) = @{$given};
+		($py) = gen( plot_type => 'bar', data => \%bars, dpi => $dpi );
+		like( $py, qr/bbox_inches = 'tight', dpi = \Q$written\E,/, "dpi => \"$dpi\" is written as $written" );
+	}
+	# kept: without it savefig is called as it was
+	($py) = gen( plot_type => 'bar', data => \%bars );
+	unlike( $py, qr/\bdpi\b/, 'no "dpi": none is written' );
+	# a figure of subplots takes it beside "plots" or "p"
+	($py) = lives( { plots => [ { plot_type => 'bar', data => \%bars }, { plot_type => 'pie', data => \%bars } ], ncols => 2, dpi => 96 }, '"dpi" beside "plots" is accepted' );
+	like( $py, qr/bbox_inches = 'tight', dpi = 96,/, 'and handed to savefig' );
+	($py) = lives( { p => [ { plot_type => 'bar', data => \%bars }, { plot_type => 'pie', data => \%bars } ], dpi => 96 }, '"dpi" beside "p" is accepted' );
+	like( $py, qr/bbox_inches = 'tight', dpi = 96,/, 'and handed to savefig' );
+	# the caller's own hash is left as it was, for the next call
+	my %spec = ( plot_type => 'bar', data => \%bars, dpi => 200 );
+	gen(%spec) foreach 1 .. 2;
+	is( $spec{dpi}, 200, 'the caller\'s "dpi" is still in the hash it was given in' );
+	my $not_a_number = qr/^"dpi" must be a finite number above 0, the dots per inch "output_file" is saved at, not /;
+	foreach my $bad ( 0, -72, 'high', 'inf', 'nan', '' ) {
+		dies_with( { plot_type => 'bar', data => \%bars, dpi => $bad }, qr/$not_a_number"\Q$bad\E"/, "dpi => \"$bad\" is refused" );
+	}
+	dies_with( { plot_type => 'bar', data => \%bars, dpi => [300] },         qr/${not_a_number}ARRAY reference/, 'dpi => [300] is refused' );
+	dies_with( { plot_type => 'bar', data => \%bars, dpi => { png => 300 } }, qr/${not_a_number}HASH reference/,  'a hash of them is refused' );
+	dies_with( { plots => [ { plot_type => 'bar', data => \%bars }, { plot_type => 'pie', data => \%bars, dpi => 300 } ], ncols => 2 },
+	 qr/^plt: "dpi" at subplot 1: one file is saved at one resolution/, '"dpi" in a subplot is refused, naming the subplot' );
+	dies_with( { plot_type => 'bar', data => \%bars, add => [ { plot_type => 'plot', data => { L => [ [ 0, 1 ], [ 1, 2 ] ] }, dpi => 300 } ] },
+	 qr/^plt: "dpi" in an "add" graph: one file is saved at one resolution/, '"dpi" in an "add" graph is refused' );
+	dies_with( { plots => [ { plot_type => 'bar', data => \%bars, add => [ { plot_type => 'plot', data => { L => [ [ 0, 1 ], [ 1, 2 ] ] }, dpi => 300 } ] } ] },
+	 qr/^plt: "dpi" in an "add" graph at subplot 0:/, 'and in an "add" graph of a subplot, naming it' );
+	# the other engines do not draw it, and say so by name
+	foreach my $engine ( 'gnuplot', 'ggplot2' ) {
+		dies_with( { plot_type => 'bar', data => \%bars, dpi => 300, engine => $engine }, qr/the $engine engine does not draw "dpi"/, "$engine: \"dpi\" is refused by name" );
+		dies_with( { plots => [ { plot_type => 'bar', data => \%bars } ], dpi => 300, engine => $engine }, qr/the $engine engine does not draw "dpi" for the figure/, "$engine: and beside \"plots\"" );
+	}
+	SKIP: {
+		skip( 'matplotlib >= 3.10 not found', 3 ) unless $mpl_available;
+		local $ENV{MPLBACKEND} = 'Agg';
+		# The width in pixels is in bytes 16 to 19 of a PNG, the first field of
+		# its IHDR chunk. A figure is 6.4 inches wide before bbox_inches =
+		# 'tight' trims or pads it, so 50 and 100 dots per inch are told apart
+		# by the ratio of the two widths and not by either one.
+		my %width;
+		foreach my $dpi ( 50, 100 ) {
+			my $image = out_file('.png');
+			capture { eval { plt( plot_type => 'bar', data => \%bars, dpi => $dpi, output_file => $image ) } };
+			open my $in, '<:raw', $image or die "can't read $image: $!";
+			read $in, my $header, 24;
+			close $in;
+			is( substr( $header, 1, 3 ), 'PNG', "dpi => $dpi: a PNG is written" );
+			$width{$dpi} = unpack 'N', substr( $header, 16, 4 );
+		}
+		my $ratio = $width{100} / $width{50};
+		ok( ( $ratio > 1.9 ) && ( $ratio < 2.1 ), 'twice the "dpi" is twice the pixels across' ) or diag("  widths: $width{50} at 50, $width{100} at 100");
+	}
 }
 
 done_testing();

@@ -2,11 +2,15 @@ Revision history for Matplotlib-Simple
 
 0.3343 2026-11-09 CST (Claude Fable 5.2 helped)
 
+ [New]
+
+ - `dpi => 300` saves the figure at 300 dots per inch. It is a keyword of the figure, given at the top level of a single plot or beside `plots` or `p`, and is handed to matplotlib's `savefig`; without it the file is saved at matplotlib's own resolution, as before. It must be a finite number above 0, and is refused by name in a subplot or an `add` graph. The gnuplot and ggplot2 engines do not draw it, and say so. Until now `dpi` died in the script (see below), and `set_dpi => 300`, the Figure method beside it, was written and ran but left the file as it was, since `savefig` takes the resolution the figure was made with (matplotlib 3.11.2).
+
  [Fixed]
 
  - A figure can be saved as `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.webp`, `.gif` or `.pgf` again. Every one of them died in the script, as "ValueError: metadata not supported for format 'jpeg'" or its like, and no file was written: the note of where a figure came from was handed to `savefig` whatever the format, and matplotlib refuses it for the formats that have nowhere to keep one. Those are now saved without the note. `.png`, `.pdf`, `.svg`, `.svgz`, `.eps` and `.ps` carry it as before, as does a name with no extension, which matplotlib saves as a PNG. Seen with matplotlib 3.11.2.
 
- - 66 keywords that could never have run are refused as unknown keywords, with the keywords each resembles, rather than written into the script. The lists of Axes, Figure and pyplot methods held attributes, modules and constants beside the methods, and every keyword in them is written as a call, so `dpi => 300` passed the keyword check and became `fig.dpi(300)`, "TypeError: 'float' object is not callable". The others are `xaxis`, `yaxis`, `spines`, `zorder`, `rcParams`, `np`, `cm` and their like; the methods are all still accepted.
+ - 65 keywords that could never have run are refused as unknown keywords, with the keywords each resembles, rather than written into the script. The lists of Axes, Figure and pyplot methods held attributes, modules and constants beside the methods, and every keyword in them is written as a call, so `dpi => 300` passed the keyword check and became `fig.dpi(300)`, "TypeError: 'float' object is not callable". `dpi` is now a keyword of its own (above); the others, `xaxis`, `yaxis`, `spines`, `zorder`, `rcParams`, `np`, `cm` and their like, are refused. The methods are all still accepted.
 
  - What a script writes to STDERR as it runs is shown when the script succeeds, and not only when it fails. matplotlib's warnings about a figure it did write, such as "Data has no positive values, and therefore cannot be log-scaled", were captured and dropped, so nothing said that the figure was not the one asked for. They are printed to STDERR as they came. A figure drawn without a warning prints nothing more than it did.
 

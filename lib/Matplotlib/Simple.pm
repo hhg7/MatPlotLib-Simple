@@ -175,7 +175,12 @@ our @arg = ('add', 'cmap', 'data', 'execute', 'fh', 'ncol', 'ncols', 'nrow', 'nr
 # lists it among its own options. "engine" names what draws the whole figure,
 # and "style" how it looks; both are refused in a subplot by
 # refuse_subplot_choices.
-my @plt_arg = ( 'engine', 'shared_colorbar', 'style' );
+# "dpi" is the resolution the figure is saved at, which the matplotlib engine
+# hands to savefig. Until 0.3343 it was among the Figure "methods", and wrote
+# fig.dpi(300), a TypeError; and "set_dpi", the method beside it, is no way to
+# say it, since savefig takes the figure's resolution as it was when the figure
+# was made (matplotlib 3.11.2), so fig.set_dpi(300) left the file as it was.
+my @plt_arg = ( 'dpi', 'engine', 'shared_colorbar', 'style' );
 # Every keyword this module spelled with a dot up to 0.318, and what it is
 # called now. The old spellings are refused, not accepted: see
 # refuse_dotted_keywords.
@@ -2462,6 +2467,31 @@ sub plt {
 	foreach my $scale ( grep { defined $args->{$_} } ( 'scale', 'scalex', 'scaley' ) ) {
 		die "\"$scale\" must be a finite number above 0, not \"$args->{$scale}\"" unless ( is_finite( $args->{$scale} ) ) && ( $args->{$scale} > 0 );
 	}
+	# "dpi" is written into savefig as it stands, so it is a number here, and
+	# one a file can be drawn at.
+	if ( defined $args->{dpi} ) {
+		my $dpi = $args->{dpi};
+		if ( ( ref $dpi ) || ( not looks_like_number($dpi) ) || ( not is_finite($dpi) ) || ( $dpi <= 0 ) ) {
+			die "\"dpi\" must be a finite number above 0, the dots per inch \"output_file\" is saved at, not " . ( ref $dpi ? ( ref $dpi ) . ' reference' : "\"$dpi\"" );
+		}
+		$args->{dpi} = 0 + $dpi;    # "0300" and " 300" are numbers to perl and not to python
+	}
+	# One file is saved at one resolution, so "dpi" in a subplot or an "add"
+	# graph has nothing of its own to set. Asked here, by name: left to the
+	# helper it was "isn't defined for plot_type", with "set_dpi" suggested.
+	{
+		my @plots = ( $single_plot == 1 ) ? ( [ $args, '' ] ) : map { [ $args->{plots}[$_], " at subplot $_" ] } 0 .. $#{ ( ref $args->{plots} eq 'ARRAY' ) ? $args->{plots} : [] };
+		foreach my $drawn (@plots) {
+			my ( $plot, $where ) = @{$drawn};
+			next unless ref $plot eq 'HASH';
+			if ( ( $single_plot == 0 ) && ( exists $plot->{dpi} ) ) {
+				die "$current_sub: \"dpi\"$where: one file is saved at one resolution, so give \"dpi\" once, beside \"plots\" or \"p\"";
+			}
+			if ( ( ref $plot->{add} eq 'ARRAY' ) && ( grep { ( ref $_ eq 'HASH' ) && ( exists $_->{dpi} ) } @{ $plot->{add} } ) ) {
+				die "$current_sub: \"dpi\" in an \"add\" graph$where: one file is saved at one resolution, so give \"dpi\" once, at the top level";
+			}
+		}
+	}
 	if ((defined $args->{shared_colorbar}) && ($single_plot == 1)) {
 		warn 'There is only 1 plot/subplot, shared colorbars make no sense... deleting';
 		delete $args->{shared_colorbar};
@@ -2569,7 +2599,12 @@ sub plt {
 	my $engine = engine_name( $args, $current_sub );
 	my $style  = style_name( $args, $current_sub );
 	check_engine( $engine, $args, $single_plot, $current_sub );
-	return $engine_module{$engine}->can('render')->( $args, { sub => $current_sub, single_plot => $single_plot, style => $style } );
+	# Taken out after check_engine has seen it, so that an engine that does not
+	# list "dpi" refuses it by name, and before render, so that the helper a
+	# single plot's hash is handed to does not meet a keyword that is the
+	# figure's and not its own.
+	my $dpi = delete $args->{dpi};
+	return $engine_module{$engine}->can('render')->( $args, { sub => $current_sub, single_plot => $single_plot, style => $style, dpi => $dpi } );
 }
 # Generate wrappers dynamically
 my @wrappers = qw(bar barh boxplot colored_table hexbin hist hist2d imshow pie plot scatter venn_proportional_area violin violinplot wide);
@@ -3186,6 +3221,7 @@ C<logscale> for C<bar> is the one exception, and takes Perl truth.
 <tr><td><code>scale</code></td><td>scale/multiply the size of the output figure; this and the two below must be finite and above 0</td><td><code>scale => 2.4</code></td></tr>
 <tr><td><code>scalex</code></td><td>scale/multiply the x-axis only</td><td><code>scalex => 2.4</code></td></tr>
 <tr><td><code>scaley</code></td><td>scale/multiply the y-axis only</td><td><code>scaley => 1.4</code></td></tr>
+<tr><td><code>dpi</code></td><td>dots per inch of the saved file, a finite number above 0; matplotlib's own default if left out. Given beside <code>plots</code> or <code>p</code>, not in a subplot. The matplotlib engine only, as of version 0.3343</td><td><code>dpi => 300</code></td></tr>
 </tbody>
 </table>
 
