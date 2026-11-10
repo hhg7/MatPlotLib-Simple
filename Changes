@@ -22,6 +22,8 @@ Revision history for Matplotlib-Simple
 
  - A scatter's `color_key` that is not a key of the data is named: `"Missing" isn't defined for this scatter`, or `for set "S"`. With three keys in the data it was reported as `needs one key for x and one for y, but "keys" and "color_key" leave the 3 above`, which did not say which keyword was wrong. The matplotlib and ggplot2 engines both did so. `t/04.options.t` expected the name, and found it only in the stack trace under the message, which prints the arguments of the call; it now reads the message alone.
 
+ - A mistyped `show`, `output_file` or `plot_type` is named, with the keyword it resembles: `"shoxw" isn't defined for plot_type "bar", perhaps you meant one of these defined keywords: (show)`. With no `output_file` beside it, `shoxw => 1` died as `either "show" or "output_file" must be defined`, which did not say that `show` had been given, mistyped; `outputfile` died the same way, and `plot_typ` as `either "plot_type" or "plots" must be defined`. What was missing was looked for before any keyword was checked, and is now looked for after. A call whose keywords are all known, and which lacks one of them, dies with the same messages as before. The module was at fault; block 9 of `t/20.review.fixes.0.3342.t` is the 6 tests of it.
+
 0.3342 2026-11-06 CST (Claude Opus 5.5 helped)
 
  [Documentation]

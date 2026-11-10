@@ -15,6 +15,7 @@
 # >= 3.10, and each skips without them. The gnuplot and ggplot2 checks read
 # what those engines refuse and write, and run neither program. Block 8 is the
 # one thing here that is new rather than mended: "dpi" as a keyword of plt.
+# Block 9 came from the maintainer and not from that review.
 #
 require 5.010;
 use strict;
@@ -478,6 +479,38 @@ my %bars = ( A => 1, B => 2 );
 		my $ratio = $width{100} / $width{50};
 		ok( ( $ratio > 1.9 ) && ( $ratio < 2.1 ), 'twice the "dpi" is twice the pixels across' ) or diag("  widths: $width{50} at 50, $width{100} at 100");
 	}
+}
+
+# ----------------------------------------------------------------------------
+# 9. A mistyped "show", "output_file" or "plot_type" is named, with the
+#    keyword it resembles. What was missing was looked for before any keyword
+#    was checked, so "shoxw => 1" died as 'either "show" or "output_file" must
+#    be defined', which did not say that "show" had been given, mistyped.
+#    Found by the maintainer with a script written to try the suggestions.
+# ----------------------------------------------------------------------------
+{
+	# plt is called here and not through gen, which gives every figure an
+	# "output_file"; the message is cut as message_of cuts it.
+	my $message_without_file = sub {
+		my (%spec) = @_;
+		capture { eval { plt( %spec, execute => 0 ) } };
+		my $message = "$@";
+		$message =~ s/\n\t.*\z//s;
+		return $message;
+	};
+	foreach my $typo ( 'shoxw', 'showx' ) {
+		like( $message_without_file->( plot_type => 'bar', data => \%bars, $typo => 1 ),
+		 qr/^"$typo" isn't defined .*perhaps you meant.*\bshow\b/, "\"$typo\" with no \"output_file\" is refused by name, and \"show\" suggested" );
+	}
+	like( $message_without_file->( plot_type => 'bar', data => \%bars, outputfile => 'x.svg' ),
+	 qr/^"outputfile" isn't defined .*perhaps you meant.*\boutput_file\b/, '"outputfile" is refused by name, and "output_file" suggested' );
+	like( $message_without_file->( plot_typ => 'bar', data => \%bars, show => 1 ),
+	 qr/^"plot_typ" isn't defined .*perhaps you meant.*\bplot_type\b/, '"plot_typ" is refused by name, and "plot_type" suggested' );
+	# kept: with every keyword a known one, what is missing is still said
+	like( $message_without_file->( plot_type => 'bar', data => \%bars ),
+	 qr/^either "show" or "output_file" must be defined/, 'neither "show" nor "output_file": said as before' );
+	like( $message_without_file->( data => \%bars, show => 1 ),
+	 qr/^either "plot_type" or "plots" must be defined/, 'neither "plot_type" nor "plots": said as before' );
 }
 
 done_testing();

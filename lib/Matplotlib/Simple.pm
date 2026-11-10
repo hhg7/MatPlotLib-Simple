@@ -2285,12 +2285,6 @@ sub plt {
 	# "show => 'False'" wrote plt.show() and let the figure go without an
 	# "output_file".
 	$args->{show} = bool_option( $args->{show}, 'show', $current_sub ) if defined $args->{show};
-	# "output_file" is any name at all, so it is tested for being given rather
-	# than for Perl truth, which refused a file called "0" as missing.
-	if ( ( not ( ( defined $args->{output_file} ) && ( length $args->{output_file} ) ) ) && ( not $args->{show} ) ) {
-		p $args;
-		die 'either "show" or "output_file" must be defined';
-	}
 	my @reqd_args = $args->{show} ? () : ('output_file'); # e.g. "my_image.svg"; optional if "show" is set
 	my $single_example = 'plt({
 	\'output_file\' => \'/tmp/gospel.word.counts.svg\',
@@ -2324,17 +2318,6 @@ sub plt {
 	},
 	ncols    => 3,
 	});';
-	my @undef_args = grep { !defined $args->{$_} } @reqd_args;
-	if ( scalar @undef_args > 0 ) {
-	  p @undef_args;
-	  die 'the above args are necessary, but were not defined.';
-	}
-	if (   ( not defined $args->{plot_type} )
-	  && ( not defined $args->{plots} ) )
-	{
-		p $args;
-		die 'either "plot_type" or "plots" must be defined, but neither were';
-	}
 	if (ref $args->{output_file} ne '') {
 		p $args;
 		die '"output_file" must be a SCALAR or string, but was given a ' . ref $args->{output_file};
@@ -2365,6 +2348,22 @@ sub plt {
 			type      => defined $type_opt ? $args->{plot_type} : undef,
 			sub       => $current_sub
 		});
+	}
+	# What is missing is reported only now that every keyword given is known to
+	# be one: "shoxw => 1" died as 'either "show" or "output_file" must be
+	# defined', which did not say that "show" had been given, mistyped, and
+	# "plot_typ" as 'either "plot_type" or "plots"' likewise.
+	# "output_file" is any name at all, so it is tested for being given rather
+	# than for Perl truth, which refused a file called "0" as missing.
+	if ( ( not ( ( defined $args->{output_file} ) && ( length $args->{output_file} ) ) ) && ( not $args->{show} ) ) {
+		p $args;
+		die 'either "show" or "output_file" must be defined';
+	}
+	if (   ( not defined $args->{plot_type} )
+	  && ( not defined $args->{plots} ) )
+	{
+		p $args;
+		die 'either "plot_type" or "plots" must be defined, but neither were';
 	}
 	$args->{nrows} = $args->{nrow} if defined $args->{nrow}; # allow synonyms
 	$args->{ncols} = $args->{ncol} if defined $args->{ncol}; # allow synonyms
