@@ -11,7 +11,7 @@ package Matplotlib::Simple;
 # alone, so the keywords are matplotlib's names throughout, and an engine that
 # has no counterpart for one refuses it by name rather than leaving it out (check_engine).
 require 5.010;
-our $VERSION = 0.3342;
+our $VERSION = 0.3343;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use POSIX ();
@@ -140,6 +140,33 @@ our @plt_methods = (
 	'xlabel','xscale','ylabel', 'ylim', 'yscale',
 #	'xlim','xticks','yticks'
 );
+# The names in the three lists above that are not something to call. The lists
+# were read off dir() of an Axes, a Figure and pyplot, which holds attributes,
+# modules and constants beside the methods, and every keyword in them is
+# written into the script as a call: "dpi => 300" passed the keyword check and
+# became fig.dpi(300), which python refused as "TypeError: 'float' object is
+# not callable", and "rcParams => ..." as "'RcParams' object is not callable".
+# Not one of them could ever have run, so each is now refused as any other
+# unknown keyword is, with the keywords it resembles. Checked against
+# matplotlib 3.11.2 with callable(getattr(obj, name)).
+my %not_callable = (
+	ax => [ qw(axison callbacks child_axes collections containers dataLim
+	 fmt_xdata fmt_ydata ignore_existing_data_limits legend_ name spines tables
+	 titleOffsetTrans transAxes transData transLimits transScale
+	 use_sticky_edges viewLim xaxis yaxis) ],
+	fig => [ qw(artists bbox bbox_inches canvas clipbox dpi dpi_scale_trans
+	 figbbox frameon images lines mouseover number patch patches stale
+	 sticky_edges subfigs subplotpars suppressComposite texts transFigure
+	 transSubfigure zorder) ],
+	plt => [ qw(TYPE_CHECKING annotations backend_registry cbook cm
+	 color_sequences functools importlib inspect logging matplotlib mlab np
+	 rcParams rcParamsDefault rcParamsOrig rcsetup sys threading time) ],
+);
+foreach my $list ( [ ax => \@ax_methods ], [ fig => \@fig_methods ], [ plt => \@plt_methods ] ) {
+	my ( $object, $methods ) = @{$list};
+	my %drop = map { $_ => 1 } @{ $not_callable{$object} };
+	@{$methods} = grep { not $drop{$_} } @{$methods};
+}
 
 our @arg = ('add', 'cmap', 'data', 'execute', 'fh', 'ncol', 'ncols', 'nrow', 'nrows', 'p', 'plot_type',  'plots', 'plot', 'output_file', 'scale', 'scalex', 'scaley', 'show', 'twinx');
 # Options of plt itself, which no helper takes. "shared_colorbar" was in @arg,
@@ -1707,6 +1734,15 @@ sub check_add {
 	my @not_hash = grep { ref $add->[$_] ne 'HASH' } 0 .. $#{$add};
 	if ( scalar @not_hash > 0 ) {
 		die "\"add\"$where holds one HASH reference per graph, but index " . join( ', ', @not_hash ) . ' is not one';
+	}
+	# An "add" inside an "add" graph. The matplotlib engine draws the graphs
+	# of "add" and never looks inside one for more, so the inner graphs were
+	# left out of the figure without a word, where gnuplot and ggplot2 refused
+	# them. Every graph of a subplot goes in the one "add", so there is nothing
+	# a nested one could mean that the flat one does not say.
+	my @nested = grep { exists $add->[$_]{add} } 0 .. $#{$add};
+	if ( scalar @nested > 0 ) {
+		die "\"add\"$where graph " . join( ', ', @nested ) . ' has an "add" of its own, which is not drawn: list every graph of the subplot in the one "add"';
 	}
 }
 # The shape of "data" each plot_type reads. plot, scatter, imshow,
