@@ -63,6 +63,15 @@ spaces.** `%TEMP%` on the smoker is `C:\Users\smoker\AppData\Local\Temp`.
 Perl accepts `/` on Windows and so does Python, so building a path with `/` is
 fine; *parsing* one by splitting on `/` is not.
 
+**Never compare a file's size on disk with the length of text that went
+through a text-mode handle.** On Windows `:crlf` writes each `\n` as `\r\n`
+and reads it back as one byte, so `-s $file` and `length` of what was printed
+or read back differ by one per line. Read the file back through the same layers
+it was written with and compare the text, or open both ends `:raw`.
+Chem::Structure::Parser 0.040's `t/convert.t` failed on every Strawberry
+smoker this way. `-s` as a non-empty or plausibility check, as the tests here
+use it, is fine.
+
 **Keep the platform gates in the test suite honest.** A test that needs
 python3, matplotlib, matplotlib_venn, gnuplot or R with ggplot2 must
 `skip_all` or skip its block when the dependency is absent — a Windows smoker
@@ -263,6 +272,13 @@ decides the rest:
   figure is drawn and what its script says, not what it looks like.
 - `engine` and `style` belong to the whole figure, and are refused in a
   subplot or an `add` graph (`refuse_subplot_choices`).
+- **`output_file` is written once.** Anything done to a figure after it is
+  drawn -- cutting matplotlib's DOCTYPE, tooltips, the creator note -- is done
+  in memory or in a temporary file, and the finished figure is then written
+  in one open, write and close. Until 0.3345 every engine wrote an SVG and
+  then rewrote it, and Eye of GNOME 45.3, which reloads a figure whose file
+  changes, stopped reloading them. Check a change with
+  `strace -f -e trace=openat` or `gio monitor` on the output file.
 
 The helpers of `Matplotlib::Simple::Matplotlib` reach the front end's checks and keyword
 lists through aliases made in its `BEGIN` block, so a list changed in
@@ -333,12 +349,18 @@ the other engines are loaded when a figure first asks for one.
   `check_engine`'s refusals, the readers of text, colors, colormaps and axis
   ranges, and that every module carries Matplotlib::Simple's `$VERSION`. Needs nothing
   but Perl.
+- `t/20.review.fixes.0.3342.t`, `t/21.review.fixes.0.3343.t` — one block per
+  fix of 0.3343 and of 0.3344, in the form of `t/12.review.fixes.0.319.t`.
+  `t/21` runs nothing but Perl.
+- `t/22.review.fixes.0.3344.t` — one block per fix of 0.3345, in the same
+  form; nothing but Perl.
 - `t/utf8.mojibake.t` — labels arriving as raw utf8 bytes rather than wide
   characters.
-- `Matplotlib-Simple-0.3*/` and the matching
-  `.tar.gz` — snapshots of past releases, committed for reference. **Do not edit them and do not include them
-  in a repo-wide search-and-replace**; `MANIFEST.SKIP` keeps them out of the
-  next tarball.
+- `Matplotlib-Simple-$VERSION/` and the matching `.tar.gz` — the snapshot of
+  the latest release, committed for reference. `dzil.sh` runs `dzil clean`
+  before building, which deletes every earlier snapshot, so older ones live
+  only in git history. **Do not edit it and do not include it in a repo-wide
+  search-and-replace**; `MANIFEST.SKIP` keeps it out of the next tarball.
 - `*.pl` in the root — the author's scratch and example scripts, also excluded
   from the tarball.
 

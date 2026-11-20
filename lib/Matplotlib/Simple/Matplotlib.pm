@@ -12,7 +12,7 @@ package Matplotlib::Simple::Matplotlib;
 # The helpers keep checking their own keywords, against the same lists Matplotlib::Simple
 # checks them with, which are shared below rather than copied.
 require 5.010;
-our $VERSION = 0.3343;
+our $VERSION = 0.3345;
 use Scalar::Util 'looks_like_number';
 use List::Util qw(max sum min);
 use File::Spec;
@@ -36,7 +36,7 @@ BEGIN {
 # a list Matplotlib::Simple changes is the list checked here.
 BEGIN {
 	no strict 'refs';
-	*{$_} = \&{"Matplotlib::Simple::$_"} foreach qw(bad_keyword_error bin_counts bool_option cb_limits
+	*{$_} = \&{"Matplotlib::Simple::$_"} foreach qw(bad_keyword_error bar_series bin_counts bool_option cb_limits
 	 check_key_order check_numbers check_plot_type check_scatter_lengths creator_note
 	 check_scatter_values check_twinx_args check_wide_runs decoded_data
 	 decoded_text finite_values is_finite is_nan logscale_axes nonfinite_name
@@ -95,15 +95,35 @@ sub norm_args {
 	# args: lo, hi   => the ends of the scale, either undef to take it from
 	#                   "values", or from matplotlib if there are none
 	#       values   => array ref, optional: the values being colored
+	#       rows     => array ref of array refs, optional, in place of
+	#                   "values": the values being colored, a row at a time
 	#       log      => Perl true for a log scale
 	#       fh, sub  => the script, and the helper, for the import and errors
 	# A log scale cannot start at 0 or below, so its default bottom is the
 	# smallest value above 0, as LogNorm would choose for itself.
+	#
+	# The range is kept a row at a time, and looked for only where an end is
+	# not given. imshow passed its image flattened into one list, which was
+	# copied twice more here: with the rest of its work, a 1500 x 1500 image
+	# took 956 MB at its peak.
 	my ($args) = @_;
 	my ( $lo, $hi ) = @{$args}{qw(lo hi)};
-	my @values = finite_values( @{ $args->{values} // [] } );
+	my ( $min, $min_above_0, $max );
+	if ( ( not defined $lo ) || ( not defined $hi ) ) {
+		foreach my $row ( defined $args->{rows} ? @{ $args->{rows} } : ( $args->{values} // [] ) ) {
+			my @values = finite_values( @{$row} );
+			next if scalar @values == 0;
+			my ( $row_min, $row_max ) = ( min(@values), max(@values) );
+			$min = $row_min if ( not defined $min ) || ( $row_min < $min );
+			$max = $row_max if ( not defined $max ) || ( $row_max > $max );
+			next unless $args->{log};
+			my $row_min_above_0 = min( grep { $_ > 0 } @values );
+			next unless defined $row_min_above_0;
+			$min_above_0 = $row_min_above_0 if ( not defined $min_above_0 ) || ( $row_min_above_0 < $min_above_0 );
+		}
+	}
 	if ( $args->{log} ) {
-		$lo = $lo // min( grep { $_ > 0 } @values );
+		$lo = $lo // $min_above_0;
 		if ( not defined $lo ) {
 			die "\"cb_logscale\" needs a color value above 0 to start the scale at, or a \"vmin\" or \"cb_min\" above 0, and $args->{sub} has neither";
 		}
@@ -111,9 +131,9 @@ sub norm_args {
 			die "\"cb_logscale\" cannot start at $lo in $args->{sub}: a log scale needs a minimum above 0";
 		}
 	} else {
-		$lo = $lo // min(@values);
+		$lo = $lo // $min;
 	}
-	$hi = $hi // max(@values);
+	$hi = $hi // $max;
 	my @kw;
 	push @kw, 'vmin = ' . py_num($lo) if defined $lo;
 	push @kw, 'vmax = ' . py_num($hi) if defined $hi;
@@ -145,8 +165,12 @@ sub write_data {
 	my $json_string = $json_encoder->encode( decoded_data( $args->{data} ) );
 	# 3. Base64 Encode the JSON String, not the reference
 	my $b64_data = encode_base64($json_string, ''); 
-	# Assign the b64 string to a temp python variable
-	say {$args->{fh}} "$args->{name}_b64 = '$b64_data'";
+	# Assign the b64 string to a temp python variable. The JSON is let go
+	# first, and the line printed in pieces rather than interpolated, which
+	# made a third copy: for a 1500 x 1500 imshow that took the peak from
+	# 299 MB to 247 MB.
+	undef $json_string;
+	print {$args->{fh}} "$args->{name}_b64 = '", $b64_data, "'\n";
 	# Decode b64 -> bytes -> utf8 string -> json load -> python object
 	say {$args->{fh}} "$args->{name} = json.loads(base64.b64decode($args->{name}_b64).decode('utf-8'))";
 }
@@ -376,15 +400,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 		$plot_type = 'grouped';
 	} elsif ( defined $ref_counts{'HASH'} ) {
 		$plot_type = 'grouped';    # now make the hash of hash into a ARRAY structure
-		my %key2;
-		foreach my $key1 ( keys %{ $plot->{data} } ) {
-			foreach my $key2 ( keys %{ $plot->{data}{$key1} } ) {
-				$key2{$key2}++;
-			}
-		}
-		# "|| $a cmp $b": two inner keys differing only in case ("a", "A") tied,
-		# and hash order then chose which series came first, from run to run.
-		my @key2 = sort { lc $a cmp lc $b || $a cmp $b } keys %key2;
+		my @key2 = bar_series({ plot => $plot, sub => $current_sub });
 		my %new_structure;
 		foreach my $k1 ( keys %{ $plot->{data} } ) {
 			@{ $new_structure{$k1} } = @{ $plot->{data}{$k1} }{@key2};
@@ -403,6 +419,7 @@ sub barplot_helper { # this is a helper function to other matplotlib subroutines
 		}
 		# A new array rather than "@{ $plot->{label} } = ...", which wrote the
 		# series names into an array the caller may have passed as "label".
+		# The same names as any "label" given, which bar_series has checked.
 		$plot->{label} = [@key2];
 		$plot->{data} = \%new_structure;
 	} else {
@@ -1625,6 +1642,7 @@ sub imshow_helper {
 		die "$current_sub cannot draw an undefined cell, and \"data\" has them at " . join( ', ', @undef_cells ) . '; a NaN is drawn as an empty cell';
 	}
 	my $non_numeric_data = 0;
+	my $any_nonfinite    = 0;    # 1 once a value of a numeric image is NaN or infinite
 	foreach my $row (@{ $plot->{data} }) {
 		if (grep {not looks_like_number($_)} @{ $row }) {
 			$non_numeric_data = 1;
@@ -1672,7 +1690,12 @@ sub imshow_helper {
 		# numpy refused as "Image data of dtype object"; they travel as the
 		# strings "nan", "inf" and "-inf" instead, which the float conversion
 		# written after the data below reads back as the numbers they were.
-		$data = [ map { [ map { nonfinite_name($_) // 0 + $_ } @{ $_ } ] } @{ $data } ];
+		#
+		# Whether any value is not finite is noted as each is copied. It was
+		# looked for afterwards with a regex over every value, which gave each
+		# number a string as well, and for a 1500 x 1500 image cost 0.2 s and
+		# about 140 MB.
+		$data = [ map { [ map { my $name = nonfinite_name($_); $any_nonfinite = 1 if defined $name; $name // 0 + $_ } @{ $_ } ] } @{ $data } ];
 	}
 	my ( $min_val, $max_val );    # the ends of a stringmap's scale; numbers are left to norm_args
 	my $opts = '';
@@ -1708,7 +1731,7 @@ sub imshow_helper {
 	});
 	# Only where a value needs it, so that an image of whole numbers is still
 	# drawn from whole numbers.
-	if ( ( not $non_numeric_data ) && ( grep { grep { m/^-?(?:nan|inf)$/ } @{$_} } @{$data} ) ) {
+	if ($any_nonfinite) {
 		say { $args->{fh} } 'import numpy as np';
 		say { $args->{fh} } 'd = np.asarray(d, dtype = float)';
 	}
@@ -1729,7 +1752,7 @@ sub imshow_helper {
 	$opts .= norm_args({
 		lo     => $plot->{vmin} // ( $non_numeric_data ? $min_val : undef ),
 		hi     => $plot->{vmax} // ( $non_numeric_data ? $max_val : undef ),
-		values => $non_numeric_data ? [] : [ map { @{$_} } @{$data} ],
+		rows   => $non_numeric_data ? [] : $data,
 		log    => $plot->{cb_logscale},
 		fh     => $args->{fh},
 		sub    => $current_sub
@@ -3314,26 +3337,34 @@ sub render {
 		# finite number above 0. Without it savefig is called as it always
 		# was, at matplotlib's own "savefig.dpi".
 		my $dpi = defined $context->{dpi} ? ', dpi = ' . py_num( $context->{dpi} ) : '';
+		# $tooltips_drawn is 1 exactly when output_file is an SVG (or SVGZ),
+		# which is drawn into memory, finished there, and written to the file
+		# once, below. It was saved, read back, and written again, once to cut
+		# the DOCTYPE and once more for tooltips, so that a viewer watching the
+		# file saw it change two or three times, and empty between: Eye of
+		# GNOME 45.3, which reloads a PNG matplotlib has written over, stopped
+		# reloading such an SVG at all. "format" because a buffer has no
+		# extension to read it from.
+		my $target = $tooltips_drawn ? "svg_buffer, format = 'svg'," : 'output_file,';
+		print {$fh} <<'PYTHON' if $tooltips_drawn;
+import gzip, io, re
+svg_buffer = io.BytesIO()
+PYTHON
 		if ( savefig_takes_metadata( $args->{output_file} ) ) {
-			say $fh "plt.savefig(output_file, bbox_inches = 'tight'$dpi, metadata={'Creator': $creator"
+			say $fh "plt.savefig($target bbox_inches = 'tight'$dpi, metadata={'Creator': $creator"
 			 . " + ', Python ' + platform.python_version() + ', matplotlib ' + matplotlib.__version__"
 			 . " + ', by ' + creator_user + ' on ' + creator_host"
 			 . ( $tooltips_drawn ? ", 'Date': None, 'Format': None, 'Type': None" : '' ) . '})';
 		} else {
-			say $fh "plt.savefig(output_file, bbox_inches = 'tight'$dpi) # no metadata: this format keeps none";
+			say $fh "plt.savefig($target bbox_inches = 'tight'$dpi) # no metadata: this format keeps none";
 		}
-		# $tooltips_drawn is 1 exactly when output_file is an SVG. matplotlib
-		# writes <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" ...> from a fixed
-		# string, svgProlog in backend_svg.py, that no option turns off, so it is
-		# cut from the file once written. SVG 2 has no DOCTYPE, and no browser
-		# reads it. It holds no ">" of its own: there is no internal subset.
+		# matplotlib writes <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" ...>
+		# from a fixed string, svgProlog in backend_svg.py, that no option turns
+		# off, so it is cut from what was drawn. SVG 2 has no DOCTYPE, and no
+		# browser reads it. It holds no ">" of its own: there is no internal
+		# subset.
 		print {$fh} <<'PYTHON' if $tooltips_drawn;
-import gzip, re
-svg_open = gzip.open if output_file.lower().endswith('.svgz') else open
-with svg_open(output_file, 'rb') as svg:
-	svg_bytes = svg.read()
-with svg_open(output_file, 'wb') as svg:
-	svg.write(re.sub(rb'<!DOCTYPE[^>]*>\s*', b'', svg_bytes, count = 1))
+svg_bytes = re.sub(rb'<!DOCTYPE[^>]*>\s*', b'', svg_buffer.getvalue(), count = 1)
 PYTHON
 	}
 	if ( ( scalar @tooltip_text > 0 ) && ( not $tooltips_drawn ) ) {
@@ -3441,9 +3472,7 @@ for prefix, uri in (('', svg_ns), ('xlink', 'http://www.w3.org/1999/xlink'),
 	('rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'),
 	('cc', 'http://creativecommons.org/ns#'), ('dc', 'http://purl.org/dc/elements/1.1/')):
 	ET.register_namespace(prefix, uri)
-# svg_open was set where the DOCTYPE was cut, after savefig
-with svg_open(output_file, 'rb') as svg:
-	svg_tree = ET.parse(svg)
+svg_tree = ET.parse(io.BytesIO(svg_bytes))
 for link in list(svg_tree.iter('{%s}a' % svg_ns)):
 	href = link.get(xlink_href, '')
 	if not href.startswith(tooltip_url):
@@ -3457,10 +3486,16 @@ for link in list(svg_tree.iter('{%s}a' % svg_ns)):
 # last, so that every point is in the document when it runs, and the box it
 # draws is on top of everything else
 ET.SubElement(svg_tree.getroot(), '{%s}script' % svg_ns, {'type': 'text/javascript'}).text = tooltip_script
-with svg_open(output_file, 'wb') as svg:
-	svg_tree.write(svg, encoding = 'utf-8', xml_declaration = True)
+svg_buffer = io.BytesIO()
+svg_tree.write(svg_buffer, encoding = 'utf-8', xml_declaration = True)
+svg_bytes = svg_buffer.getvalue()
 PYTHON
 	}
+	# The one write of an SVG, finished above (see $target).
+	print {$fh} <<'PYTHON' if ( defined $args->{output_file} ) && $tooltips_drawn;
+with (gzip.open if output_file.lower().endswith('.svgz') else open)(output_file, 'wb') as svg:
+	svg.write(svg_bytes)
+PYTHON
 	say $fh 'plt.show()' if $args->{show}; # after savefig, so the file is written even if the window is never closed
 	say $fh 'plt.close()' if $args->{execute} == 0;
 	if ( $args->{execute} ) {

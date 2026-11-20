@@ -34,10 +34,18 @@ git add -A
 # Builds, runs the test suite (TestRelease), asks for confirmation, uploads.
 dzil release
 
+# Only the release being made is kept in the working directory, as in
+# ~/Scripts/stats/dzil.sh: "dzil clean" removes .build/ and everything matching
+# Matplotlib-Simple-* -- every earlier release's directory and tarball, the
+# -TRIAL ones included.  Earlier snapshots stay in git history, and the "git add
+# -A" below commits their removal.  This comes after "dzil release" so that a
+# failed test run or a declined upload ("set -e" stops the script) deletes
+# nothing.
+dzil clean
+
 # Again, without uploading: this is what leaves Matplotlib-Simple-$VERSION/ and
 # its tarball in the working directory, which are committed as the snapshot of
-# the release.  It overwrites an existing directory of the same name, so a
-# re-run of this script is harmless.
+# the release.
 dzil build
 
 # dist.ini takes the distribution version from the module ([VersionFromModule]),
@@ -62,7 +70,8 @@ perl Makefile.PL
 # waits until now because the snapshot, its tarball and the root Makefile.PL do
 # not exist until the build, and because "set -e" has stopped the script by now
 # if the tests failed or the upload was declined, so no commit is named for a
-# version that was never released.  This second "-A" picks up those files;
+# version that was never released.  This second "-A" picks up those files,
+# and the removal of the earlier snapshots that "dzil clean" deleted;
 # .gitignore keeps the build output (Makefile, blib/, .build/) out.  The message is the bare version,
 # as every release commit before this script did it has been.  A re-run with
 # nothing new to commit still pushes, in case the earlier push failed.
